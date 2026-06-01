@@ -1,5 +1,6 @@
 // server.js
 const express = require('express');
+app.use(cors());
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
