@@ -1,6 +1,6 @@
 // server.js
 const express = require('express');
-app.use(cors());
+const cors = require('cors'); // 1. استدعاء مكتبة CORS
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
@@ -9,7 +9,10 @@ const User = require('./models/User');
 const Log = require('./models/Log');
 const LeaveRequest = require('./models/LeaveRequest');
 
-const app = express();
+const app = express(); // 2. تعريف التطبيق
+
+// 3. استخدام الإضافات (الترتيب صحيح الآن)
+app.use(cors());
 app.use(express.json());
 
 // الاتصال بـ MongoDB
