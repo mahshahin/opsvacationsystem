@@ -10,7 +10,7 @@ const AdminLayout = ({ children }) => {
   // دالة لجلب عدد الطلبات المعلقة للإشعارات
   const fetchPendingCount = async () => {
     try {
-      const response = await fetch('/api/admin/pending-requests');
+      const response = await fetch('https://opsvacationsystem.onrender.com/api/admin/pending-requests');
       if (response.ok) {
         const data = await response.json();
         setPendingCount(data.length); // بناخد العدد بس

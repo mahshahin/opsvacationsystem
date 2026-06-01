@@ -18,7 +18,7 @@ const EmployeeManagement = () => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('/api/admin/employees');
+      const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
       const data = await res.json();
       if (res.ok) {
         // 💡 التعديل هنا: الترتيب الذكي للأرقام والنصوص معاً
@@ -40,7 +40,7 @@ const EmployeeManagement = () => {
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/admin/add-employee', {
+      const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/add-employee', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEmp)
@@ -68,7 +68,7 @@ const EmployeeManagement = () => {
   // 3. حفظ التعديلات
   const handleEditSave = async (id) => {
     try {
-      const res = await fetch(`/api/admin/update-employee/${id}`, {
+      const res = await fetch(`https://opsvacationsystem.onrender.com/api/admin/update-employee/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editFormData)
@@ -103,7 +103,7 @@ const EmployeeManagement = () => {
             onClick={async () => {
               toast.dismiss(t.id);
               try {
-                const res = await fetch(`/api/admin/delete-employee/${id}`, { method: 'DELETE' });
+                const res = await fetch(`https://opsvacationsystem.onrender.com/api/admin/delete-employee/${id}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (res.ok) {
                   toast.success(data.message, { style: { background: '#10b981', color: '#fff' }});
@@ -139,7 +139,7 @@ const EmployeeManagement = () => {
             onClick={async () => {
               toast.dismiss(t.id);
               try {
-                const res = await fetch('/api/admin/reset-password', {
+                const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/reset-password', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ employeeCode: code })

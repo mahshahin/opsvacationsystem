@@ -12,7 +12,7 @@ const AdminDashboard = () => {
   // دالة جلب الطلبات المعلقة أول ما الصفحة تفتح
   const fetchPendingRequests = async () => {
     try {
-      const response = await fetch('/api/admin/pending-requests');
+      const response = await fetch('https://opsvacationsystem.onrender.com/api/admin/pending-requests');
       const data = await response.json();
       if (response.ok) {
         setPendingRequests(data);
@@ -35,7 +35,7 @@ const AdminDashboard = () => {
   // دالة اتخاذ القرار (قبول أو رفض)
   const handleAction = async (requestId, action) => {
     try {
-      const response = await fetch('/api/admin/handle-request', {
+      const response = await fetch('https://opsvacationsystem.onrender.com/api/admin/handle-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, action })

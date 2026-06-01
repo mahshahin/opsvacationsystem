@@ -16,10 +16,10 @@ const LeaveHistory = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const archiveRes = await fetch('/api/admin/leave-archive');
+        const archiveRes = await fetch('https://opsvacationsystem.onrender.com/api/admin/leave-archive');
         const archiveData = await archiveRes.json();
         
-        const empRes = await fetch('/api/admin/employees');
+        const empRes = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
         const empData = await empRes.json();
 
         if (archiveRes.ok && empRes.ok) {

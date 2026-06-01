@@ -20,7 +20,7 @@ mongoose.connect(process.env.MONGO_URI)
 // ----------------------------------------
 // 1. [مسار الأدمن]: إضافة كود واسم موظف/أدمن جديد
 // ----------------------------------------
-app.post('https://opsvacationsystem.onrender.com/api/admin/add-employee', async (req, res) => {
+app.post('/api/admin/add-employee', async (req, res) => {
   try {
     const { employeeCode, name, role, jobGrade, workType, compensationBalance } = req.body;
     
@@ -78,7 +78,7 @@ app.post('https://opsvacationsystem.onrender.com/api/admin/add-employee', async 
 // ----------------------------------------
 // 2. [مسار الموظف]: تسجيل حساب جديد وتفعيل الباسوورد
 // ----------------------------------------
-app.post('https://opsvacationsystem.onrender.com/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   try {
     const { employeeCode, password } = req.body;
 
@@ -119,7 +119,7 @@ app.post('https://opsvacationsystem.onrender.com/api/auth/register', async (req,
 // ----------------------------------------
 // 3. [مسار تسجيل الدخول]: Login
 // ----------------------------------------
-app.post('https://opsvacationsystem.onrender.com/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
     const { employeeCode, password } = req.body;
 
@@ -167,7 +167,7 @@ app.post('https://opsvacationsystem.onrender.com/api/auth/login', async (req, re
 // ----------------------------------------
 // [مسار الإدارة]: إعادة ضبط حساب موظف (نسيان كلمة المرور)
 // ----------------------------------------
-app.post('https://opsvacationsystem.onrender.com/api/admin/reset-password', async (req, res) => {
+app.post('/api/admin/reset-password', async (req, res) => {
   try {
     const { employeeCode } = req.body;
 
@@ -196,7 +196,7 @@ app.post('https://opsvacationsystem.onrender.com/api/admin/reset-password', asyn
 // ----------------------------------------
 // 4. [مسار الموظف]: تقديم طلب إجازة
 // ----------------------------------------
-app.post('https://opsvacationsystem.onrender.com/api/leaves/request', async (req, res) => {
+app.post('/api/leaves/request', async (req, res) => {
   try {
     const { employeeCode, leaveType, startDate, endDate, reason } = req.body;
 
@@ -306,7 +306,7 @@ app.post('https://opsvacationsystem.onrender.com/api/leaves/request', async (req
 // ----------------------------------------
 // 5. [مسار الموظف/الإدارة]: استخراج تقرير الإجازات
 // ----------------------------------------
-app.post('https://opsvacationsystem.onrender.com/api/leaves/report', async (req, res) => {
+app.post('/api/leaves/report', async (req, res) => {
   try {
     const { employeeCode, startDate, endDate } = req.body;
 
@@ -352,7 +352,7 @@ app.post('https://opsvacationsystem.onrender.com/api/leaves/report', async (req,
 // ----------------------------------------
 // 6. [مسار الموظف]: جلب سجل طلباته
 // ----------------------------------------
-app.get('https://opsvacationsystem.onrender.com/api/leaves/my-requests/:employeeCode', async (req, res) => {
+app.get('/api/leaves/my-requests/:employeeCode', async (req, res) => {
   try {
     const { employeeCode } = req.params;
     const user = await User.findOne({ employeeCode });
@@ -368,7 +368,7 @@ app.get('https://opsvacationsystem.onrender.com/api/leaves/my-requests/:employee
 // ----------------------------------------
 // [مسار الإدارة]: جلب الطلبات المعلقة
 // ----------------------------------------
-app.get('https://opsvacationsystem.onrender.com/api/admin/pending-requests', async (req, res) => {
+app.get('/api/admin/pending-requests', async (req, res) => {
   try {
     const requests = await LeaveRequest.find({ status: 'pending' })
       .populate('employeeId', 'name employeeCode jobGrade leaveBalances')
@@ -382,7 +382,7 @@ app.get('https://opsvacationsystem.onrender.com/api/admin/pending-requests', asy
 // ----------------------------------------
 // [مسار الإدارة]: قبول أو رفض طلب
 // ----------------------------------------
-app.post('https://opsvacationsystem.onrender.com/api/admin/handle-request', async (req, res) => {
+app.post('/api/admin/handle-request', async (req, res) => {
   try {
     const { requestId, action } = req.body;
     if (!requestId || !action) return res.status(400).json({ message: 'بيانات ناقصة!' });
@@ -422,7 +422,7 @@ app.post('https://opsvacationsystem.onrender.com/api/admin/handle-request', asyn
 // ----------------------------------------
 // [مسار الإدارة]: جلب جميع الموظفين والمديرين
 // ----------------------------------------
-app.get('https://opsvacationsystem.onrender.com/api/admin/employees', async (req, res) => {
+app.get('/api/admin/employees', async (req, res) => {
   try {
     const employees = await User.find().sort({ createdAt: -1 });
     res.status(200).json(employees);
@@ -434,7 +434,7 @@ app.get('https://opsvacationsystem.onrender.com/api/admin/employees', async (req
 // ----------------------------------------
 // 🛡️ [مسار الإدارة]: تعديل بيانات مستخدم (مع حماية الأدمن الذهبي)
 // ----------------------------------------
-app.put('https://opsvacationsystem.onrender.com/api/admin/update-employee/:id', async (req, res) => {
+app.put('/api/admin/update-employee/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, jobGrade, workType, role } = req.body;
@@ -480,7 +480,7 @@ app.put('https://opsvacationsystem.onrender.com/api/admin/update-employee/:id', 
 // ----------------------------------------
 // 🛡️ [مسار الإدارة]: حذف مستخدم نهائياً (مع حماية الأدمن الذهبي)
 // ----------------------------------------
-app.delete('https://opsvacationsystem.onrender.com/api/admin/delete-employee/:id', async (req, res) => {
+app.delete('/api/admin/delete-employee/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -511,7 +511,7 @@ app.delete('https://opsvacationsystem.onrender.com/api/admin/delete-employee/:id
 // ----------------------------------------
 // [مسار الإدارة]: تعديل الأرصدة يدوياً
 // ----------------------------------------
-app.put('https://opsvacationsystem.onrender.com/api/admin/update-balances/:id', async (req, res) => {
+app.put('/api/admin/update-balances/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { annual, casual, compensation } = req.body;
@@ -545,7 +545,7 @@ app.put('https://opsvacationsystem.onrender.com/api/admin/update-balances/:id', 
 // ----------------------------------------
 // [مسار الإدارة]: جلب السجلات والأرشيف
 // ----------------------------------------
-app.get('https://opsvacationsystem.onrender.com/api/admin/logs', async (req, res) => {
+app.get('/api/admin/logs', async (req, res) => {
   try {
     const logs = await Log.find().sort({ createdAt: -1 }).limit(200);
     res.status(200).json(logs);
@@ -568,7 +568,7 @@ app.get('/api/admin/leave-archive', async (req, res) => {
 // ----------------------------------------
 // [مسار المستخدم]: تغيير كلمة المرور 
 // ----------------------------------------
-app.put('https://opsvacationsystem.onrender.com/api/auth/change-password', async (req, res) => {
+app.put('/api/auth/change-password', async (req, res) => {
   try {
     const { employeeCode, currentPassword, newPassword } = req.body;
     if (currentPassword === newPassword) {

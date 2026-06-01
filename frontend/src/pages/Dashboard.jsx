@@ -42,7 +42,7 @@ const Dashboard = () => {
 
   const fetchMyRequests = async (code) => {
     try {
-      const response = await fetch(`/api/leaves/my-requests/${code}`);
+      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/my-requests/${code}`);
       const data = await response.json();
       if (response.ok) setMyRequests(data);
     } catch (err) {
@@ -54,7 +54,7 @@ const Dashboard = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch('/api/leaves/request', {
+      const response = await fetch('https://opsvacationsystem.onrender.com/api/leaves/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,7 +80,7 @@ const Dashboard = () => {
   // دالة تأكيد الإلغاء (اللي بتشتغل لما الموظف يدوس "نعم" في النافذة)
   const confirmCancelRequest = async () => {
     try {
-      const response = await fetch(`/api/leaves/cancel-request/${cancelModal.requestId}`, {
+      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/cancel-request/${cancelModal.requestId}`, {
         method: 'DELETE',
       });
       const data = await response.json();

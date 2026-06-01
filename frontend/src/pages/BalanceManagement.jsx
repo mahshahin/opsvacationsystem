@@ -15,7 +15,7 @@ const BalanceManagement = () => {
 
   const fetchEmployees = async () => {
     try {
-      const res = await fetch('/api/admin/employees');
+      const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
       const data = await res.json();
       if (res.ok) {
         // ترتيب تصاعدي حسب الكود
@@ -45,7 +45,7 @@ const BalanceManagement = () => {
   const handleSaveBalances = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`/api/admin/update-balances/${selectedEmp._id}`, {
+      const res = await fetch(`https://opsvacationsystem.onrender.com/api/admin/update-balances/${selectedEmp._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(balances)

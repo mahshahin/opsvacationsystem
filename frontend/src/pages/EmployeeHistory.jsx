@@ -31,7 +31,7 @@ const EmployeeHistory = () => {
 
   const fetchMyRequests = async (code) => {
     try {
-      const response = await fetch(`/api/leaves/my-requests/${code}`);
+      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/my-requests/${code}`);
       const data = await response.json();
       if (response.ok) {
         setAllRequests(data);
@@ -46,7 +46,7 @@ const EmployeeHistory = () => {
   // دالة تأكيد الإلغاء (اللي بتشتغل لما الموظف يدوس "نعم" في النافذة)
   const confirmCancelRequest = async () => {
     try {
-      const response = await fetch(`/api/leaves/cancel-request/${cancelModal.requestId}`, {
+      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/cancel-request/${cancelModal.requestId}`, {
         method: 'DELETE',
       });
       const data = await response.json();
