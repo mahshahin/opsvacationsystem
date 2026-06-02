@@ -533,6 +533,19 @@ app.delete('/api/admin/delete-admin/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// مسار سجلات النظام (Audit Logs)
+// ==========================================
+app.get('/api/admin/logs', async (req, res) => {
+  try {
+    // هنجيب آخر 200 حركة حصلت على السيستم مترتبين من الأحدث للأقدم
+    const logs = await Log.find().sort({ createdAt: -1 }).limit(200);
+    res.status(200).json(logs);
+  } catch (error) {
+    res.status(500).json({ message: 'خطأ في جلب سجلات النظام', error: error.message });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 server is running on port: ${PORT}`);

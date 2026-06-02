@@ -20,4 +20,9 @@ const logSchema = new mongoose.Schema({
   }
 }, { timestamps: true }); // الـ timestamps هنا ستعطينا وقت العملية بالملي ثانية تلقائياً عبر createdAt
 
+// إضافة خاصية التدمير الذاتي (TTL)
+// السطر ده بيخلي الداتا بيز تمسح السجل تلقائياً بعد 30 يوم من إنشائه
+logSchema.index({ createdAt: 1 }, { expireAfterSeconds: 2592000 });
+
+
 module.exports = mongoose.model('Log', logSchema);
