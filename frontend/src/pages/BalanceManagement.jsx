@@ -69,7 +69,7 @@ const BalanceManagement = () => {
       <div className="p-8 bg-gray-50 min-h-screen relative">
         <header className="mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">إدارة خزينة الأرصدة</h2>
+            <h2 className="text-2xl font-bold text-gray-800">إدارة الأرصدة</h2>
             <p className="text-gray-500 text-sm mt-1">متابعة وتعديل أرصدة الإجازات لدورة عام {currentYear}</p>
           </div>
           <div className="bg-green-50 text-green-700 p-3 rounded-lg flex items-center gap-2 font-bold">
@@ -93,7 +93,7 @@ const BalanceManagement = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr><td colSpan="6" className="p-8 text-center text-gray-400">جاري تحميل الأرصدة...</td></tr>
-              ) : employees.map(emp => (
+              ) : employees.sort((a, b) => Number(a.employeeCode) - Number(b.employeeCode)).map(emp => (
                 <tr key={emp._id} className="hover:bg-gray-50 transition">
                   <td className="p-4 text-gray-500 font-medium">{emp.employeeCode}</td>
                   <td className="p-4 font-bold text-gray-800">{emp.name}</td>

@@ -194,7 +194,7 @@ const EmployeeManagement = () => {
       <div className="p-8 bg-gray-50 min-h-screen">
         <header className="mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">بيان قوة الإدارة والتحكم</h2>
+            <h2 className="text-2xl font-bold text-gray-800">بيان الإدارة والتحكم</h2>
             <p className="text-gray-500 text-sm mt-1">إضافة، تعديل، حذف، وتصفير حسابات الموظفين والمديرين</p>
           </div>
           <div className="bg-blue-50 text-blue-800 px-4 py-2 rounded-lg font-bold text-sm">
@@ -319,7 +319,7 @@ const EmployeeManagement = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-navy-light/5 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
               <User className="text-navy-light" size={20} />
-              <h3 className="font-bold text-gray-800">بيان القوة البشرية (Staff)</h3>
+              <h3 className="font-bold text-gray-800">بيان السادة أفراد السيطرة المركزية (Staff)</h3>
             </div>
             <table className="w-full text-right">
               <thead className="bg-gray-50 text-gray-500 text-sm border-b">
