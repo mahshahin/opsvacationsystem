@@ -21,10 +21,14 @@ const EmployeeManagement = () => {
       const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
       const data = await res.json();
       if (res.ok) {
-        // 💡 التعديل هنا: الترتيب الذكي للأرقام والنصوص معاً
-        const sortedData = data.sort((a, b) => 
+        // 1. فلترة البيانات: استبعاد أي شخص اسمه "أدمن" تماماً من الجداول
+        const filteredData = data.filter(emp => emp.name !== 'أدمن');
+
+        // 2. الترتيب: ترتيب تصاعدي من الصغير للكبير بناءً على كود الموظف
+        const sortedData = filteredData.sort((a, b) => 
           String(a.employeeCode).localeCompare(String(b.employeeCode), undefined, { numeric: true })
         );
+        
         setEmployees(sortedData);
       }
     } catch (err) { 
@@ -171,20 +175,13 @@ const EmployeeManagement = () => {
   };
 
   // فصل القوائم لجدولين
-  // 1. هات بيانات المستخدم اللي فاتح السيستم حالياً عشان نقارن بيه
   const loggedInUser = JSON.parse(localStorage.getItem('employeeData') || '{}');
   
-  // 2. فلترة جدول المديرين (بذكاء: إخفاء الأدمن الذهبي عن غيره)
   const adminsList = employees.filter(emp => {
     if (emp.role !== 'admin') return false;
-
-    // لو الموظف اللي في اللفة هو الأدمن الذهبي (1111)
     if (emp.employeeCode === GOLDEN_ADMIN_CODE) {
-      // اعرضه فقط لو اللي فاتح السيستم هو نفسه (الأدمن الذهبي)
       return loggedInUser.employeeCode === GOLDEN_ADMIN_CODE;
     }
-
-    // لو أي أدمن تاني، اعرضه عادي لكل المديرين
     return true;
   });
   const staffList = employees.filter(emp => emp.role !== 'admin');
