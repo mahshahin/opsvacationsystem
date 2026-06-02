@@ -22,7 +22,7 @@ const EmployeeManagement = () => {
       const data = await res.json();
       if (res.ok) {
         // 1. فلترة البيانات: استبعاد أي شخص اسمه "أدمن" تماماً من الجداول
-        const filteredData = data.filter(emp => emp.name !== 'أدمن');
+        const filteredData = data.filter(emp => emp.name !== 'admin');
 
         // 2. الترتيب: ترتيب تصاعدي من الصغير للكبير بناءً على كود الموظف
         const sortedData = filteredData.sort((a, b) => 
