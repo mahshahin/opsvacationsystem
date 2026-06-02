@@ -14,21 +14,17 @@ const EmployeeManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [editFormData, setEditFormData] = useState({ name: '', jobGrade: '', workType: '', role: '' });
 
-  const GOLDEN_ADMIN_CODE = '1111'; // 👑 كود الأدمن الذهبي الثابت
+  const GOLDEN_ADMIN_CODE = '1111';
 
   const fetchEmployees = async () => {
     try {
       const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
       const data = await res.json();
       if (res.ok) {
-        // 1. فلترة البيانات: استبعاد أي شخص اسمه "أدمن" تماماً من الجداول
-        const filteredData = data.filter(emp => emp.name !== 'admin');
-
-        // 2. الترتيب: ترتيب تصاعدي من الصغير للكبير بناءً على كود الموظف
-        const sortedData = filteredData.sort((a, b) => 
+        // ترتيب تصاعدي بالكود من الصغير للكبير في الواجهة
+        const sortedData = data.sort((a, b) => 
           String(a.employeeCode).localeCompare(String(b.employeeCode), undefined, { numeric: true })
         );
-        
         setEmployees(sortedData);
       }
     } catch (err) { 
@@ -40,7 +36,6 @@ const EmployeeManagement = () => {
 
   useEffect(() => { fetchEmployees(); }, []);
 
-  // 1. إضافة موظف
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
@@ -63,13 +58,11 @@ const EmployeeManagement = () => {
     }
   };
 
-  // 2. بدء وضع التعديل
   const handleEditClick = (emp) => {
     setEditingId(emp._id);
     setEditFormData({ name: emp.name, jobGrade: emp.jobGrade, workType: emp.workType, role: emp.role });
   };
 
-  // 3. حفظ التعديلات
   const handleEditSave = async (id) => {
     try {
       const res = await fetch(`https://opsvacationsystem.onrender.com/api/admin/update-employee/${id}`, {
@@ -91,7 +84,6 @@ const EmployeeManagement = () => {
     }
   };
 
-  // 4. دالة تأكيد الحذف
   const handleDeleteConfirm = (id, empName) => {
     toast((t) => (
       <div className="flex flex-col gap-3 p-1">
@@ -100,7 +92,7 @@ const EmployeeManagement = () => {
           <span>تحذير حذف نهائي!</span>
         </div>
         <p className="text-sm text-gray-700">
-          هل أنت متأكد من حذف حساب (<span className="font-bold text-red-600">{empName}</span>) من النظام؟ سيتم مسح كل بياناته وطلباته.
+          هل أنت متأكد من حذف حساب (<span className="font-bold text-red-600">{empName}</span>) من النظام؟
         </p>
         <div className="flex gap-2 mt-2">
           <button 
@@ -119,15 +111,12 @@ const EmployeeManagement = () => {
           >
             نعم، احذف
           </button>
-          <button onClick={() => toast.dismiss(t.id)} className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition">
-            إلغاء
-          </button>
+          <button onClick={() => toast.dismiss(t.id)} className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition">إلغاء</button>
         </div>
       </div>
     ), { duration: Infinity, style: { border: '1px solid #ef4444', padding: '12px', minWidth: '320px' } });
   };
 
-  // 5. دالة تأكيد تصفير الباسوورد
   const handleResetConfirm = (code, empName) => {
     toast((t) => (
       <div className="flex flex-col gap-3 p-1">
@@ -136,7 +125,7 @@ const EmployeeManagement = () => {
           <span>تأكيد تصفير الحساب</span>
         </div>
         <p className="text-sm text-gray-700">
-          هل تريد تصفير كلمة المرور لحساب (<span className="font-bold text-navy-light">{empName}</span>)؟ سيعود الحساب غير مفعّل.
+          هل تريد تصفير كلمة المرور لحساب (<span className="font-bold text-navy-light">{empName}</span>)؟
         </p>
         <div className="flex gap-2 mt-2">
           <button 
@@ -158,9 +147,7 @@ const EmployeeManagement = () => {
           >
             نعم، قم بالتصفير
           </button>
-          <button onClick={() => toast.dismiss(t.id)} className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition">
-            إلغاء
-          </button>
+          <button onClick={() => toast.dismiss(t.id)} className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition">إلغاء</button>
         </div>
       </div>
     ), { duration: Infinity, style: { border: '1px solid #eab308', padding: '12px', minWidth: '320px' } });
@@ -174,7 +161,6 @@ const EmployeeManagement = () => {
     }
   };
 
-  // فصل القوائم لجدولين
   const loggedInUser = JSON.parse(localStorage.getItem('employeeData') || '{}');
   
   const adminsList = employees.filter(emp => {
@@ -199,27 +185,10 @@ const EmployeeManagement = () => {
           </div>
         </header>
         
-        {/* فورمة الإضافة الذكية */}
         <form onSubmit={handleAdd} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-5 gap-4">
-          <input 
-            placeholder={newEmp.role === 'admin' ? "اسم المستخدم (Username)" : "كود الموظف"} 
-            value={newEmp.employeeCode} 
-            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-            onChange={(e) => setNewEmp({...newEmp, employeeCode: e.target.value})} 
-            required 
-          />
-          <input 
-            placeholder={newEmp.role === 'admin' ? "اسم المدير الرباعي" : "الاسم الرباعي"} 
-            value={newEmp.name} 
-            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
-            onChange={(e) => setNewEmp({...newEmp, name: e.target.value})} 
-            required 
-          />
-          <select 
-            value={newEmp.role} 
-            className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700" 
-            onChange={(e) => setNewEmp({...newEmp, role: e.target.value, jobGrade: e.target.value === 'admin' ? '' : 'درجة ثالثة', workType: e.target.value === 'admin' ? '' : 'شيفت'})}
-          >
+          <input placeholder={newEmp.role === 'admin' ? "اسم المستخدم (Username)" : "كود الموظف"} value={newEmp.employeeCode} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={(e) => setNewEmp({...newEmp, employeeCode: e.target.value})} required />
+          <input placeholder={newEmp.role === 'admin' ? "اسم المدير الرباعي" : "الاسم الرباعي"} value={newEmp.name} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={(e) => setNewEmp({...newEmp, name: e.target.value})} required />
+          <select value={newEmp.role} className="p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-700" onChange={(e) => setNewEmp({...newEmp, role: e.target.value, jobGrade: e.target.value === 'admin' ? '' : 'درجة ثالثة', workType: e.target.value === 'admin' ? '' : 'شيفت'})}>
             <option value="employee">صفة: موظف</option>
             <option value="manager">صفة: مدير</option>
             <option value="admin">صفة: مدير نظام (Admin)</option>
@@ -248,7 +217,6 @@ const EmployeeManagement = () => {
         </form>
 
         <div className="space-y-8">
-          {/* 👑 جدول المديرين (Admins) */}
           <div className="bg-white rounded-xl shadow-sm border border-yellow-200 overflow-hidden">
             <div className="bg-yellow-50 px-6 py-4 border-b border-yellow-200 flex items-center gap-2">
               <ShieldAlert className="text-yellow-600" size={20} />
@@ -269,15 +237,9 @@ const EmployeeManagement = () => {
                 ) : adminsList.map(emp => (
                   <tr key={emp._id} className={emp.employeeCode === GOLDEN_ADMIN_CODE ? "bg-yellow-50/40" : "hover:bg-gray-50 transition"}>
                     <td className="p-4 text-gray-600 font-bold">{emp.employeeCode}</td>
-                    
                     <td className="p-4">
-                      {editingId === emp._id ? (
-                        <input type="text" value={editFormData.name} className="p-1.5 border rounded w-full" onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} />
-                      ) : (
-                        <span className="font-bold text-gray-800">{emp.name}</span>
-                      )}
+                      {editingId === emp._id ? <input type="text" value={editFormData.name} className="p-1.5 border rounded w-full" onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} /> : <span className="font-bold text-gray-800">{emp.name}</span>}
                     </td>
-
                     <td className="p-4 text-center">
                       {editingId === emp._id ? (
                         <select value={editFormData.role} className="p-1.5 border rounded text-center" onChange={(e) => setEditFormData({...editFormData, role: e.target.value})}>
@@ -287,12 +249,9 @@ const EmployeeManagement = () => {
                         </select>
                       ) : translateRole(emp.role)}
                     </td>
-
                     <td className="p-4 text-center">
                       {emp.employeeCode === GOLDEN_ADMIN_CODE ? (
-                        <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-yellow-200">
-                          👑 أدمن ذهبي محمي
-                        </span>
+                        <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-yellow-200">👑 أدمن ذهبي محمي</span>
                       ) : editingId === emp._id ? (
                         <div className="flex justify-center gap-2">
                           <button onClick={() => handleEditSave(emp._id)} className="flex items-center gap-1 bg-green-600 text-white px-2.5 py-1.5 rounded-md text-xs font-bold hover:bg-green-700 transition"><Check size={14}/> حفظ</button>
@@ -312,7 +271,6 @@ const EmployeeManagement = () => {
             </table>
           </div>
 
-          {/* 👥 جدول الموظفين (Staff) */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-navy-light/5 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
               <User className="text-navy-light" size={20} />
@@ -335,15 +293,9 @@ const EmployeeManagement = () => {
                 ) : staffList.map(emp => (
                   <tr key={emp._id} className="hover:bg-gray-50 transition">
                     <td className="p-4 text-gray-500 font-medium">{emp.employeeCode}</td>
-                    
                     <td className="p-4">
-                      {editingId === emp._id ? (
-                        <input type="text" value={editFormData.name} className="p-1.5 border rounded w-full" onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} />
-                      ) : (
-                        <span className="font-bold text-gray-800">{emp.name}</span>
-                      )}
+                      {editingId === emp._id ? <input type="text" value={editFormData.name} className="p-1.5 border rounded w-full" onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} /> : <span className="font-bold text-gray-800">{emp.name}</span>}
                     </td>
-
                     <td className="p-4 text-sm text-gray-600 text-center">
                       {editingId === emp._id ? (
                         <select value={editFormData.jobGrade} className="p-1.5 border rounded" onChange={(e) => setEditFormData({...editFormData, jobGrade: e.target.value})}>
@@ -354,18 +306,14 @@ const EmployeeManagement = () => {
                         </select>
                       ) : emp.jobGrade}
                     </td>
-
                     <td className="p-4 text-center">
                       {editingId === emp._id ? (
                         <select value={editFormData.workType} className="p-1.5 border rounded" onChange={(e) => setEditFormData({...editFormData, workType: e.target.value})}>
                           <option value="شيفت">شيفت</option>
                           <option value="أبحاث">أبحاث</option>
                         </select>
-                      ) : (
-                        <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${emp.workType === 'شيفت' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>{emp.workType}</span>
-                      )}
+                      ) : <span className={`px-2.5 py-0.5 rounded text-xs font-bold ${emp.workType === 'شيفت' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>{emp.workType}</span>}
                     </td>
-
                     <td className="p-4 text-center">
                       {editingId === emp._id ? (
                         <select value={editFormData.role} className="p-1.5 border rounded" onChange={(e) => setEditFormData({...editFormData, role: e.target.value})}>
@@ -375,7 +323,6 @@ const EmployeeManagement = () => {
                         </select>
                       ) : translateRole(emp.role)}
                     </td>
-
                     <td className="p-4 text-center">
                       {editingId === emp._id ? (
                         <div className="flex justify-center gap-2">
