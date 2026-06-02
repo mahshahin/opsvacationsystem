@@ -8,6 +8,7 @@ require('dotenv').config();
 const User = require('./models/User');
 const Log = require('./models/Log');
 const LeaveRequest = require('./models/LeaveRequest');
+const Admin = require('./models/Admin');
 
 const app = express();
 
@@ -96,22 +97,60 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// ----------------------------------------
+// 3. [مسار تسجيل الدخول المزدوج]: Login
+// ----------------------------------------
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { employeeCode, password } = req.body;
-    if (!employeeCode || !password) return res.status(400).json({ message: 'برجاء إدخال كود المستخدم وكلمة المرور!' });
+    const { employeeCode, password } = req.body; // بنستقبل اللي جاي من الشاشة (سواء كود أو اسم مستخدم)
 
-    const user = await User.findOne({ employeeCode });
-    if (!user) return res.status(400).json({ message: 'الكود أو كلمة المرور غير صحيحة!' });
-    if (!user.isRegistered) return res.status(400).json({ message: 'هذا الحساب غير مفعل بعد!' });
+    if (!employeeCode || !password) {
+      return res.status(400).json({ message: 'برجاء إدخال اسم المستخدم/الكود وكلمة المرور!' });
+    }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'الكود أو كلمة المرور غير صحيحة!' });
+    // 1. ندور في جدول الإدارة الأول
+    const adminUser = await Admin.findOne({ username: employeeCode });
+    if (adminUser) {
+      const isMatch = await bcrypt.compare(password, adminUser.password);
+      if (!isMatch) return res.status(400).json({ message: 'بيانات الدخول غير صحيحة!' });
 
-    const newLog = new Log({ action: 'LOGIN_SUCCESS', performedBy: user._id, details: `تسجيل دخول ناجح: ${user.name}`, ipAddress: req.ip });
-    await newLog.save();
+      return res.status(200).json({
+        message: 'تم تسجيل الدخول بنجاح كمدير نظام!',
+        user: {
+          id: adminUser._id,
+          employeeCode: adminUser.username,
+          name: adminUser.name,
+          role: adminUser.role
+        }
+      });
+    }
 
-    res.status(200).json({ message: 'تم تسجيل الدخول بنجاح!', user: { id: user._id, employeeCode: user.employeeCode, name: user.name, role: user.role, leaveBalances: user.leaveBalances } });
+    // 2. لو ملقيناهوش في الإدارة، ندور في جدول الموظفين
+    const regularUser = await User.findOne({ employeeCode });
+    if (!regularUser) {
+      return res.status(400).json({ message: 'الحساب غير مسجل بالنظام!' });
+    }
+
+    if (!regularUser.isRegistered) {
+      return res.status(400).json({ message: 'هذا الحساب غير مفعل بعد!' });
+    }
+
+    const isMatch = await bcrypt.compare(password, regularUser.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'بيانات الدخول غير صحيحة!' });
+    }
+
+    res.status(200).json({
+      message: 'تم تسجيل الدخول بنجاح!',
+      user: {
+        id: regularUser._id,
+        employeeCode: regularUser.employeeCode,
+        name: regularUser.name,
+        role: regularUser.role,
+        leaveBalances: regularUser.leaveBalances
+      }
+    });
+
   } catch (error) {
     res.status(500).json({ message: 'حدث خطأ أثناء تسجيل الدخول', error: error.message });
   }
@@ -120,18 +159,27 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/admin/reset-password', async (req, res) => {
   try {
     const { employeeCode } = req.body;
-    if (!employeeCode) return res.status(400).json({ message: 'برجاء إدخال الكود المراد تصفير حسابه.' });
+    if (employeeCode === 'admin') return res.status(403).json({ message: 'محظور تصفير الأدمن الذهبي!' });
 
+    // 1. لو أدمن، هنرجع باسوورده للقيمة الافتراضية 123456
+    const admin = await Admin.findOne({ username: employeeCode });
+    if (admin) {
+      const salt = await bcrypt.genSalt(10);
+      admin.password = await bcrypt.hash('123456', salt);
+      await admin.save();
+      return res.status(200).json({ message: `تم إعادة كلمة مرور المدير (${admin.name}) للباسوورد الافتراضي: 123456` });
+    }
+
+    // 2. لو موظف عادي، بنمشي على اللوجيك القديم بتاعه
     const user = await User.findOne({ employeeCode });
-    if (!user) return res.status(404).json({ message: 'المستخدم غير موجود في النظام!' });
+    if (!user) return res.status(404).json({ message: 'المستهدف غير موجود بالنظام!' });
 
     user.password = undefined;
     user.isRegistered = false;
     await user.save();
-
-    res.status(200).json({ message: `تم تصفير حساب (${user.name}) بنجاح.` });
+    res.status(200).json({ message: `تم تصفير حساب الموظف (${user.name}) بنجاح.` });
   } catch (error) {
-    res.status(500).json({ message: 'حدث خطأ في السيرفر', error: error.message });
+    res.status(500).json({ message: 'خطأ في السيرفر', error: error.message });
   }
 });
 
@@ -352,24 +400,136 @@ app.get('/api/admin/leave-archive', async (req, res) => {
   }
 });
 
+// ----------------------------------------
+// [مسار المستخدم/الأدمن]: تغيير كلمة المرور من صفحة حسابي
+// ----------------------------------------
 app.put('/api/auth/change-password', async (req, res) => {
   try {
-    const { employeeCode, currentPassword, newPassword } = req.body;
-    if (currentPassword === newPassword) return res.status(400).json({ message: 'يجب أن تكون كلمة المرور مختلفة!' });
+    const { employeeCode, currentPassword, newPassword } = req.body; 
+    // ملاحظة: employeeCode هنا شايل إما كود الموظف، أو اسم المستخدم (username) بتاع الأدمن
 
-    const user = await User.findOne({ employeeCode });
-    if (!user) return res.status(404).json({ message: 'المستخدم غير موجود!' });
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: 'كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية!' });
+    }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'كلمة المرور الحالية غير صحيحة!' });
+    let account = null;
 
+    // 1. ندور في جدول الإدارة (Admins) الأول
+    account = await Admin.findOne({ username: employeeCode });
+    
+    // 2. لو ملقيناهوش، ندور في جدول الموظفين (Users)
+    if (!account) {
+      account = await User.findOne({ employeeCode });
+    }
+
+    // 3. لو مش موجود في الجدولين
+    if (!account) {
+      return res.status(404).json({ message: 'الحساب غير موجود!' });
+    }
+
+    // 4. التأكد من كلمة المرور الحالية (القديمة)
+    const isMatch = await bcrypt.compare(currentPassword, account.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'كلمة المرور الحالية غير صحيحة!' });
+    }
+
+    // 5. تشفير كلمة المرور الجديدة وحفظها في الجدول الصحيح
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
-    await user.save();
+    account.password = await bcrypt.hash(newPassword, salt);
+    await account.save();
 
-    res.status(200).json({ message: 'تم التغيير بنجاح!' });
+    res.status(200).json({ message: 'تم تغيير كلمة المرور بنجاح!' });
   } catch (error) {
-    res.status(500).json({ message: 'خطأ في السيرفر', error: error.message });
+    res.status(500).json({ message: 'حدث خطأ في السيرفر', error: error.message });
+  }
+});
+
+// ==========================================
+// مسارات جدول الإدارة العليا (Admin Collection)
+// ==========================================
+
+// 1. [إضافة أدمن جديد]
+app.post('/api/admin/create-admin', async (req, res) => {
+  try {
+    const { username, name, password } = req.body;
+
+    if (!username || !name || !password) {
+      return res.status(400).json({ message: 'برجاء إدخال اسم المستخدم، الاسم، والرقم السري!' });
+    }
+
+    const existingAdmin = await Admin.findOne({ username });
+    if (existingAdmin) {
+      return res.status(400).json({ message: 'اسم المستخدم مسجل مسبقاً!' });
+    }
+
+    // تشفير الرقم السري قبل الحفظ
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newAdmin = new Admin({
+      username,
+      name,
+      password: hashedPassword,
+      role: 'admin' // ثابتة
+    });
+
+    await newAdmin.save();
+    res.status(201).json({ message: 'تم إضافة مدير النظام بنجاح!' });
+  } catch (error) {
+    res.status(500).json({ message: 'حدث خطأ في السيرفر', error: error.message });
+  }
+});
+
+// 2. [جلب كل المديرين لجدول العرض]
+app.get('/api/admin/admins-list', async (req, res) => {
+  try {
+    const admins = await Admin.find().select('-password'); // بنجيب الداتا من غير الباسوورد للأمان
+    res.status(200).json(admins);
+  } catch (error) {
+    res.status(500).json({ message: 'خطأ في جلب بيانات الإدارة', error: error.message });
+  }
+});
+
+// 3. [تعديل بيانات أدمن]
+app.put('/api/admin/update-admin/:id', async (req, res) => {
+  try {
+    const { name, username } = req.body;
+    const admin = await Admin.findById(req.params.id);
+    
+    if (!admin) return res.status(404).json({ message: 'المدير غير موجود!' });
+
+    // حماية اسم المستخدم للأدمن الذهبي من التعديل عشان ميبوظش
+    if (admin.username === 'admin' && username !== 'admin') {
+      return res.status(403).json({ message: 'لا يمكن تغيير اسم المستخدم للأدمن الذهبي!' });
+    }
+
+    admin.name = name || admin.name;
+    if (admin.username !== 'admin') {
+      admin.username = username || admin.username;
+    }
+
+    await admin.save();
+    res.status(200).json({ message: 'تم تحديث بيانات المدير بنجاح!' });
+  } catch (error) {
+    res.status(500).json({ message: 'خطأ في التحديث', error: error.message });
+  }
+});
+
+// 4. [مسح أدمن]
+app.delete('/api/admin/delete-admin/:id', async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.params.id);
+    if (!admin) return res.status(404).json({ message: 'المدير غير موجود!' });
+
+    // حماية الأدمن الذهبي من المسح
+    if (admin.username === 'admin') {
+      return res.status(403).json({ message: 'تحذير أمني: يمنع مسح الأدمن الذهبي للنظام!' });
+    }
+
+    await Admin.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'تم مسح حساب المدير نهائياً!' });
+  } catch (error) {
+    res.status(500).json({ message: 'خطأ أثناء المسح', error: error.message });
   }
 });
 
