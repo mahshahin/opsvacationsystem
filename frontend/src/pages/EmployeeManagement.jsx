@@ -164,12 +164,16 @@ const EmployeeManagement = () => {
   const loggedInUser = JSON.parse(localStorage.getItem('employeeData') || '{}');
   
   const adminsList = employees.filter(emp => {
+    // هنا هنعرض كل اللي صلاحيتهم admin، ونستثني فقط الأسماء اللي مش عاوزينها
     if (emp.role !== 'admin') return false;
+    
+    // لو عاوز تخفي الأدمن الذهبي عن غيره
     if (emp.employeeCode === GOLDEN_ADMIN_CODE) {
       return loggedInUser.employeeCode === GOLDEN_ADMIN_CODE;
     }
-    return true;
-  });
+    
+    return true; // هيعرض كل المديرين التانيين اللي أضفتهم
+});
   const staffList = employees.filter(emp => emp.role !== 'admin');
 
   return (

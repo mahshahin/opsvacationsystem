@@ -258,9 +258,8 @@ app.post('/api/admin/handle-request', async (req, res) => {
 // ----------------------------------------
 app.get('/api/admin/employees', async (req, res) => {
   try {
-    const employees = await User.find({
-      name: { $nin: ['أدمن', 'ادمن', 'admin', 'Admin'] }
-    });
+    // جلب الكل بدون أي فلترة من السيرفر
+    const employees = await User.find().sort({ employeeCode: 1 });
     res.status(200).json(employees);
   } catch (error) {
     res.status(500).json({ message: 'خطأ في الجلب', error: error.message });
