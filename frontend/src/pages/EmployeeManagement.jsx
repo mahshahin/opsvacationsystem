@@ -21,15 +21,8 @@ const EmployeeManagement = () => {
       const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
       const data = await res.json();
       if (res.ok) {
-        // 1. فلترة البيانات: استبعاد أي شخص اسمه "أدمن" تماماً من الجداول
-        const filteredData = data.filter(emp => emp.name !== 'admin');
-
-        // 2. الترتيب: ترتيب تصاعدي من الصغير للكبير بناءً على كود الموظف
-        const sortedData = filteredData.sort((a, b) => 
-          String(a.employeeCode).localeCompare(String(b.employeeCode), undefined, { numeric: true })
-        );
-        
-        setEmployees(sortedData);
+        // البيانات تأتي مرتبة ومفلترة جاهزة من السيرفر
+        setEmployees(data);
       }
     } catch (err) { 
       toast.error("حدث خطأ في جلب بيانات الإدارة", { style: { background: '#ef4444', color: '#fff' }}); 
