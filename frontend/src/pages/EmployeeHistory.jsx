@@ -4,6 +4,8 @@ import { CalendarDays, CheckCircle, XCircle, Clock, Filter, Calendar, Trash2, Al
 import toast from 'react-hot-toast';
 import EmployeeLayout from './components/EmployeeLayout';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const EmployeeHistory = () => {
   const navigate = useNavigate();
   const [employee, setEmployee] = useState(null);
@@ -31,7 +33,7 @@ const EmployeeHistory = () => {
 
   const fetchMyRequests = async (code) => {
     try {
-      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/my-requests/${code}`);
+      const response = await fetch(`${API_URL}/api/leaves/my-requests/${code}`);
       const data = await response.json();
       if (response.ok) {
         setAllRequests(data);
@@ -46,7 +48,7 @@ const EmployeeHistory = () => {
   // دالة تأكيد الإلغاء (اللي بتشتغل لما الموظف يدوس "نعم" في النافذة)
   const confirmCancelRequest = async () => {
     try {
-      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/cancel-request/${cancelModal.requestId}`, {
+      const response = await fetch(`${API_URL}/api/leaves/cancel-request/${cancelModal.requestId}`, {
         method: 'DELETE',
       });
       const data = await response.json();

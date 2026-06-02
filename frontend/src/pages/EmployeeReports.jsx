@@ -4,6 +4,8 @@ import { FileText, Search, Printer, CalendarDays } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmployeeLayout from './components/EmployeeLayout';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const EmployeeReports = () => {
   const navigate = useNavigate();
   const [employee, setEmployee] = useState(null);
@@ -39,7 +41,7 @@ const EmployeeReports = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/leaves/report', {
+      const response = await fetch(`${API_URL}/api/leaves/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,6 +4,8 @@ import { User, Send, Clock, CheckCircle, XCircle, Trash2, AlertTriangle } from '
 import toast from 'react-hot-toast';
 import EmployeeLayout from './components/EmployeeLayout'; // استيراد الـ Layout
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [employee, setEmployee] = useState(null);
@@ -42,7 +44,7 @@ const Dashboard = () => {
 
   const fetchMyRequests = async (code) => {
     try {
-      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/my-requests/${code}`);
+      const response = await fetch(`${API_URL}/api/leaves/my-requests/${code}`);
       const data = await response.json();
       if (response.ok) setMyRequests(data);
     } catch (err) {
@@ -54,7 +56,7 @@ const Dashboard = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/leaves/request', {
+      const response = await fetch(`${API_URL}/api/leaves/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,7 +82,7 @@ const Dashboard = () => {
   // دالة تأكيد الإلغاء (اللي بتشتغل لما الموظف يدوس "نعم" في النافذة)
   const confirmCancelRequest = async () => {
     try {
-      const response = await fetch(`https://opsvacationsystem.onrender.com/api/leaves/cancel-request/${cancelModal.requestId}`, {
+      const response = await fetch(`${API_URL}/api/leaves/cancel-request/${cancelModal.requestId}`, {
         method: 'DELETE',
       });
       const data = await response.json();
@@ -115,14 +117,25 @@ const Dashboard = () => {
 
   return (
     <EmployeeLayout>
-      <div className="p-8">
-        <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800">لوحة التحكم</h2>
-          <div className="flex items-center gap-3">
-            <span className="font-medium text-gray-600">أهلاً، {employee.name}</span>
-            <div className="bg-navy-light/10 p-2 rounded-full text-navy-light"><User size={20} /></div>
-          </div>
-        </header>
+      <div className="p-4 md:p-8">
+  <header className="flex flex-col-reverse md:flex-row md:justify-between items-start md:items-center gap-4 mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+    
+    {/* كلمة لوحة التحكم (هتنزل تحت في الموبايل وتبقى على اليمين في اللاب توب) */}
+    <h2 className="text-xl md:text-2xl font-bold text-gray-800 mt-2 md:mt-0">
+      لوحة التحكم
+    </h2>
+
+    {/* رسالة الترحيب واسم الموظف (هتطلع فوق في الموبايل وتبقى على الشمال في اللاب توب) */}
+    <div className="flex items-center gap-3 w-full md:w-auto border-b md:border-0 border-gray-100 pb-3 md:pb-0">
+      <div className="bg-navy-light/10 p-2 rounded-full text-navy-light">
+        <User size={20} />
+      </div>
+      <span className="font-medium text-lg text-gray-700">
+        أهلاً، <span className="font-bold text-blue-600">{employee.name}</span>
+      </span>
+    </div>
+
+  </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-navy-light">

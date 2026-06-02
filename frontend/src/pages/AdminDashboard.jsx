@@ -4,6 +4,8 @@ import { ShieldCheck, CheckCircle, XCircle,Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from './components/AdminLayout'; // استيراد الـ Layout
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -12,7 +14,7 @@ const AdminDashboard = () => {
   // دالة جلب الطلبات المعلقة أول ما الصفحة تفتح
   const fetchPendingRequests = async () => {
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/admin/pending-requests');
+      const response = await fetch(`${API_URL}/api/admin/pending-requests`);
       const data = await response.json();
       if (response.ok) {
         setPendingRequests(data);
@@ -35,7 +37,7 @@ const AdminDashboard = () => {
   // دالة اتخاذ القرار (قبول أو رفض)
   const handleAction = async (requestId, action) => {
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/admin/handle-request', {
+      const response = await fetch(`${API_URL}/api/admin/handle-request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestId, action })
@@ -56,16 +58,21 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout>
-      <div className="p-8 bg-gray-50 min-h-screen">
-        <header className="flex justify-between items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">مراجعة طلبات الإجازة</h2>
-            <p className="text-gray-500 text-sm mt-1">الطلبات المعلقة التي تنتظر قرار الإدارة</p>
-          </div>
-          <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-bold text-sm">
-            صلاحيات مدير النظام
-          </div>
-        </header>
+      <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+  <header className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+    
+    {/* العنوان والوصف (هيفضلوا فوق على اليمين) */}
+    <div>
+      <h2 className="text-xl md:text-2xl font-bold text-gray-800">مراجعة طلبات الإجازة</h2>
+      <p className="text-gray-500 text-sm mt-1">الطلبات المعلقة التي تنتظر قرار الإدارة</p>
+    </div>
+
+    {/* بادج الصلاحيات (هينزل تحتهم في الموبايل، ويرجع على الشمال في اللاب توب) */}
+    <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-bold text-sm w-fit">
+      صلاحيات مدير النظام
+    </div>
+
+  </header>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">

@@ -3,6 +3,8 @@ import { User, Lock, Save, ShieldCheck, Briefcase, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmployeeLayout from './components/EmployeeLayout';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const EmployeeProfile = () => {
   const [employee, setEmployee] = useState(null);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
@@ -27,7 +29,7 @@ const EmployeeProfile = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/auth/change-password', {
+      const response = await fetch(`${API_URL}/api/auth/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

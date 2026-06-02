@@ -3,6 +3,9 @@ import toast from 'react-hot-toast';
 import { Archive, CheckCircle, XCircle, Clock, Filter, CalendarDays, Calendar } from 'lucide-react';
 import AdminLayout from './components/AdminLayout';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+
 const LeaveHistory = () => {
   const [allLeaves, setAllLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -16,10 +19,10 @@ const LeaveHistory = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const archiveRes = await fetch('https://opsvacationsystem.onrender.com/api/admin/leave-archive');
+        const archiveRes = await fetch(`${API_URL}/api/admin/leave-archive`);
         const archiveData = await archiveRes.json();
         
-        const empRes = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
+        const empRes = await fetch(`${API_URL}/api/admin/employees`);
         const empData = await empRes.json();
 
         if (archiveRes.ok && empRes.ok) {

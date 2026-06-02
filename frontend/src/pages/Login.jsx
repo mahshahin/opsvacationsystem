@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import toast from 'react-hot-toast'; // استدعاء مكتبة الإشعارات
 import { useNavigate } from 'react-router-dom';
 
-
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 const Login = () => {
   const navigate = useNavigate();  
@@ -26,7 +26,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/auth/login', {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,22 +72,41 @@ const Login = () => {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden min-h-[500px]">
         
-        {/* اللوحة اليمنى (الترحيبية) */}
-        <div className="w-full md:w-2/5 bg-navy-light text-white flex flex-col justify-center items-center p-10 text-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white opacity-10 rounded-full -ml-10 -mb-10"></div>
-          
-          <h2 className="text-4xl font-bold mb-4 relative z-10">مرحباً بك</h2>
-          <p className="text-blue-100 mb-8 leading-relaxed relative z-10">
-            نظام إجازات السيطرة المركزية.. دقة، سرعة، وتنظيم
-          </p>
-          <button 
-            onClick={() => navigate('/register')} 
-            className="border-2 border-white text-white px-8 py-2 rounded-full font-semibold hover:bg-white hover:text-navy-light transition duration-300 shadow-lg relative z-10"
-          >
-  تفعيل حساب جديد
-</button>
-        </div>
+       {/* اللوحة اليمنى (الترحيبية) */}
+<div className="w-full md:w-2/5 bg-navy-light text-white p-8 md:p-10 text-center relative overflow-hidden flex flex-col">
+  
+  {/* الدوائر الجمالية في الخلفية */}
+  <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+  <div className="absolute bottom-0 left-0 w-32 h-32 bg-white opacity-10 rounded-full -ml-10 -mb-10"></div>
+  
+  {/* حاوية داخلية بترتب العناصر بذكاء من غير تداخل */}
+  <div className="relative z-10 flex flex-col h-full w-full">
+    
+    {/* اللوجو: واخد مكانه فوق باحترام من غير ما يزنق الكلام */}
+    <div className="w-full flex justify-center mb-6 md:mb-4 pt-2">
+      <img 
+        src="/logo.png" 
+        alt="لوجو الإدارة" 
+        className="w-40 md:w-52 h-auto object-contain drop-shadow-xl"
+      />
+    </div>
+
+    {/* الكلام والزرار: متسنتر في الموبايل، وبمسافة محكومة وشيك جداً في اللاب توب */}
+    <div className="flex-1 flex flex-col items-center justify-center md:justify-start md:mt-6">
+      <h3 className="text-3xl md:text-4xl font-bold mb-4">مرحباً بك</h3>
+      <p className="text-lg md:text-xl font-bold mb-8">
+        نظام إجازات السيطرة المركزية .. 
+      </p>
+      <button 
+        onClick={() => navigate('/register')} 
+        className="border-2 border-white text-white px-8 py-2 rounded-full font-semibold hover:bg-white hover:text-navy-light transition duration-300 shadow-lg"
+      >
+        تفعيل حساب جديد
+      </button>
+    </div>
+
+  </div>
+</div>
 
         {/* اللوحة اليسرى (نموذج الدخول) */}
         <div className="w-full md:w-3/5 p-10 flex flex-col justify-center items-center">
@@ -142,6 +161,9 @@ const Login = () => {
           </form>
         </div>
 
+      </div>
+      <div className="absolute bottom-4 left-4 text-xs text-gray-400" dir="ltr">
+        Developed by <span className="font-bold text-gray-500">Mahmoud Shahin</span> &copy; 2026
       </div>
     </div>
   );

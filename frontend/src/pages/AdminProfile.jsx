@@ -3,6 +3,8 @@ import { User, Lock, Save, ShieldCheck, Briefcase, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdminLayout from './components/AdminLayout'; // تأكد إن المسار ده صح حسب مجلداتك
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const AdminProfile = () => {
   const [employee, setEmployee] = useState(null);
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
@@ -26,7 +28,7 @@ const AdminProfile = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/auth/change-password', {
+      const response = await fetch(`${API_URL}/api/auth/change-password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

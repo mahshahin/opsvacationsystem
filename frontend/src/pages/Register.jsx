@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Key, UserCheck, ArrowRight } from 'lucide-react'; // تم تغيير KeyRound إلى Key
 import toast from 'react-hot-toast';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const Register = () => {
   const navigate = useNavigate();
   const [employeeCode, setEmployeeCode] = useState('');
@@ -20,7 +22,7 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('https://opsvacationsystem.onrender.com/api/auth/register', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeCode, password }),

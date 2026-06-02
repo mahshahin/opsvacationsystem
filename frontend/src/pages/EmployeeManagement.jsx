@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import { UserPlus, ShieldAlert, Shield, User, Trash2, Edit2, RotateCcw, Check, X, AlertTriangle } from 'lucide-react';
 import AdminLayout from './components/AdminLayout';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,11 +23,11 @@ const EmployeeManagement = () => {
     try {
       setLoading(true);
       // جلب الموظفين العاديين
-      const resStaff = await fetch('https://opsvacationsystem.onrender.com/api/admin/employees');
+      const resStaff = await fetch(`${API_URL}/api/admin/employees`);
       const staffData = await resStaff.json();
 
       // جلب المديرين من الجدول الجديد
-      const resAdmins = await fetch('https://opsvacationsystem.onrender.com/api/admin/admins-list');
+      const resAdmins = await fetch(`${API_URL}/api/admin/admins-list`);
       const adminsData = await resAdmins.json();
 
       // تحويل وتجهيز بيانات المديرين لتتوافق مع أعمدة العرض في الجدول
@@ -56,7 +58,7 @@ const EmployeeManagement = () => {
     e.preventDefault();
     try {
       const isAdmin = newEmp.role === 'admin';
-      const url = isAdmin ? '/api/admin/create-admin' : '/api/admin/add-employee';
+      const url = `${API_URL}${isAdmin ? '/api/admin/create-admin' : '/api/admin/add-employee'}`;
       
       // جهز الداتا حسب الـ Collection المستهدفة
       const bodyData = isAdmin 
@@ -174,7 +176,7 @@ const EmployeeManagement = () => {
             onClick={async () => {
               toast.dismiss(t.id);
               try {
-                const res = await fetch('https://opsvacationsystem.onrender.com/api/admin/reset-password', {
+                const res = await fetch(`${API_URL}/api/admin/reset-password`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ employeeCode: code })
@@ -218,16 +220,21 @@ const EmployeeManagement = () => {
 
   return (
     <AdminLayout>
-      <div className="p-8 bg-gray-50 min-h-screen">
-        <header className="mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">بيان قوة الإدارة والتحكم</h2>
-            <p className="text-gray-500 text-sm mt-1">إضافة، تعديل، حذف، وتصفير حسابات الموظفين والمديرين</p>
-          </div>
-          <div className="bg-blue-50 text-blue-800 px-4 py-2 rounded-lg font-bold text-sm">
-            إجمالي القوة البشرية: {staffList.length} فرد
-          </div>
-        </header>
+      <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+  <header className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+    
+    {/* العنوان والوصف */}
+    <div>
+      <h2 className="text-xl md:text-2xl font-bold text-gray-800">بيان الإدارة والتحكم</h2>
+      <p className="text-gray-500 text-sm mt-1">إضافة، تعديل، حذف، وتصفير حسابات الموظفين والمديرين</p>
+    </div>
+
+    {/* بادج إجمالي القوة البشرية */}
+    <div className="bg-blue-50 text-blue-800 px-4 py-2 rounded-lg font-bold text-sm w-fit">
+      إجمالي القوة البشرية: {staffList.length} فرد
+    </div>
+
+  </header>
         
         {/* فورمة الإضافة الذكية */}
         <form onSubmit={handleAdd} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -282,7 +289,7 @@ const EmployeeManagement = () => {
           <div className="bg-white rounded-xl shadow-sm border border-yellow-200 overflow-hidden">
             <div className="bg-yellow-50 px-6 py-4 border-b border-yellow-200 flex items-center gap-2">
               <ShieldAlert className="text-yellow-600" size={20} />
-              <h3 className="font-bold text-yellow-800">صلاحيات الإدارة العليا (Admins Collection)</h3>
+              <h3 className="font-bold text-yellow-800">صلاحيات الإدارة العليا (Admins)</h3>
             </div>
             <table className="w-full text-right">
               <thead className="bg-gray-50 text-gray-500 text-sm border-b">
@@ -335,7 +342,7 @@ const EmployeeManagement = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="bg-navy-light/5 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
               <User className="text-navy-light" size={20} />
-              <h3 className="font-bold text-gray-800">بيان القوة البشرية (Users Collection)</h3>
+              <h3 className="font-bold text-gray-800">بيان السادة افراد السيطرة المركزية </h3>
             </div>
             <table className="w-full text-right">
               <thead className="bg-gray-50 text-gray-500 text-sm border-b">
