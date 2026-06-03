@@ -26,7 +26,7 @@ const sendLeaveEmail = async (employeeEmail, employeeName, status, leaveType, st
     `;
 
     // ⚠️ مهم: الزق الرابط الطويل بتاع جوجل هنا بين علامات التنصيص
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4nrqZ3evHY5pc31PKleB_dV6V9xY4q4840pm_bgTzPnHDrZMDcvjNlv4aAEm6I-g2/exec';
+    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3lN4bo6fd7Gj-THSe4KMNFdwG-2iMEA3HrZsxRK7b3WNZRu7D-tM6_mpfJoKSIBY9/exec';
 
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
