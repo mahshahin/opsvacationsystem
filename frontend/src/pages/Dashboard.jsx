@@ -11,6 +11,9 @@ const Dashboard = () => {
   const [employee, setEmployee] = useState(null);
   const [myRequests, setMyRequests] = useState([]);
   
+  // حالة الوقت المباشر
+  const [currentTime, setCurrentTime] = useState(new Date());
+
   const [cancelModal, setCancelModal] = useState({ isOpen: false, requestId: null });
   const [isLeaveMenuOpen, setIsLeaveMenuOpen] = useState(false);
   
@@ -19,6 +22,12 @@ const Dashboard = () => {
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // تحديث الوقت كل ثانية
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const savedData = localStorage.getItem('employeeData');
@@ -112,17 +121,50 @@ const Dashboard = () => {
   return (
     <EmployeeLayout>
       <div className="p-4 md:p-8">
-        <header className="flex flex-col-reverse md:flex-row md:justify-between items-start md:items-center gap-4 mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-          <h2 className="text-xl md:text-2xl font-bold text-gray-800 mt-2 md:mt-0">
-            لوحة التحكم
-          </h2>
-          <div className="flex items-center gap-3 w-full md:w-auto border-b md:border-0 border-gray-100 pb-3 md:pb-0">
-            <div className="bg-navy-light/10 p-2 rounded-full text-navy-light">
-              <User size={20} />
+        
+        {/* === الهيدر الجديد بالتاريخ والساعة === */}
+        <header className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-8 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+          
+          {/* الجزء الأيمن: عنوان الصفحة */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">
+              لوحة التحكم
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">نظرة عامة على رصيد إجازاتك وطلباتك</p>
+          </div>
+
+          {/* الجزء الأيسر: بيانات المستخدم والتاريخ */}
+          <div className="flex items-center gap-4 w-full md:w-auto pt-4 md:pt-0 border-t md:border-0 border-gray-100">
+            
+            {/* أيقونة المستخدم */}
+            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shadow-inner shrink-0">
+              <User size={24} />
             </div>
-            <span className="font-medium text-lg text-gray-700">
-              أهلاً، <span className="font-bold text-blue-600">{employee.name}</span>
-            </span>
+            
+            {/* الاسم والتاريخ والساعة */}
+            <div className="flex flex-col">
+              <span className="font-medium text-gray-700 text-lg">
+                أهلاً، <span className="font-bold text-blue-600">{employee.name}</span>
+              </span>
+              
+              <div className="flex items-center gap-3 text-xs md:text-sm text-gray-500 mt-1.5 font-medium">
+                {/* التاريخ */}
+                <span className="flex items-center gap-1.5">
+                  <CalendarDays size={14} className="text-gray-400" />
+                  {currentTime.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>
+                
+                {/* فاصل دائري صغير */}
+                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                
+                {/* الساعة */}
+                <span className="flex items-center gap-1.5" dir="ltr">
+                  <Clock size={14} className="text-gray-400" />
+                  {currentTime.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                </span>
+              </div>
+            </div>
+
           </div>
         </header>
 
@@ -142,10 +184,8 @@ const Dashboard = () => {
         </div>
 
         {/* كارت تقديم الطلب */}
-        {/* شيلنا overflow-hidden من هنا عشان القائمة تفتح براحتها */}
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 mb-8 relative">
           
-          {/* الدائرة الجمالية بقت في حاوية لوحدها */}
           <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
             <div className="absolute top-0 left-0 w-32 h-32 bg-navy-light/5 rounded-full -ml-10 -mt-10"></div>
           </div>
@@ -157,10 +197,11 @@ const Dashboard = () => {
             تقديم طلب جديد
           </h3>
           
-          <form onSubmit={handleLeaveSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-5 relative z-20">
+          {/* الفورم الرئيسية والأخيرة (شبكة من 4 عواميد) */}
+          <form onSubmit={handleLeaveSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full items-start relative z-20">
             
-            {/* 1. قائمة نوع الإجازة (Custom Dropdown) */}
-            <div className="relative z-30">
+            {/* 1. قائمة نوع الإجازة */}
+            <div className="relative z-30 w-full">
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
                 <FileText size={18} />
               </div>
@@ -177,7 +218,6 @@ const Dashboard = () => {
                 <ChevronDown size={18} className={`transition-transform duration-300 ${isLeaveMenuOpen ? 'rotate-180' : ''}`} />
               </div>
 
-              {/* القائمة اللي بتنزل */}
               {isLeaveMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsLeaveMenuOpen(false)}></div>
@@ -202,44 +242,38 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* 2. تاريخ البداية (خدعة الـ Transparent) */}
-            <div className="relative group z-20">
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light transition-colors z-20">
+            {/* 2. تاريخ البداية */}
+            <div className="relative w-full bg-gray-50 border border-gray-200 rounded-xl focus-within:border-navy-light focus-within:ring-4 focus-within:ring-navy-light/10 transition-all group">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light z-10">
                 <CalendarDays size={18} />
               </div>
-
-              {/* الـ Placeholder الوهمي بيظهر بس لو مفيش تاريخ متسجل */}
               {!startDate && (
                 <div className="absolute inset-y-0 right-0 pr-10 flex items-center pointer-events-none text-gray-500 font-medium z-10">
                   تاريخ البداية
                 </div>
               )}
-
-              {/* حقل التاريخ الحقيقي (بيكون شفاف لحد ما تختار منه) */}
               <input 
                 type="date"
-                className={`relative w-full pl-3 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!startDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
+                className={`relative w-full pl-3 pr-10 py-3 bg-transparent outline-none cursor-pointer z-20 ${!startDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
                 value={startDate} 
                 onChange={(e) => setStartDate(e.target.value)} 
                 required 
               />
             </div>
 
-            {/* 3. تاريخ النهاية (خدعة الـ Transparent) */}
-            <div className="relative group z-20">
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light transition-colors z-20">
+            {/* 3. تاريخ النهاية */}
+            <div className="relative w-full bg-gray-50 border border-gray-200 rounded-xl focus-within:border-navy-light focus-within:ring-4 focus-within:ring-navy-light/10 transition-all group">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light z-10">
                 <CalendarDays size={18} />
               </div>
-
               {!endDate && (
                 <div className="absolute inset-y-0 right-0 pr-10 flex items-center pointer-events-none text-gray-500 font-medium z-10">
                   تاريخ النهاية
                 </div>
               )}
-
               <input 
                 type="date"
-                className={`relative w-full pl-3 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!endDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
+                className={`relative w-full pl-3 pr-10 py-3 bg-transparent outline-none cursor-pointer z-20 ${!endDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
                 value={endDate} 
                 onChange={(e) => setEndDate(e.target.value)} 
                 required 
@@ -247,18 +281,20 @@ const Dashboard = () => {
             </div>
 
             {/* 4. زرار الإرسال */}
-            <button disabled={isSubmitting} className="flex items-center justify-center gap-2 bg-navy-light text-white rounded-xl font-bold hover:bg-[#0f172a] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 z-10">
-              {isSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  جاري الإرسال...
-                </div>
-              ) : (
-                <>
-                  <Send size={18} /> إرسال الطلب
-                </>
-              )}
-            </button>
+            <div className="w-full">
+              <button disabled={isSubmitting} className="w-full h-full py-3 flex items-center justify-center gap-2 bg-navy-light text-white rounded-xl font-bold hover:bg-[#0f172a] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 z-10">
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    جاري الإرسال...
+                  </div>
+                ) : (
+                  <>
+                    <Send size={18} /> إرسال الطلب
+                  </>
+                )}
+              </button>
+            </div>
           </form>
         </div>
 
