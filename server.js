@@ -10,6 +10,9 @@ const Log = require('./models/Log');
 const LeaveRequest = require('./models/LeaveRequest');
 const Admin = require('./models/Admin');
 
+// 1. استدعاء دالة إرسال الإيميلات اللي جهزناها جوه فولدر utils 👇
+const sendLeaveEmail = require('./utils/sendEmail');
+
 const app = express();
 
 app.use(cors());
@@ -97,18 +100,14 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// ----------------------------------------
-// 3. [مسار تسجيل الدخول المزدوج]: Login
-// ----------------------------------------
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { employeeCode, password } = req.body; // بنستقبل اللي جاي من الشاشة (سواء كود أو اسم مستخدم)
+    const { employeeCode, password } = req.body;
 
     if (!employeeCode || !password) {
       return res.status(400).json({ message: 'برجاء إدخال اسم المستخدم/الكود وكلمة المرور!' });
     }
 
-    // 1. ندور في جدول الإدارة الأول
     const adminUser = await Admin.findOne({ username: employeeCode });
     if (adminUser) {
       const isMatch = await bcrypt.compare(password, adminUser.password);
@@ -125,7 +124,6 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // 2. لو ملقيناهوش في الإدارة، ندور في جدول الموظفين
     const regularUser = await User.findOne({ employeeCode });
     if (!regularUser) {
       return res.status(400).json({ message: 'الحساب غير مسجل بالنظام!' });
@@ -161,7 +159,6 @@ app.post('/api/admin/reset-password', async (req, res) => {
     const { employeeCode } = req.body;
     if (employeeCode === 'admin') return res.status(403).json({ message: 'محظور تصفير الأدمن الذهبي!' });
 
-    // 1. لو أدمن، هنرجع باسوورده للقيمة الافتراضية 123456
     const admin = await Admin.findOne({ username: employeeCode });
     if (admin) {
       const salt = await bcrypt.genSalt(10);
@@ -170,7 +167,6 @@ app.post('/api/admin/reset-password', async (req, res) => {
       return res.status(200).json({ message: `تم إعادة كلمة مرور المدير (${admin.name}) للباسوورد الافتراضي: 123456` });
     }
 
-    // 2. لو موظف عادي، بنمشي على اللوجيك القديم بتاعه
     const user = await User.findOne({ employeeCode });
     if (!user) return res.status(404).json({ message: 'المستهدف غير موجود بالنظام!' });
 
@@ -271,6 +267,7 @@ app.get('/api/admin/pending-requests', async (req, res) => {
   }
 });
 
+// 2. [تعديل الـ API الخاص بمعالجة الطلبات لإرسال الإيميل لايف] 👇
 app.post('/api/admin/handle-request', async (req, res) => {
   try {
     const { requestId, action } = req.body;
@@ -292,6 +289,18 @@ app.post('/api/admin/handle-request', async (req, res) => {
     }
     await request.save();
 
+    // تشغيل نظام إشعارات البريد الإلكتروني في الخلفية 📨
+    if (user && user.email) {
+      sendLeaveEmail(
+        user.email,
+        user.name,
+        request.status, // approved أو rejected
+        request.leaveType,
+        request.startDate,
+        request.endDate
+      ).catch(err => console.error('خطأ في إرسال البريد الإلكتروني الإشعاري:', err));
+    }
+
     const newLog = new Log({ action: action === 'approve' ? 'LEAVE_APPROVED' : 'LEAVE_REJECTED', details: `تم ${action === 'approve' ? 'قبول' : 'رفض'} إجازة ${user.name}.`, ipAddress: req.ip });
     await newLog.save();
 
@@ -301,12 +310,8 @@ app.post('/api/admin/handle-request', async (req, res) => {
   }
 });
 
-// ----------------------------------------
-// [التعديل هنا] - استبعاد اسم "أدمن" أو "admin" من الإرسال للواجهة
-// ----------------------------------------
 app.get('/api/admin/employees', async (req, res) => {
   try {
-    // جلب الكل بدون أي فلترة من السيرفر
     const employees = await User.find().sort({ employeeCode: 1 });
     res.status(200).json(employees);
   } catch (error) {
@@ -400,13 +405,9 @@ app.get('/api/admin/leave-archive', async (req, res) => {
   }
 });
 
-// ----------------------------------------
-// [مسار المستخدم/الأدمن]: تغيير كلمة المرور من صفحة حسابي
-// ----------------------------------------
 app.put('/api/auth/change-password', async (req, res) => {
   try {
     const { employeeCode, currentPassword, newPassword } = req.body; 
-    // ملاحظة: employeeCode هنا شايل إما كود الموظف، أو اسم المستخدم (username) بتاع الأدمن
 
     if (currentPassword === newPassword) {
       return res.status(400).json({ message: 'كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية!' });
@@ -414,26 +415,21 @@ app.put('/api/auth/change-password', async (req, res) => {
 
     let account = null;
 
-    // 1. ندور في جدول الإدارة (Admins) الأول
     account = await Admin.findOne({ username: employeeCode });
     
-    // 2. لو ملقيناهوش، ندور في جدول الموظفين (Users)
     if (!account) {
       account = await User.findOne({ employeeCode });
     }
 
-    // 3. لو مش موجود في الجدولين
     if (!account) {
       return res.status(404).json({ message: 'الحساب غير موجود!' });
     }
 
-    // 4. التأكد من كلمة المرور الحالية (القديمة)
     const isMatch = await bcrypt.compare(currentPassword, account.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'كلمة المرور الحالية غير صحيحة!' });
     }
 
-    // 5. تشفير كلمة المرور الجديدة وحفظها في الجدول الصحيح
     const salt = await bcrypt.genSalt(10);
     account.password = await bcrypt.hash(newPassword, salt);
     await account.save();
@@ -444,11 +440,6 @@ app.put('/api/auth/change-password', async (req, res) => {
   }
 });
 
-// ==========================================
-// مسارات جدول الإدارة العليا (Admin Collection)
-// ==========================================
-
-// 1. [إضافة أدمن جديد]
 app.post('/api/admin/create-admin', async (req, res) => {
   try {
     const { username, name, password } = req.body;
@@ -462,7 +453,6 @@ app.post('/api/admin/create-admin', async (req, res) => {
       return res.status(400).json({ message: 'اسم المستخدم مسجل مسبقاً!' });
     }
 
-    // تشفير الرقم السري قبل الحفظ
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -470,7 +460,7 @@ app.post('/api/admin/create-admin', async (req, res) => {
       username,
       name,
       password: hashedPassword,
-      role: 'admin' // ثابتة
+      role: 'admin'
     });
 
     await newAdmin.save();
@@ -480,17 +470,15 @@ app.post('/api/admin/create-admin', async (req, res) => {
   }
 });
 
-// 2. [جلب كل المديرين لجدول العرض]
 app.get('/api/admin/admins-list', async (req, res) => {
   try {
-    const admins = await Admin.find().select('-password'); // بنجيب الداتا من غير الباسوورد للأمان
+    const admins = await Admin.find().select('-password'); 
     res.status(200).json(admins);
   } catch (error) {
     res.status(500).json({ message: 'خطأ في جلب بيانات الإدارة', error: error.message });
   }
 });
 
-// 3. [تعديل بيانات أدمن]
 app.put('/api/admin/update-admin/:id', async (req, res) => {
   try {
     const { name, username } = req.body;
@@ -498,7 +486,6 @@ app.put('/api/admin/update-admin/:id', async (req, res) => {
     
     if (!admin) return res.status(404).json({ message: 'المدير غير موجود!' });
 
-    // حماية اسم المستخدم للأدمن الذهبي من التعديل عشان ميبوظش
     if (admin.username === 'admin' && username !== 'admin') {
       return res.status(403).json({ message: 'لا يمكن تغيير اسم المستخدم للأدمن الذهبي!' });
     }
@@ -515,13 +502,11 @@ app.put('/api/admin/update-admin/:id', async (req, res) => {
   }
 });
 
-// 4. [مسح أدمن]
 app.delete('/api/admin/delete-admin/:id', async (req, res) => {
   try {
     const admin = await Admin.findById(req.params.id);
     if (!admin) return res.status(404).json({ message: 'المدير غير موجود!' });
 
-    // حماية الأدمن الذهبي من المسح
     if (admin.username === 'admin') {
       return res.status(403).json({ message: 'تحذير أمني: يمنع مسح الأدمن الذهبي للنظام!' });
     }
@@ -533,16 +518,32 @@ app.delete('/api/admin/delete-admin/:id', async (req, res) => {
   }
 });
 
-// ==========================================
-// مسار سجلات النظام (Audit Logs)
-// ==========================================
-app.get('/api/admin/logs', async (req, res) => {
+app.put('/api/employees/update-email/:code', async (req, res) => {
   try {
-    // هنجيب آخر 200 حركة حصلت على السيستم مترتبين من الأحدث للأقدم
-    const logs = await Log.find().sort({ createdAt: -1 }).limit(200);
-    res.status(200).json(logs);
+    const { code } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'برجاء إدخال البريد الإلكتروني' });
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { employeeCode: code },
+      { email: email.trim().toLowerCase() },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'الموظف غير موجود' });
+    }
+
+    res.status(200).json({ 
+      message: 'تم حفظ البريد الإلكتروني بنجاح', 
+      employee: updatedUser 
+    });
   } catch (error) {
-    res.status(500).json({ message: 'خطأ في جلب سجلات النظام', error: error.message });
+    console.error('Error updating email:', error);
+    res.status(500).json({ message: 'حدث خطأ في السيرفر أثناء تحديث الإيميل' });
   }
 });
 

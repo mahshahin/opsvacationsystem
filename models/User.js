@@ -9,6 +9,9 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['employee', 'manager', 'admin'], default: 'employee' },
   department: { type: String, default: 'السيطرة المركزية' },
   
+  // ضفنا حقل الإيميل هنا 👇
+  email: { type: String, default: '' },
+  
   jobGrade: { 
     type: String, 
     required: true,

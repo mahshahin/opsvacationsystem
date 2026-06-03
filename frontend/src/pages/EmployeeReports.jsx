@@ -73,9 +73,9 @@ const EmployeeReports = () => {
 
   return (
     <EmployeeLayout>
-      <div className="p-8 bg-gray-50 min-h-screen">
+      <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
         
-        {/* الجزء الخاص بالطباعة بيخفي الفلاتر والقائمة ويظهر التقرير بس */}
+        {/* الجزء الخاص بالطباعة */}
         <style>
           {`
             @media print {
@@ -87,7 +87,7 @@ const EmployeeReports = () => {
           `}
         </style>
 
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 no-print">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 no-print">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <FileText className="text-blue-600" /> تقارير الإجازات
@@ -96,40 +96,76 @@ const EmployeeReports = () => {
           </div>
         </header>
 
-        {/* لوحة البحث */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8 no-print">
-          <form onSubmit={handleGenerateReport} className="flex flex-col md:flex-row items-end gap-4">
-            <div className="flex-1 w-full">
-              <label className="block text-sm font-bold text-gray-700 mb-2">من تاريخ</label>
+        {/* لوحة البحث (تم تحديث التصميم ليطابق الشاشة الرئيسية) */}
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 mb-8 no-print relative overflow-hidden">
+          {/* لمسة تصميمية في الخلفية */}
+          <div className="absolute top-0 left-0 w-32 h-32 bg-blue-600/5 rounded-full -ml-10 -mt-10 pointer-events-none"></div>
+
+          <form onSubmit={handleGenerateReport} className="flex flex-col md:flex-row items-center gap-5 relative z-20">
+            
+            {/* حقل من تاريخ */}
+            <div className="relative group z-20 flex-1 w-full">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-focus-within:text-blue-600 transition-colors z-20">
+                <CalendarDays size={18} />
+              </div>
+
+              {!startDate && (
+                <div className="absolute inset-y-0 right-0 pr-12 flex items-center pointer-events-none text-gray-500 font-medium z-10">
+                  من تاريخ
+                </div>
+              )}
+
               <input 
-                type="date" 
-                className="w-full p-3 bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500/50" 
+                type="date"
+                className={`relative w-full pl-4 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!startDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
                 value={startDate} 
                 onChange={(e) => setStartDate(e.target.value)} 
                 required 
               />
             </div>
-            <div className="flex-1 w-full">
-              <label className="block text-sm font-bold text-gray-700 mb-2">إلى تاريخ</label>
+
+            {/* حقل إلى تاريخ */}
+            <div className="relative group z-20 flex-1 w-full">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-focus-within:text-blue-600 transition-colors z-20">
+                <CalendarDays size={18} />
+              </div>
+
+              {!endDate && (
+                <div className="absolute inset-y-0 right-0 pr-12 flex items-center pointer-events-none text-gray-500 font-medium z-10">
+                  إلى تاريخ
+                </div>
+              )}
+
               <input 
-                type="date" 
-                className="w-full p-3 bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500/50" 
+                type="date"
+                className={`relative w-full pl-4 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!endDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
                 value={endDate} 
                 onChange={(e) => setEndDate(e.target.value)} 
                 required 
               />
             </div>
+
+            {/* زرار الاستخراج */}
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:opacity-70"
+              className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 z-10 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none"
             >
-              {loading ? 'جاري الاستخراج...' : <><Search size={20}/> استخراج التقرير</>}
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  جاري الاستخراج...
+                </div>
+              ) : (
+                <>
+                  <Search size={20}/> استخراج التقرير
+                </>
+              )}
             </button>
           </form>
         </div>
 
-        {/* التقرير المستخرج (يظهر فقط إذا كان هناك بيانات) */}
+        {/* التقرير المستخرج */}
         {reportData && (
           <div id="printable-report" className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
             {/* ترويسة الطباعة */}

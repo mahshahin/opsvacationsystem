@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Send, Clock, CheckCircle, XCircle, Trash2, AlertTriangle } from 'lucide-react';
+import { User, Send, Clock, CheckCircle, XCircle, Trash2, AlertTriangle, CalendarDays, ChevronDown, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
-import EmployeeLayout from './components/EmployeeLayout'; // استيراد الـ Layout
+import EmployeeLayout from './components/EmployeeLayout';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -11,10 +11,9 @@ const Dashboard = () => {
   const [employee, setEmployee] = useState(null);
   const [myRequests, setMyRequests] = useState([]);
   
-  // حالة النافذة المنبثقة للإلغاء
   const [cancelModal, setCancelModal] = useState({ isOpen: false, requestId: null });
+  const [isLeaveMenuOpen, setIsLeaveMenuOpen] = useState(false);
   
-  // حالات نموذج التقديم
   const [leaveType, setLeaveType] = useState('annual');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -27,15 +26,12 @@ const Dashboard = () => {
       const parsedEmployee = JSON.parse(savedData);
       setEmployee(parsedEmployee);
       
-      // 1. جلب البيانات أول مرة
       fetchMyRequests(parsedEmployee.employeeCode);
 
-      // 2. تحديث الطلبات أوتوماتيكياً كل 15 ثانية
       const interval = setInterval(() => {
         fetchMyRequests(parsedEmployee.employeeCode);
       }, 15000);
 
-      // 3. التنظيف عند الخروج
       return () => clearInterval(interval);
     } else {
       navigate('/');
@@ -70,7 +66,7 @@ const Dashboard = () => {
       } else {
         toast.success('تم إرسال الطلب بنجاح!');
         setStartDate(''); setEndDate(''); setReason('');
-        fetchMyRequests(employee.employeeCode); // تحديث الجدول فوراً
+        fetchMyRequests(employee.employeeCode);
       }
     } catch (err) {
       toast.error('حدث خطأ في الاتصال بالسيرفر.');
@@ -79,7 +75,6 @@ const Dashboard = () => {
     }
   };
 
-  // دالة تأكيد الإلغاء (اللي بتشتغل لما الموظف يدوس "نعم" في النافذة)
   const confirmCancelRequest = async () => {
     try {
       const response = await fetch(`${API_URL}/api/leaves/cancel-request/${cancelModal.requestId}`, {
@@ -91,12 +86,11 @@ const Dashboard = () => {
         toast.error(data.message);
       } else {
         toast.success(data.message);
-        fetchMyRequests(employee.employeeCode); // تحديث السجل فوراً
+        fetchMyRequests(employee.employeeCode);
       }
     } catch (err) {
       toast.error('حدث خطأ أثناء الاتصال بالسيرفر');
     } finally {
-      // في كل الحالات (نجاح أو فشل) نقفل النافذة ونفضي الـ ID
       setCancelModal({ isOpen: false, requestId: null });
     }
   };
@@ -118,56 +112,157 @@ const Dashboard = () => {
   return (
     <EmployeeLayout>
       <div className="p-4 md:p-8">
-  <header className="flex flex-col-reverse md:flex-row md:justify-between items-start md:items-center gap-4 mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
-    
-    {/* كلمة لوحة التحكم (هتنزل تحت في الموبايل وتبقى على اليمين في اللاب توب) */}
-    <h2 className="text-xl md:text-2xl font-bold text-gray-800 mt-2 md:mt-0">
-      لوحة التحكم
-    </h2>
-
-    {/* رسالة الترحيب واسم الموظف (هتطلع فوق في الموبايل وتبقى على الشمال في اللاب توب) */}
-    <div className="flex items-center gap-3 w-full md:w-auto border-b md:border-0 border-gray-100 pb-3 md:pb-0">
-      <div className="bg-navy-light/10 p-2 rounded-full text-navy-light">
-        <User size={20} />
-      </div>
-      <span className="font-medium text-lg text-gray-700">
-        أهلاً، <span className="font-bold text-blue-600">{employee.name}</span>
-      </span>
-    </div>
-
-  </header>
+        <header className="flex flex-col-reverse md:flex-row md:justify-between items-start md:items-center gap-4 mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800 mt-2 md:mt-0">
+            لوحة التحكم
+          </h2>
+          <div className="flex items-center gap-3 w-full md:w-auto border-b md:border-0 border-gray-100 pb-3 md:pb-0">
+            <div className="bg-navy-light/10 p-2 rounded-full text-navy-light">
+              <User size={20} />
+            </div>
+            <span className="font-medium text-lg text-gray-700">
+              أهلاً، <span className="font-bold text-blue-600">{employee.name}</span>
+            </span>
+          </div>
+        </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-navy-light">
+          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-navy-light transform transition hover:-translate-y-1 hover:shadow-md duration-300">
             <p className="text-gray-500 text-sm mb-1">اعتيادي</p>
-            <h3 className="text-3xl font-bold">{employee.leaveBalances?.annual || 0} يوم</h3>
+            <h3 className="text-3xl font-bold text-gray-800">{employee.leaveBalances?.annual || 0} <span className="text-lg text-gray-400 font-medium">يوم</span></h3>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-yellow-400">
+          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-yellow-400 transform transition hover:-translate-y-1 hover:shadow-md duration-300">
             <p className="text-gray-500 text-sm mb-1">عارضة</p>
-            <h3 className="text-3xl font-bold">{employee.leaveBalances?.casual || 0} يوم</h3>
+            <h3 className="text-3xl font-bold text-gray-800">{employee.leaveBalances?.casual || 0} <span className="text-lg text-gray-400 font-medium">يوم</span></h3>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-green-500">
+          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-green-500 transform transition hover:-translate-y-1 hover:shadow-md duration-300">
             <p className="text-gray-500 text-sm mb-1">بدل</p>
-            <h3 className="text-3xl font-bold">{employee.leaveBalances?.compensation || 0} يوم</h3>
+            <h3 className="text-3xl font-bold text-gray-800">{employee.leaveBalances?.compensation || 0} <span className="text-lg text-gray-400 font-medium">يوم</span></h3>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
-          <h3 className="text-lg font-bold mb-6 flex items-center gap-2"><Send size={20} className="text-navy-light"/> تقديم طلب جديد</h3>
-          <form onSubmit={handleLeaveSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <select className="p-3 bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-navy-light/50" value={leaveType} onChange={(e)=>setLeaveType(e.target.value)}>
-              <option value="annual">اعتيادي</option>
-              <option value="casual">عارضة</option>
-              <option value="compensation">بدل راحة</option>
-            </select>
-            <input type="date" className="p-3 bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-navy-light/50" value={startDate} onChange={(e)=>setStartDate(e.target.value)} required />
-            <input type="date" className="p-3 bg-gray-50 border rounded-lg outline-none focus:ring-2 focus:ring-navy-light/50" value={endDate} onChange={(e)=>setEndDate(e.target.value)} required />
-            <button disabled={isSubmitting} className="bg-navy-light text-white rounded-lg font-bold hover:bg-navy-dark transition">
-              {isSubmitting ? 'جاري الإرسال...' : 'إرسال الطلب'}
+        {/* كارت تقديم الطلب */}
+        {/* شيلنا overflow-hidden من هنا عشان القائمة تفتح براحتها */}
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 mb-8 relative">
+          
+          {/* الدائرة الجمالية بقت في حاوية لوحدها */}
+          <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-navy-light/5 rounded-full -ml-10 -mt-10"></div>
+          </div>
+          
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-800 relative z-10">
+            <div className="bg-blue-50 p-2 rounded-lg">
+              <Send size={20} className="text-navy-light"/>
+            </div>
+            تقديم طلب جديد
+          </h3>
+          
+          <form onSubmit={handleLeaveSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-5 relative z-20">
+            
+            {/* 1. قائمة نوع الإجازة (Custom Dropdown) */}
+            <div className="relative z-30">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
+                <FileText size={18} />
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => setIsLeaveMenuOpen(!isLeaveMenuOpen)}
+                className="w-full text-right pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all text-gray-700 font-medium cursor-pointer"
+              >
+                {leaveType === 'annual' ? 'إجازة اعتيادية' : leaveType === 'casual' ? 'إجازة عارضة' : 'بدل راحة'}
+              </button>
+
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+                <ChevronDown size={18} className={`transition-transform duration-300 ${isLeaveMenuOpen ? 'rotate-180' : ''}`} />
+              </div>
+
+              {/* القائمة اللي بتنزل */}
+              {isLeaveMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsLeaveMenuOpen(false)}></div>
+                  <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-2xl overflow-hidden py-1">
+                    {['annual', 'casual', 'compensation'].map((type) => (
+                      <div
+                        key={type}
+                        onClick={() => {
+                          setLeaveType(type);
+                          setIsLeaveMenuOpen(false);
+                        }}
+                        className={`px-4 py-3 cursor-pointer transition-colors flex items-center gap-2 ${
+                          leaveType === type ? 'bg-blue-50/60 text-navy-light font-bold' : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${leaveType === type ? 'bg-navy-light' : 'bg-transparent'}`}></div>
+                        {type === 'annual' ? 'إجازة اعتيادية' : type === 'casual' ? 'إجازة عارضة' : 'بدل راحة'}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 2. تاريخ البداية (خدعة الـ Transparent) */}
+            <div className="relative group z-20">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light transition-colors z-20">
+                <CalendarDays size={18} />
+              </div>
+
+              {/* الـ Placeholder الوهمي بيظهر بس لو مفيش تاريخ متسجل */}
+              {!startDate && (
+                <div className="absolute inset-y-0 right-0 pr-10 flex items-center pointer-events-none text-gray-500 font-medium z-10">
+                  تاريخ البداية
+                </div>
+              )}
+
+              {/* حقل التاريخ الحقيقي (بيكون شفاف لحد ما تختار منه) */}
+              <input 
+                type="date"
+                className={`relative w-full pl-3 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!startDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)} 
+                required 
+              />
+            </div>
+
+            {/* 3. تاريخ النهاية (خدعة الـ Transparent) */}
+            <div className="relative group z-20">
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light transition-colors z-20">
+                <CalendarDays size={18} />
+              </div>
+
+              {!endDate && (
+                <div className="absolute inset-y-0 right-0 pr-10 flex items-center pointer-events-none text-gray-500 font-medium z-10">
+                  تاريخ النهاية
+                </div>
+              )}
+
+              <input 
+                type="date"
+                className={`relative w-full pl-3 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!endDate ? 'text-transparent' : 'text-gray-700'} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`} 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)} 
+                required 
+              />
+            </div>
+
+            {/* 4. زرار الإرسال */}
+            <button disabled={isSubmitting} className="flex items-center justify-center gap-2 bg-navy-light text-white rounded-xl font-bold hover:bg-[#0f172a] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 z-10">
+              {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  جاري الإرسال...
+                </div>
+              ) : (
+                <>
+                  <Send size={18} /> إرسال الطلب
+                </>
+              )}
             </button>
           </form>
         </div>
 
+        {/* جدول آخر الطلبات */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-50 bg-gray-50/50">
             <h3 className="font-bold text-gray-800">آخر طلبات الإجازة</h3>

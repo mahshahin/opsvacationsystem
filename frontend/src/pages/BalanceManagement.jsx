@@ -68,54 +68,59 @@ const BalanceManagement = () => {
 
   return (
     <AdminLayout>
-      <div className="p-8 bg-gray-50 min-h-screen relative">
-        <header className="mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+      <div className="p-4 md:p-8 bg-gray-50 min-h-screen relative">
+        
+        {/* ظبطنا الهيدر عشان ينزل تحت بعضه في الموبايل ويفضل مفرود في اللاب توب */}
+        <header className="mb-6 md:mb-8 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">إدارة الأرصدة</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800">إدارة الأرصدة</h2>
             <p className="text-gray-500 text-sm mt-1">متابعة وتعديل أرصدة الإجازات لدورة عام {currentYear}</p>
           </div>
-          <div className="bg-green-50 text-green-700 p-3 rounded-lg flex items-center gap-2 font-bold">
-            <Wallet size={24} /> أرصدة المنظومة
+          <div className="bg-green-50 text-green-700 p-3 rounded-lg flex items-center gap-2 font-bold text-sm md:text-base w-full md:w-auto justify-center md:justify-start">
+            <Wallet size={20} className="md:w-6 md:h-6" /> أرصدة المنظومة
           </div>
         </header>
 
         {/* جدول الأرصدة */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <table className="w-full text-right">
-            <thead className="bg-gray-50 text-gray-500 text-sm border-b">
-              <tr>
-                <th className="p-4">الكود</th>
-                <th className="p-4">الاسم</th>
-                <th className="p-4 text-center">الاعتيادي</th>
-                <th className="p-4 text-center">العارضة المتبقية</th>
-                <th className="p-4 text-center">بدل الراحة</th>
-                <th className="p-4 text-center">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr><td colSpan="6" className="p-8 text-center text-gray-400">جاري تحميل الأرصدة...</td></tr>
-              ) : employees.sort((a, b) => Number(a.employeeCode) - Number(b.employeeCode)).map(emp => (
-                <tr key={emp._id} className="hover:bg-gray-50 transition">
-                  <td className="p-4 text-gray-500 font-medium">{emp.employeeCode}</td>
-                  <td className="p-4 font-bold text-gray-800">{emp.name}</td>
-                  <td className="p-4 text-center font-bold text-blue-600">{emp.leaveBalances?.annual || 0}</td>
-                  <td className="p-4 text-center font-bold text-orange-500">{emp.leaveBalances?.casual || 0}</td>
-                  <td className="p-4 text-center font-bold text-green-600">{emp.leaveBalances?.compensation || 0}</td>
-                  <td className="p-4 text-center">
-                    <button onClick={() => openEditModal(emp)} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-200 transition">
-                      <Edit3 size={15} /> تعديل الأرصدة
-                    </button>
-                  </td>
+          {/* الحاوية اللي بتعمل السكرول الأفقي في الموبايل */}
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-right min-w-[800px]">
+              <thead className="bg-gray-50 text-gray-500 text-sm border-b">
+                <tr>
+                  <th className="p-4 whitespace-nowrap">الكود</th>
+                  <th className="p-4 whitespace-nowrap">الاسم</th>
+                  <th className="p-4 text-center whitespace-nowrap">الاعتيادي</th>
+                  <th className="p-4 text-center whitespace-nowrap">العارضة المتبقية</th>
+                  <th className="p-4 text-center whitespace-nowrap">بدل الراحة</th>
+                  <th className="p-4 text-center whitespace-nowrap">إجراءات</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr><td colSpan="6" className="p-8 text-center text-gray-400 whitespace-nowrap">جاري تحميل الأرصدة...</td></tr>
+                ) : employees.sort((a, b) => Number(a.employeeCode) - Number(b.employeeCode)).map(emp => (
+                  <tr key={emp._id} className="hover:bg-gray-50 transition">
+                    <td className="p-4 text-gray-500 font-medium whitespace-nowrap">{emp.employeeCode}</td>
+                    <td className="p-4 font-bold text-gray-800 whitespace-nowrap">{emp.name}</td>
+                    <td className="p-4 text-center font-bold text-blue-600 whitespace-nowrap">{emp.leaveBalances?.annual || 0}</td>
+                    <td className="p-4 text-center font-bold text-orange-500 whitespace-nowrap">{emp.leaveBalances?.casual || 0}</td>
+                    <td className="p-4 text-center font-bold text-green-600 whitespace-nowrap">{emp.leaveBalances?.compensation || 0}</td>
+                    <td className="p-4 text-center whitespace-nowrap">
+                      <button onClick={() => openEditModal(emp)} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-gray-200 transition">
+                        <Edit3 size={15} /> تعديل الأرصدة
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* النافذة المنبثقة (Modal) للتعديل */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
               <div className="flex items-center justify-between mb-6 border-b pb-3">
                 <h3 className="text-xl font-bold text-gray-800">تعديل أرصدة: {selectedEmp?.name}</h3>
