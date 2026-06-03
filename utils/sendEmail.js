@@ -25,8 +25,7 @@ const sendLeaveEmail = async (employeeEmail, employeeName, status, leaveType, st
       </div>
     `;
 
-    // هنبعت البيانات للرابط السري بتاعنا في جوجل
-    // ضيف الرابط الطويل بتاعك جوه علامات التنصيص هنا 👇
+    // ⚠️ مهم: الزق الرابط الطويل بتاع جوجل هنا بين علامات التنصيص
     const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4nrqZ3evHY5pc31PKleB_dV6V9xY4q4840pm_bgTzPnHDrZMDcvjNlv4aAEm6I-g2/exec';
 
     const response = await fetch(GOOGLE_SCRIPT_URL, {
@@ -36,14 +35,14 @@ const sendLeaveEmail = async (employeeEmail, employeeName, status, leaveType, st
       },
       body: JSON.stringify({
         to: employeeEmail,
-        subject: \`تحديث بخصوص طلب الإجازة: \${statusText}\`,
+        subject: `تحديث بخصوص طلب الإجازة: ${statusText}`,
         htmlBody: htmlTemplate
       })
     });
 
     const result = await response.json();
     if (result.status === 'success') {
-      console.log(\`✅ Email sent successfully via Webhook to: \${employeeEmail}\`);
+      console.log(`✅ Email sent successfully via Webhook to: ${employeeEmail}`);
     } else {
       console.error('❌ Error from Google Script:', result.message);
     }
