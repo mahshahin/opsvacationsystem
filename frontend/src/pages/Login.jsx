@@ -37,9 +37,9 @@ const Login = () => {
       const data = await response.json();
 
       if (rememberMe) {
-        sessionStorage.setItem('savedEmployeeCode', employeeCode);
+        localStorage.setItem('savedEmployeeCode', employeeCode);
         } else {
-         sessionStorage.removeItem('savedEmployeeCode');
+         localStorage.removeItem('savedEmployeeCode');
         }
 
       if (!response.ok) {
@@ -47,7 +47,7 @@ const Login = () => {
         setError(data.message);
       } else {
         // حفظ بيانات الموظف في ذاكرة المتصفح
-        sessionStorage.setItem('employeeData', JSON.stringify(data.user));
+        localStorage.setItem('employeeData', JSON.stringify(data.user));
         // لو الدخول نجح
         toast.success(`تم تسجيل الدخول بنجاح! أهلاً بك يا ${data.user.name}`);
         // تأخير بسيط ثانية واحدة عشان الموظف يلحق يقرأ الترحيب قبل ما يتنقل

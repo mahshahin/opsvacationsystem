@@ -200,7 +200,7 @@ default: return <span className="flex items-center justify-center gap-1 text-gra
 }
 };
 
-const loggedInUser = JSON.parse(sessionStorage.getItem('employeeData') || '{}');
+const loggedInUser = JSON.parse(localStorage.getItem('employeeData') || '{}');
 const adminsList = employees.filter(emp => {
 if (emp.role !== 'admin') return false;
 if (emp.employeeCode === GOLDEN_ADMIN_CODE) {
