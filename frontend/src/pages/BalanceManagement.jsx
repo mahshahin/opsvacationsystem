@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { UserPlus, ShieldAlert, Shield, User, Trash2, Edit2, RotateCcw, Check, X, AlertTriangle } from 'lucide-react';
 import AdminLayout from './components/AdminLayout';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = `https://opsvacationsystem.onrender.com`;
 
 const EmployeeManagement = () => {
 const [employees, setEmployees] = useState([]);
