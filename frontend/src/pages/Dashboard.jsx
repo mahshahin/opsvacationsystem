@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Send, Clock, CheckCircle, XCircle, Trash2, AlertTriangle, CalendarDays, ChevronDown, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EmployeeLayout from './components/EmployeeLayout';
+import CircularProgress from './components/CircularProgress';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -30,7 +31,7 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    const savedData = localStorage.getItem('employeeData');
+    const savedData = sessionStorage.getItem('employeeData') || localStorage.getItem('employeeData');
     if (savedData) {
       const parsedEmployee = JSON.parse(savedData);
       setEmployee(parsedEmployee);
@@ -118,14 +119,16 @@ const Dashboard = () => {
 
   if (!employee) return <div className="min-h-screen flex items-center justify-center font-bold text-blue-600">جاري التحميل...</div>;
 
+  // حسبة الحد الأقصى للإجازة الاعتيادية بناءً على الدرجة الوظيفية
+  const maxAnnual = (employee.jobGrade === 'كبير' || employee.jobGrade === 'درجة اولى') ? 30 : 21;
+
   return (
     <EmployeeLayout>
       <div className="p-4 md:p-8">
         
-        {/* === الهيدر الجديد بالتاريخ والساعة === */}
+        {/* === الهيدر === */}
         <header className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 mb-8 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100">
           
-          {/* الجزء الأيمن: عنوان الصفحة */}
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
               لوحة التحكم
@@ -133,31 +136,24 @@ const Dashboard = () => {
             <p className="text-sm text-gray-500 mt-1">نظرة عامة على رصيد إجازاتك وطلباتك</p>
           </div>
 
-          {/* الجزء الأيسر: بيانات المستخدم والتاريخ */}
           <div className="flex items-center gap-4 w-full md:w-auto pt-4 md:pt-0 border-t md:border-0 border-gray-100">
-            
-            {/* أيقونة المستخدم */}
             <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shadow-inner shrink-0">
               <User size={24} />
             </div>
             
-            {/* الاسم والتاريخ والساعة */}
             <div className="flex flex-col">
               <span className="font-medium text-gray-700 text-lg">
                 أهلاً، <span className="font-bold text-blue-600">{employee.name}</span>
               </span>
               
               <div className="flex items-center gap-3 text-xs md:text-sm text-gray-500 mt-1.5 font-medium">
-                {/* التاريخ */}
                 <span className="flex items-center gap-1.5">
                   <CalendarDays size={14} className="text-gray-400" />
                   {currentTime.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </span>
                 
-                {/* فاصل دائري صغير */}
                 <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                 
-                {/* الساعة */}
                 <span className="flex items-center gap-1.5" dir="ltr">
                   <Clock size={14} className="text-gray-400" />
                   {currentTime.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true })}
@@ -168,19 +164,26 @@ const Dashboard = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-navy-light transform transition hover:-translate-y-1 hover:shadow-md duration-300">
-            <p className="text-gray-500 text-sm mb-1">اعتيادي</p>
-            <h3 className="text-3xl font-bold text-gray-800">{employee.leaveBalances?.annual || 0} <span className="text-lg text-gray-400 font-medium">يوم</span></h3>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-yellow-400 transform transition hover:-translate-y-1 hover:shadow-md duration-300">
-            <p className="text-gray-500 text-sm mb-1">عارضة</p>
-            <h3 className="text-3xl font-bold text-gray-800">{employee.leaveBalances?.casual || 0} <span className="text-lg text-gray-400 font-medium">يوم</span></h3>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border-r-4 border-green-500 transform transition hover:-translate-y-1 hover:shadow-md duration-300">
-            <p className="text-gray-500 text-sm mb-1">بدل</p>
-            <h3 className="text-3xl font-bold text-gray-800">{employee.leaveBalances?.compensation || 0} <span className="text-lg text-gray-400 font-medium">يوم</span></h3>
-          </div>
+        {/* 🌟 كروت الرصيد بالتصميم الدائري المودرن 🌟 */}
+        <div className="grid grid-cols-3 gap-2 md:gap-6 mb-8">
+          <CircularProgress 
+            value={employee.leaveBalances?.annual || 0} 
+            max={maxAnnual} 
+            label="رصيد اعتيادي" 
+            type="annual" 
+          />
+          <CircularProgress 
+            value={employee.leaveBalances?.casual || 0} 
+            max={7} 
+            label="رصيد عارضة" 
+            type="casual" 
+          />
+          <CircularProgress 
+            value={employee.leaveBalances?.compensation || 0} 
+            max={0} 
+            label="بدل راحة" 
+            type="compensation" 
+          />
         </div>
 
         {/* كارت تقديم الطلب */}
@@ -197,10 +200,8 @@ const Dashboard = () => {
             تقديم طلب جديد
           </h3>
           
-          {/* الفورم الرئيسية والأخيرة (شبكة من 4 عواميد) */}
           <form onSubmit={handleLeaveSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full items-start relative z-20">
             
-            {/* 1. قائمة نوع الإجازة */}
             <div className="relative z-30 w-full">
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
                 <FileText size={18} />
@@ -242,7 +243,6 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* 2. تاريخ البداية */}
             <div className="relative w-full bg-gray-50 border border-gray-200 rounded-xl focus-within:border-navy-light focus-within:ring-4 focus-within:ring-navy-light/10 transition-all group">
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light z-10">
                 <CalendarDays size={18} />
@@ -261,7 +261,6 @@ const Dashboard = () => {
               />
             </div>
 
-            {/* 3. تاريخ النهاية */}
             <div className="relative w-full bg-gray-50 border border-gray-200 rounded-xl focus-within:border-navy-light focus-within:ring-4 focus-within:ring-navy-light/10 transition-all group">
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light z-10">
                 <CalendarDays size={18} />
@@ -280,7 +279,6 @@ const Dashboard = () => {
               />
             </div>
 
-            {/* 4. زرار الإرسال */}
             <div className="w-full">
               <button disabled={isSubmitting} className="w-full h-full py-3 flex items-center justify-center gap-2 bg-navy-light text-white rounded-xl font-bold hover:bg-[#0f172a] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 z-10">
                 {isSubmitting ? (
