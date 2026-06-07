@@ -1,0 +1,143 @@
+/* =========================================================
+   أنماط الطباعة الخاصة بجدول الروستر (RosterManagement)
+   ملاحظة: AdminLayout يخفي القائمة/الهيدر/الفوتر ويلغي القص
+   عبر كلاسات Tailwind (print:hidden / print:overflow-visible).
+   هذا الملف يضبط شكل الجدول والبانر وتعدّد الصفحات.
+
+   - .no-print   => يظهر على الشاشة ويختفي عند الطباعة
+   - .print-only => مخفي على الشاشة ويظهر فقط عند الطباعة
+   ========================================================= */
+
+/* على الشاشة: عناصر الطباعة فقط تكون مخفية */
+.print-only {
+    display: none;
+}
+
+@media print {
+
+    /* 0) الجذر والجسم: لا قص للمحتوى، يسمح بصفحات متعددة */
+    html,
+    body {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* 1) إخفاء العناصر المخصصة للشاشة فقط */
+    .no-print {
+        display: none !important;
+    }
+
+    /* 2) إظهار العناصر المخصصة للطباعة فقط */
+    .print-only {
+        display: inline-block !important;
+        width: 100%;
+        text-align: center;
+    }
+
+    /* 3) منطقة الطباعة: تدفق طبيعي وكامل العرض (يسمح بعدة صفحات) */
+    .roster-print-area {
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+
+    .roster-print-area * {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
+    /* 4) ضبط حجم الصفحة والاتجاه (الجدول عريض => أفقي) */
+    @page {
+        size: A4 landscape;
+        margin: 8mm;
+    }
+
+    /* 5) إجبار المتصفح على طباعة الألوان (الأصفر/الحدود) */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    /* 6) تنسيق الجدول للطباعة */
+    .print-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 9px !important;
+        table-layout: fixed;
+    }
+
+    .print-table th,
+    .print-table td {
+        border: 1px solid #000 !important;
+        padding: 2px !important;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    /* 7) تلوين رأس الجدول بالأصفر */
+    .print-table thead tr {
+        background-color: #ffe600 !important;
+    }
+
+    /* البانر الأصفر — يظهر كاملاً عند الطباعة */
+    .print-banner {
+        display: block !important;
+        visibility: visible !important;
+        background-color: #ffe600 !important;
+        border: 2px solid #000 !important;
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+        text-align: center !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .print-banner h2 {
+        color: #dc2626 !important;
+        /* العنوان الأحمر (الشهر/السنة) */
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        margin-bottom: 4px !important;
+    }
+
+    .print-banner p {
+        color: #000 !important;
+        font-weight: 700 !important;
+        margin: 2px 0 !important;
+    }
+
+    /* 8) تعدّد الصفحات: لا يُقطع صف بين صفحتين + تكرار رأس الجدول */
+    .print-table tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    .print-table thead {
+        display: table-header-group;
+    }
+
+    .print-table tbody {
+        display: table-row-group;
+    }
+
+    /* 9) نص الخلية المطبوع */
+    .print-cell-text {
+        display: inline-block !important;
+        width: 100%;
+        text-align: center;
+        font-size: 9px;
+        line-height: 1.3;
+        padding: 1px 0;
+    }
+}

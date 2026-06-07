@@ -10,6 +10,7 @@ const Log = require('./models/Log');
 const LeaveRequest = require('./models/LeaveRequest');
 const Admin = require('./models/Admin');
 
+
 // 1. استدعاء دالة إرسال الإيميلات اللي جهزناها جوه فولدر utils 👇
 const sendLeaveEmail = require('./utils/sendEmail');
 
@@ -17,6 +18,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use('/api/roster', require('./routes/rosterRoutes'));
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('=== ✅ connected to MongoDB successfully ==='))
@@ -405,6 +407,67 @@ app.get('/api/admin/leave-archive', async (req, res) => {
   }
 });
 
+app.delete("/api/admin/leave-archive/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const leave = await LeaveRequest.findById(id);
+
+    if (!leave) {
+      return res.status(404).json({
+        success: false,
+        message: "طلب الإجازة غير موجود",
+      });
+    }
+
+    const employee = await User.findById(leave.employeeId);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "الموظف غير موجود",
+      });
+    }
+
+    // لو الإجازة كانت معتمدة، رجّع الرصيد
+    if (leave.status === "approved") {
+      if (leave.leaveType === "annual") {
+        employee.leaveBalances.annual =
+          (employee.leaveBalances.annual || 0) + leave.duration;
+      } else if (leave.leaveType === "casual") {
+        employee.leaveBalances.casual =
+          (employee.leaveBalances.casual || 0) + leave.duration;
+      } else if (leave.leaveType === "compensation") {
+        employee.leaveBalances.compensation =
+          (employee.leaveBalances.compensation || 0) + leave.duration;
+      }
+
+      await employee.save();
+    }
+
+    await LeaveRequest.findByIdAndDelete(id);
+
+    const newLog = new Log({
+      action: "LEAVE_CANCELLED",
+      details: `تم إلغاء طلب إجازة نهائيًا للموظف ${employee.name}`,
+      ipAddress: req.ip,
+    });
+
+    await newLog.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "تم إلغاء الإجازة نهائيًا وحذفها من السجل",
+    });
+  } catch (error) {
+    console.error("Error cancelling leave request:", error);
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء إلغاء الإجازة",
+    });
+  }
+});
+
 app.put('/api/auth/change-password', async (req, res) => {
   try {
     const { employeeCode, currentPassword, newPassword } = req.body; 
@@ -546,6 +609,8 @@ app.put('/api/employees/update-email/:code', async (req, res) => {
     res.status(500).json({ message: 'حدث خطأ في السيرفر أثناء تحديث الإيميل' });
   }
 });
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

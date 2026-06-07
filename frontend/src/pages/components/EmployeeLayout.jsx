@@ -22,20 +22,22 @@ const EmployeeLayout = ({ children }) => {
 
   return (
     // 1. التعديل هنا: h-screen بدل min-h-screen، وإضافة overflow-hidden لمنع السكرول الخارجي
-    <div className="flex h-screen w-full bg-gray-50 font-sans overflow-hidden" dir="rtl">
-      
+    <div
+      className="flex h-screen w-full bg-gray-50 font-sans overflow-hidden"
+      dir="rtl"
+    >
       {/* 1. الطبقة السودا الشفافة (Overlay) اللي بتظهر ورا القائمة في الموبايل */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
           onClick={() => setIsMobileMenuOpen(false)}
         ></div>
       )}
 
       {/* 2. القائمة الجانبية (Sidebar): ضفنا shrink-0 عشان تفضل محتفظة بعرضها وماتتضغطش */}
-      <aside 
+      <aside
         className={`fixed top-0 right-0 h-full w-64 bg-navy-light text-white z-50 transform transition-transform duration-300 ease-in-out flex flex-col shadow-xl shrink-0 md:relative md:translate-x-0 ${
-          isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* هيدر القائمة الجانبية */}
@@ -45,9 +47,9 @@ const EmployeeLayout = ({ children }) => {
             <h1 className="text-2xl font-bold">السيطرة المركزية</h1>
             <p className="text-sm text-blue-200 mt-1">نظام الإجازات</p>
           </div>
-          
+
           {/* زرار الإغلاق (X) في الموبايل بس */}
-          <button 
+          <button
             className="md:hidden absolute top-4 left-4 text-gray-400 hover:text-white"
             onClick={() => setIsMobileMenuOpen(false)}
           >
@@ -57,52 +59,72 @@ const EmployeeLayout = ({ children }) => {
 
         {/* روابط التنقل */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          
           {/* زرار الرئيسية */}
-          <button 
-            onClick={() => handleNavigation('/dashboard')} 
+          <button
+            onClick={() => handleNavigation("/dashboard")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
-              location.pathname === '/dashboard' ? 'bg-white/10 text-white' : 'text-blue-100 hover:bg-white/10'
+              location.pathname === "/dashboard"
+                ? "bg-white/10 text-white"
+                : "text-blue-100 hover:bg-white/10"
             }`}
           >
             <Home size={20} /> الرئيسية
           </button>
-          
+
+          {/* 👇 الزرار الجديد بتاع جدول الورديات 👇 */}
+          <button
+            onClick={() => navigate("/my-shifts")}
+            className={`w-full flex items-center gap-3 p-3 rounded transition-colors duration-200 font-bold text-right outline-none
+            ${location.pathname === "/my-shifts" ? "bg-[#ffe600] text-black" : "hover:bg-gray-700 text-gray-200"}
+          `}
+          >
+            <span className="text-xl">📅</span>
+            <span>جدول وردياتي</span>
+          </button>
+
           {/* زرار سجل الإجازات */}
-          <button 
-            onClick={() => handleNavigation('/my-leaves')} 
+          <button
+            onClick={() => handleNavigation("/my-leaves")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
-              location.pathname === '/my-leaves' ? 'bg-white/10 text-white' : 'text-blue-100 hover:bg-white/10'
+              location.pathname === "/my-leaves"
+                ? "bg-white/10 text-white"
+                : "text-blue-100 hover:bg-white/10"
             }`}
           >
             <CalendarDays size={20} /> سجل الإجازات
           </button>
-          
+
           {/* زرار التقارير */}
-          <button 
-            onClick={() => handleNavigation('/my-reports')} 
+          <button
+            onClick={() => handleNavigation("/my-reports")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
-              location.pathname === '/my-reports' ? 'bg-white/10 text-white' : 'text-blue-100 hover:bg-white/10'
+              location.pathname === "/my-reports"
+                ? "bg-white/10 text-white"
+                : "text-blue-100 hover:bg-white/10"
             }`}
           >
             <FileText size={20} /> التقارير
           </button>
 
           {/* زرار حسابي */}
-          <button 
-            onClick={() => handleNavigation('/profile')} 
+          <button
+            onClick={() => handleNavigation("/profile")}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
-              location.pathname === '/profile' ? 'bg-white/10 text-white' : 'text-blue-100 hover:bg-white/10'
+              location.pathname === "/profile"
+                ? "bg-white/10 text-white"
+                : "text-blue-100 hover:bg-white/10"
             }`}
           >
             <User size={20} /> حسابي
           </button>
-
         </nav>
-        
+
         {/* زرار تسجيل الخروج */}
         <div className="p-4 border-t border-blue-400/30 shrink-0">
-          <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 hover:bg-red-500/80 rounded-lg text-blue-100 hover:text-white transition">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 hover:bg-red-500/80 rounded-lg text-blue-100 hover:text-white transition"
+          >
             <LogOut size={20} /> تسجيل خروج
           </button>
         </div>
@@ -110,11 +132,10 @@ const EmployeeLayout = ({ children }) => {
 
       {/* 3. الجزء الرئيسي لعرض المحتوى (Main Content) */}
       <main className="flex-1 h-full flex flex-col min-w-0 relative">
-        
         {/* هيدر الموبايل العلوي (يظهر في الشاشات الصغيرة فقط ☰): ضفنا shrink-0 */}
         <header className="bg-navy-light text-white p-4 shadow-md md:hidden flex items-center justify-between z-10 shrink-0">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="text-gray-200 hover:text-white focus:outline-none"
             >
@@ -128,16 +149,15 @@ const EmployeeLayout = ({ children }) => {
         {/* مساحة العمل اللي هيتغير محتواها حسب الصفحة (هنا بيبدأ السكرول الداخلي) */}
         <div className="flex-1 overflow-y-auto flex flex-col">
           {/* المحتوى */}
-          <div className="flex-1 p-4 md:p-8">
-            {children}
-          </div>
-          
+          <div className="flex-1 p-4 md:p-8">{children}</div>
+
           {/* الفوتر الاحترافي: ضفنا shrink-0 و px-4 md:px-8 للمحاذاة */}
           <footer className="w-full text-left px-4 md:px-8 py-4 text-xs text-gray-500 border-t border-gray-200 shrink-0">
-            Developed by <span className="font-bold text-gray-700">Mahmoud Shahin</span> &copy; 2026
+            Developed by{" "}
+            <span className="font-bold text-gray-700">Mahmoud Shahin</span>{" "}
+            &copy; 2026
           </footer>
         </div>
-        
       </main>
     </div>
   );

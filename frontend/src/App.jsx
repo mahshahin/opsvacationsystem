@@ -15,6 +15,8 @@ const Register = React.lazy(() => import('./pages/Register'));
 const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
 const AdminProfile = React.lazy(() => import('./pages/AdminProfile'));
 const SystemLogs = React.lazy(() => import('./pages/SystemLogs'));// مسار الملف الجديد
+const RosterManagement = React.lazy(() => import('./pages/RosterManagement'));
+const MyShifts = React.lazy(() => import('./pages/MyShifts')); // استدعاء شاشة ورديات الموظف
 
 function App() {
   return (
@@ -70,7 +72,11 @@ function App() {
                 <EmployeeReports />
               </ProtectedRoute>
             } />
-
+            <Route path="/my-shifts" element={
+              <ProtectedRoute>
+                <MyShifts />
+              </ProtectedRoute>
+            } />  
 
             {/* === مسارات الإدارة (محمية وصلاحية أدمن فقط) === */}
             <Route path="/admin" element={
@@ -103,6 +109,11 @@ function App() {
                 <SystemLogs />
               </ProtectedRoute>
             } />  
+            <Route path="/admin/roster" element={
+              <ProtectedRoute requiredRole="admin">
+                <RosterManagement />
+              </ProtectedRoute>
+            } />
 
           </Routes>
         </Suspense>
