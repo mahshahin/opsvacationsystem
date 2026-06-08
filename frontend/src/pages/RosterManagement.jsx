@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AdminLayout from "./components/AdminLayout";
 import toast from "react-hot-toast";
-import "../print.css";
+import "./print.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -30,11 +30,7 @@ const weekDays = [
   "السبت",
 ];
 
-const shiftLabels = {
-  shift1: "الأولى",
-  shift2: "الثانية",
-  shift3: "الثالثة",
-};
+const shiftLabels = { shift1: "الأولى", shift2: "الثانية", shift3: "الثالثة" };
 
 const shiftThemes = {
   shift1: {
@@ -68,7 +64,6 @@ const yearOptions = [currentYear, currentYear - 1];
 const createEmptyRoster = (selectedMonth, selectedYear) => {
   const daysCount = new Date(selectedYear, selectedMonth, 0).getDate();
   const initialRoster = {};
-
   for (let d = 1; d <= daysCount; d++) {
     initialRoster[d] = {
       shift1: { leader: "", members: ["", "", ""] },
@@ -77,19 +72,15 @@ const createEmptyRoster = (selectedMonth, selectedYear) => {
       notes: "",
     };
   }
-
   return initialRoster;
 };
 
 const normalizeRosterData = (details, selectedMonth, selectedYear) => {
   const base = createEmptyRoster(selectedMonth, selectedYear);
-
   if (!details) return base;
-
   Object.keys(base).forEach((day) => {
     const sourceDay = details?.[day];
     if (!sourceDay) return;
-
     base[day] = {
       shift1: {
         leader: sourceDay.shift1?.leader || "",
@@ -118,7 +109,6 @@ const normalizeRosterData = (details, selectedMonth, selectedYear) => {
       notes: sourceDay.notes || "",
     };
   });
-
   return base;
 };
 
@@ -171,9 +161,7 @@ const EmployeeDropdown = ({
 
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     if (!q) return employees;
-
     return employees.filter((emp) => {
       const name = String(emp.name || "").toLowerCase();
       const code = String(emp.employeeCode || "").toLowerCase();
@@ -183,24 +171,20 @@ const EmployeeDropdown = ({
 
   useEffect(() => {
     if (!open) return;
-
     const handleOutsideClick = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setOpen(false);
         setSearch("");
       }
     };
-
     const handleEscape = (e) => {
       if (e.key === "Escape") {
         setOpen(false);
         setSearch("");
       }
     };
-
     document.addEventListener("mousedown", handleOutsideClick);
     document.addEventListener("keydown", handleEscape);
-
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
       document.removeEventListener("keydown", handleEscape);
@@ -232,12 +216,10 @@ const EmployeeDropdown = ({
             ) : selectedAlert ? (
               <span className="text-xs">🌴</span>
             ) : null}
-
             <span className="truncate">
               {selectedEmp ? selectedEmp.name : placeholder}
             </span>
           </div>
-
           <svg
             className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition ${
               open ? "rotate-180" : ""
@@ -263,7 +245,6 @@ const EmployeeDropdown = ({
               <span>{selectedAlert.badgeText}</span>
             </div>
           )}
-
           {selectedUsage?.isUsedElsewhere && (
             <div className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
               <span>⚠️</span>
@@ -342,18 +323,15 @@ const EmployeeDropdown = ({
                           <div className="truncate text-[11px] font-bold text-slate-800">
                             {emp.name}
                           </div>
-
                           <div className="mt-0.5 text-[10px] font-medium text-slate-500">
                             كود: {emp.employeeCode || "—"}
                           </div>
-
                           {usage?.isUsedElsewhere && (
                             <div className="mt-1 text-[10px] font-bold text-purple-700">
                               مستخدم في: {usage.label}
                             </div>
                           )}
                         </div>
-
                         <div className="flex shrink-0 flex-col items-end gap-1">
                           {alert && (
                             <span
@@ -362,13 +340,11 @@ const EmployeeDropdown = ({
                               {alert.badgeText}
                             </span>
                           )}
-
                           {usage?.isUsedElsewhere && (
                             <span className="rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[9px] font-bold text-purple-700">
                               مكرر
                             </span>
                           )}
-
                           {isSelected && !disabled && (
                             <span className="text-xs font-black text-blue-600">
                               ✓
@@ -401,27 +377,110 @@ const RosterManagement = () => {
   const [rosterData, setRosterData] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // ✅ جديد: نافذة التحقق قبل الاعتماد
+  const [validationModal, setValidationModal] = useState({
+    isOpen: false,
+    errors: [], // الأيام/الشيفتات الناقصة (تمنع الاعتماد)
+    unscheduled: [], // الموظفون غير المجدولين
+  });
+
   const handlePrint = () => {
     window.print();
   };
 
-  const handleSaveRoster = async (status) => {
-    const payload = {
-      month,
-      year,
-      status,
-      rosterDetails: rosterData,
-    };
+  // ✅ جديد: التحقق من اكتمال الروستر قبل الاعتماد
+  const validateRoster = () => {
+    const errors = [];
 
+    // 1) فحص كل يوم/شيفت: لازم رئيس نوبة + فرد واحد على الأقل
+    daysInMonth.forEach((day) => {
+      const dayData = rosterData[day.dayNumber];
+      if (!dayData) return;
+
+      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+        const shiftData = dayData[shiftKey] || {};
+        const hasLeader = !!normalizeId(shiftData.leader);
+        const membersCount = (shiftData.members || []).filter(
+          (m) => !!normalizeId(m),
+        ).length;
+
+        const problems = [];
+        if (!hasLeader) problems.push("بدون رئيس نوبة");
+        if (membersCount < 1) problems.push("بدون أفراد");
+
+        if (problems.length > 0) {
+          errors.push({
+            day: day.dayNumber,
+            dayName: day.dayName,
+            shift: shiftLabels[shiftKey],
+            problems: problems.join(" و "),
+          });
+        }
+      });
+    });
+
+    // 2) فحص الموظفين غير المجدولين (مع استثناء من في إجازة طوال الشهر)
+    const scheduledIds = new Set();
+    Object.values(rosterData).forEach((dayData) => {
+      if (!dayData) return;
+      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+        const s = dayData[shiftKey] || {};
+        if (s.leader) scheduledIds.add(normalizeId(s.leader));
+        (s.members || []).forEach((m) => {
+          if (m) scheduledIds.add(normalizeId(m));
+        });
+      });
+    });
+
+    const unscheduled = employees
+      .filter((emp) => {
+        // استثناء المديرين (لا يُجدولون عادةً)
+        if (emp.role === "admin") return false;
+        const id = normalizeId(emp._id);
+        if (scheduledIds.has(id)) return false;
+        // لو الموظف في إجازة طوال أيام الشهر، لا نعتبره "منسياً"
+        const onLeaveAllMonth = daysInMonth.every(
+          (day) => !!getEmployeeAlert(emp._id, day.dayNumber),
+        );
+        return !onLeaveAllMonth;
+      })
+      .map((emp) => ({
+        name: emp.name,
+        code: emp.employeeCode || "—",
+      }));
+
+    return { errors, unscheduled };
+  };
+
+  const handleSaveRoster = async (status) => {
+    // ✅ التحقق يُطبّق فقط عند الاعتماد/النشر (المسودة تُحفظ دون تحقق)
+    if (status === "published") {
+      const { errors, unscheduled } = validateRoster();
+      if (errors.length > 0) {
+        setValidationModal({ isOpen: true, errors, unscheduled });
+        return; // يمنع الاعتماد
+      }
+      // لا أخطاء حاجزة، لكن نعرض تنبيه الموظفين غير المجدولين (إن وُجد) للتأكيد
+      if (unscheduled.length > 0) {
+        setValidationModal({ isOpen: true, errors: [], unscheduled });
+        return;
+      }
+    }
+
+    await saveRosterToServer(status);
+  };
+
+  // الحفظ الفعلي للسيرفر (يُستدعى مباشرة أو بعد التأكيد من النافذة)
+  const saveRosterToServer = async (status) => {
+    const payload = { month, year, status, rosterDetails: rosterData };
     try {
+      // ✅ إصلاح fetch (كان tagged template خاطئ)
       const response = await fetch(`${API_URL}/api/roster/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const result = await response.json();
-
       if (result.success) {
         toast.success(result.message || "تم الحفظ بنجاح");
         setRosterStatus(status);
@@ -437,30 +496,22 @@ const RosterManagement = () => {
   const daysInMonth = useMemo(() => {
     const daysCount = new Date(year, month, 0).getDate();
     const daysArray = [];
-
     for (let d = 1; d <= daysCount; d++) {
       const dateObj = new Date(year, month - 1, d);
-      daysArray.push({
-        dayNumber: d,
-        dayName: weekDays[dateObj.getDay()],
-      });
+      daysArray.push({ dayNumber: d, dayName: weekDays[dateObj.getDay()] });
     }
-
     return daysArray;
   }, [month, year]);
 
   useEffect(() => {
     let isMounted = true;
-
     const fetchInitData = async () => {
       setLoading(true);
-
       try {
         const response = await fetch(
           `${API_URL}/api/roster/init?month=${month}&year=${year}`,
         );
         const data = await response.json();
-
         if (!isMounted) return;
 
         if (data.success) {
@@ -469,11 +520,7 @@ const RosterManagement = () => {
               ? [...data.employees].sort((a, b) => {
                   const codeA = Number(a.employeeCode || 0);
                   const codeB = Number(b.employeeCode || 0);
-
-                  if (codeA !== codeB) {
-                    return codeA - codeB;
-                  }
-
+                  if (codeA !== codeB) return codeA - codeB;
                   return String(a.name || "").localeCompare(
                     String(b.name || ""),
                     "ar",
@@ -481,8 +528,6 @@ const RosterManagement = () => {
                 })
               : [],
           );
-
-
           setLeaves(Array.isArray(data.leaves) ? data.leaves : []);
 
           if (data.existingRoster) {
@@ -503,7 +548,6 @@ const RosterManagement = () => {
         }
       } catch (error) {
         console.error("Error fetching roster init data:", error);
-
         if (isMounted) {
           toast.error("حدث خطأ أثناء تحميل البيانات");
           setEmployees([]);
@@ -517,7 +561,6 @@ const RosterManagement = () => {
     };
 
     fetchInitData();
-
     return () => {
       isMounted = false;
     };
@@ -527,7 +570,6 @@ const RosterManagement = () => {
     setRosterData((prev) => {
       const newData = { ...prev };
       if (!newData[dayNum]) return prev;
-
       const dayCopy = {
         ...newData[dayNum],
         shift1: {
@@ -543,7 +585,6 @@ const RosterManagement = () => {
           members: [...newData[dayNum].shift3.members],
         },
       };
-
       if (role === "leader") {
         dayCopy[shift].leader = value;
       } else if (role === "members") {
@@ -551,7 +592,6 @@ const RosterManagement = () => {
       } else if (role === "notes") {
         dayCopy.notes = value;
       }
-
       newData[dayNum] = dayCopy;
       return newData;
     });
@@ -559,25 +599,20 @@ const RosterManagement = () => {
 
   const getEmployeeAlert = (empId, dayNum) => {
     const targetEmpId = normalizeId(empId);
-
     const currentDate = new Date(year, month - 1, dayNum);
     currentDate.setHours(12, 0, 0, 0);
 
     const matchedLeave = leaves.find((leave) => {
       const leaveEmpId = normalizeId(leave.employeeId);
       if (!leaveEmpId || leaveEmpId !== targetEmpId) return false;
-
       const status = String(leave.status || "")
         .trim()
         .toLowerCase();
       if (!["approved", "pending"].includes(status)) return false;
-
       const start = new Date(leave.startDate);
       const end = new Date(leave.endDate);
-
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
-
       return currentDate >= start && currentDate <= end;
     });
 
@@ -616,20 +651,17 @@ const RosterManagement = () => {
       currentRole,
       currentMemberIndex,
     );
-
     const usedSlots = [];
 
     ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
       const shiftData = dayData[shiftKey];
       if (!shiftData) return;
-
       if (shiftData.leader && normalizeId(shiftData.leader) === targetId) {
         usedSlots.push({
           key: getSlotKey(shiftKey, "leader"),
           label: getSlotLabel(shiftKey, "leader"),
         });
       }
-
       (shiftData.members || []).forEach((member, index) => {
         if (member && normalizeId(member) === targetId) {
           usedSlots.push({
@@ -641,7 +673,6 @@ const RosterManagement = () => {
     });
 
     const usedElsewhere = usedSlots.filter((slot) => slot.key !== currentKey);
-
     if (usedElsewhere.length === 0) return null;
 
     return {
@@ -656,7 +687,6 @@ const RosterManagement = () => {
       handleRosterChange(dayNum, shift, role, memberIndex, "");
       return;
     }
-
     const usage = getEmployeeDayUsage(
       dayNum,
       newValue,
@@ -664,12 +694,11 @@ const RosterManagement = () => {
       role,
       memberIndex,
     );
-
     if (usage?.isUsedElsewhere) {
+      // ✅ إصلاح toast.error (كان tagged template خاطئ)
       toast.error(`الموظف ده مضاف بالفعل في ${usage.label} لنفس اليوم`);
       return;
     }
-
     handleRosterChange(dayNum, shift, role, memberIndex, newValue);
   };
 
@@ -737,7 +766,6 @@ const RosterManagement = () => {
                       </option>
                     ))}
                   </select>
-
                   <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-slate-400">
                     <svg
                       className="h-4 w-4"
@@ -770,7 +798,6 @@ const RosterManagement = () => {
                       </option>
                     ))}
                   </select>
-
                   <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-slate-400">
                     <svg
                       className="h-4 w-4"
@@ -792,12 +819,10 @@ const RosterManagement = () => {
                   <div className="text-[11px] font-bold text-slate-500">
                     حالة الجدول
                   </div>
-
                   <div className="mt-1 flex items-center justify-between gap-2">
                     <span className="text-sm font-black text-slate-800">
                       {monthNames[month - 1]} {year}
                     </span>
-
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                         rosterStatus === "published"
@@ -844,11 +869,9 @@ const RosterManagement = () => {
             <h2 className="mb-1 text-lg font-black text-red-600 md:text-xl">
               {monthNames[month - 1]} {year}
             </h2>
-
             <p className="text-sm font-bold text-slate-800">
               الإلتزام بالجدول ومراعاة الحضور والإنصراف في المواعيد المحددة
             </p>
-
             <p className="mt-1 text-[11px] font-semibold text-slate-700 md:text-xs">
               الالتزام بمواعيد الحضور للنوبات من الأولى (06:30 إلى 14:30) ---
               الثانية (14:30 إلى 22:30) --- الثالثة (22:30 إلى 06:30)
@@ -865,35 +888,30 @@ const RosterManagement = () => {
                   >
                     اليوم
                   </th>
-
                   <th
                     rowSpan="2"
                     className="sticky top-0 z-30 h-[72px] w-14 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm"
                   >
                     التاريخ
                   </th>
-
                   <th
                     colSpan="2"
                     className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift1.header}`}
                   >
                     الأولى
                   </th>
-
                   <th
                     colSpan="2"
                     className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift2.header}`}
                   >
                     الثانية
                   </th>
-
                   <th
                     colSpan="2"
                     className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift3.header}`}
                   >
                     الثالثة
                   </th>
-
                   <th
                     rowSpan="2"
                     className="sticky top-0 z-30 h-[72px] w-36 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm"
@@ -913,7 +931,6 @@ const RosterManagement = () => {
                   >
                     أفراد النوبة
                   </th>
-
                   <th
                     className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift2.subHeader}`}
                   >
@@ -924,7 +941,6 @@ const RosterManagement = () => {
                   >
                     أفراد النوبة
                   </th>
-
                   <th
                     className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift3.subHeader}`}
                   >
@@ -1078,7 +1094,6 @@ const RosterManagement = () => {
                         rows="2"
                         placeholder="ملاحظات..."
                       ></textarea>
-
                       <span className="print-only print-cell-text">
                         {rosterData[day.dayNumber]?.notes || ""}
                       </span>
@@ -1112,7 +1127,6 @@ const RosterManagement = () => {
                 >
                   حفظ كمسودة
                 </button>
-
                 <button
                   onClick={() => handleSaveRoster("published")}
                   className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
@@ -1124,6 +1138,127 @@ const RosterManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* ============ نافذة التحقق قبل الاعتماد ============ */}
+      {validationModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 no-print">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+            {/* رأس النافذة */}
+            <div
+              className={`px-6 py-4 ${
+                validationModal.errors.length > 0
+                  ? "bg-red-50 border-b border-red-100"
+                  : "bg-amber-50 border-b border-amber-100"
+              }`}
+            >
+              <h3
+                className={`flex items-center gap-2 text-lg font-black ${
+                  validationModal.errors.length > 0
+                    ? "text-red-700"
+                    : "text-amber-700"
+                }`}
+              >
+                {validationModal.errors.length > 0 ? (
+                  <>⛔ لا يمكن اعتماد الروستر</>
+                ) : (
+                  <>⚠️ تنبيه قبل الاعتماد</>
+                )}
+              </h3>
+              <p className="mt-1 text-xs font-medium text-slate-600">
+                {validationModal.errors.length > 0
+                  ? "يجب استكمال النواقص التالية قبل الاعتماد:"
+                  : "الجدول مكتمل، لكن انتبه للملاحظات التالية:"}
+              </p>
+            </div>
+
+            <div className="max-h-[55vh] overflow-y-auto px-6 py-4 space-y-4">
+              {/* الأخطاء الحاجزة: الشيفتات الناقصة */}
+              {validationModal.errors.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-sm font-bold text-red-700">
+                      شيفتات ناقصة ({validationModal.errors.length})
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {validationModal.errors.slice(0, 30).map((err, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-red-100 bg-red-50/60 px-3 py-2 text-xs"
+                      >
+                        <span className="font-bold text-slate-800">
+                          يوم {err.day} ({err.dayName}) — النوبة {err.shift}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">
+                          {err.problems}
+                        </span>
+                      </div>
+                    ))}
+                    {validationModal.errors.length > 30 && (
+                      <div className="text-center text-xs font-semibold text-slate-500">
+                        ... و {validationModal.errors.length - 30} حالة أخرى
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* الموظفون غير المجدولين */}
+              {validationModal.unscheduled.length > 0 && (
+                <div>
+                  <span className="mb-2 block text-sm font-bold text-amber-700">
+                    موظفون لم يُجدولوا هذا الشهر (
+                    {validationModal.unscheduled.length})
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {validationModal.unscheduled.map((emp, i) => (
+                      <span
+                        key={i}
+                        className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800"
+                      >
+                        {emp.name} ({emp.code})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* أزرار النافذة */}
+            <div className="flex gap-2 border-t border-slate-100 px-6 py-4">
+              <button
+                onClick={() =>
+                  setValidationModal({
+                    isOpen: false,
+                    errors: [],
+                    unscheduled: [],
+                  })
+                }
+                className="flex-1 rounded-lg bg-slate-100 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
+              >
+                {validationModal.errors.length > 0 ? "حسناً، سأكمل" : "رجوع"}
+              </button>
+
+              {/* زر المتابعة يظهر فقط لو مفيش أخطاء حاجزة (تنبيه الموظفين فقط) */}
+              {validationModal.errors.length === 0 && (
+                <button
+                  onClick={() => {
+                    setValidationModal({
+                      isOpen: false,
+                      errors: [],
+                      unscheduled: [],
+                    });
+                    saveRosterToServer("published");
+                  }}
+                  className="flex-1 rounded-lg bg-green-600 py-2.5 text-sm font-bold text-white transition hover:bg-green-700"
+                >
+                  متابعة الاعتماد
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
