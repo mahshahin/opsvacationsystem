@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import AdminLayout from "./components/AdminLayout";
 import toast from "react-hot-toast";
-import "./print.css";
+import "../print.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -393,7 +393,7 @@ const RosterManagement = () => {
   const validateRoster = () => {
     const errors = [];
 
-    // 1) فحص كل يوم/شيفت: لازم رئيس نوبة + فرد واحد على الأقل
+    // 1) فحص كل يوم/شيفت
     daysInMonth.forEach((day) => {
       const dayData = rosterData[day.dayNumber];
       if (!dayData) return;
@@ -405,22 +405,31 @@ const RosterManagement = () => {
           (m) => !!normalizeId(m),
         ).length;
 
-        const problems = [];
-        if (!hasLeader) problems.push("بدون رئيس نوبة");
-        if (membersCount < 1) problems.push("بدون أفراد");
+        // إجمالي الناس في الشيفت (الرئيس + الأفراد)
+        const totalPeople = (hasLeader ? 1 : 0) + membersCount;
 
+        const problems = [];
+
+        // التحذيرات المطلوبة
+        if (!hasLeader && membersCount > 0) problems.push("بدون رئيس نوبة");
+        if (membersCount < 3 && totalPeople > 0)
+          problems.push(`يوجد ${3 - membersCount} خانات أفراد فارغة`);
+        if (totalPeople === 1) problems.push("الشيفت به موظف واحد فقط!");
+        if (totalPeople === 0) problems.push("الشيفت فارغ تماماً");
+
+        // لو الشيفت مش كامل (فيه مشكلة)، ضيفه في قائمة التحذيرات
         if (problems.length > 0) {
           errors.push({
             day: day.dayNumber,
             dayName: day.dayName,
             shift: shiftLabels[shiftKey],
-            problems: problems.join(" و "),
+            problems: problems.join(" — "),
           });
         }
       });
     });
 
-    // 2) فحص الموظفين غير المجدولين (مع استثناء من في إجازة طوال الشهر)
+    // 2) فحص الموظفين غير المجدولين
     const scheduledIds = new Set();
     Object.values(rosterData).forEach((dayData) => {
       if (!dayData) return;
@@ -435,11 +444,9 @@ const RosterManagement = () => {
 
     const unscheduled = employees
       .filter((emp) => {
-        // استثناء المديرين (لا يُجدولون عادةً)
         if (emp.role === "admin") return false;
         const id = normalizeId(emp._id);
         if (scheduledIds.has(id)) return false;
-        // لو الموظف في إجازة طوال أيام الشهر، لا نعتبره "منسياً"
         const onLeaveAllMonth = daysInMonth.every(
           (day) => !!getEmployeeAlert(emp._id, day.dayNumber),
         );
@@ -1239,6 +1246,7 @@ const RosterManagement = () => {
               </div>
 
               {/* أزرار النافذة */}
+              {/* أزرار النافذة */}
               <div className="flex gap-2 border-t border-slate-100 px-6 py-4">
                 <button
                   onClick={() =>
@@ -1250,25 +1258,29 @@ const RosterManagement = () => {
                   }
                   className="flex-1 rounded-lg bg-slate-100 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
                 >
-                  {validationModal.errors.length > 0 ? "حسناً، سأكمل" : "رجوع"}
+                  رجوع لتعديل الجدول
                 </button>
 
-                {/* زر المتابعة يظهر فقط لو مفيش أخطاء حاجزة (تنبيه الموظفين فقط) */}
-                {validationModal.errors.length === 0 && (
-                  <button
-                    onClick={() => {
-                      setValidationModal({
-                        isOpen: false,
-                        errors: [],
-                        unscheduled: [],
-                      });
-                      saveRosterToServer("published");
-                    }}
-                    className="flex-1 rounded-lg bg-green-600 py-2.5 text-sm font-bold text-white transition hover:bg-green-700"
-                  >
-                    متابعة الاعتماد
-                  </button>
-                )}
+                {/* زر المتابعة بقى بيظهر دايماً حتى لو فيه أخطاء، عشان يديك الصلاحية تكمل */}
+                <button
+                  onClick={() => {
+                    setValidationModal({
+                      isOpen: false,
+                      errors: [],
+                      unscheduled: [],
+                    });
+                    saveRosterToServer("published");
+                  }}
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold text-white transition ${
+                    validationModal.errors.length > 0
+                      ? "bg-red-600 hover:bg-red-700" // أحمر لو فيه تحذيرات
+                      : "bg-green-600 hover:bg-green-700" // أخضر لو الجدول سليم 100%
+                  }`}
+                >
+                  {validationModal.errors.length > 0
+                    ? "تجاهل التحذيرات واعتماد الجدول"
+                    : "متابعة الاعتماد"}
+                </button>
               </div>
             </div>
           </div>,
