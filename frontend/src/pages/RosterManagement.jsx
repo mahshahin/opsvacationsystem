@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import AdminLayout from "./components/AdminLayout";
 import toast from "react-hot-toast";
 import "./print.css";
@@ -456,6 +457,18 @@ const RosterManagement = () => {
     // ✅ التحقق يُطبّق فقط عند الاعتماد/النشر (المسودة تُحفظ دون تحقق)
     if (status === "published") {
       const { errors, unscheduled } = validateRoster();
+
+      // 🔍 تشخيص مؤقت — افتح Console (F12) وشوف الأرقام دي عند الضغط على اعتماد
+      console.log("🔍 [تحقق الروستر] عدد الأخطاء:", errors.length);
+      console.log("🔍 [تحقق الروستر] الأخطاء:", errors);
+      console.log(
+        "🔍 [تحقق الروستر] غير المجدولين:",
+        unscheduled.length,
+        unscheduled,
+      );
+      console.log("🔍 [تحقق الروستر] عدد أيام الشهر:", daysInMonth.length);
+      console.log("🔍 [تحقق الروستر] عدد الموظفين:", employees.length);
+
       if (errors.length > 0) {
         setValidationModal({ isOpen: true, errors, unscheduled });
         return; // يمنع الاعتماد
@@ -1139,126 +1152,128 @@ const RosterManagement = () => {
         </div>
       </div>
 
-      {/* ============ نافذة التحقق قبل الاعتماد ============ */}
-      {validationModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 no-print">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-            {/* رأس النافذة */}
-            <div
-              className={`px-6 py-4 ${
-                validationModal.errors.length > 0
-                  ? "bg-red-50 border-b border-red-100"
-                  : "bg-amber-50 border-b border-amber-100"
-              }`}
-            >
-              <h3
-                className={`flex items-center gap-2 text-lg font-black ${
+      {/* ============ نافذة التحقق قبل الاعتماد (عبر Portal على body) ============ */}
+      {validationModal.isOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 no-print">
+            <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+              {/* رأس النافذة */}
+              <div
+                className={`px-6 py-4 ${
                   validationModal.errors.length > 0
-                    ? "text-red-700"
-                    : "text-amber-700"
+                    ? "bg-red-50 border-b border-red-100"
+                    : "bg-amber-50 border-b border-amber-100"
                 }`}
               >
-                {validationModal.errors.length > 0 ? (
-                  <>⛔ لا يمكن اعتماد الروستر</>
-                ) : (
-                  <>⚠️ تنبيه قبل الاعتماد</>
-                )}
-              </h3>
-              <p className="mt-1 text-xs font-medium text-slate-600">
-                {validationModal.errors.length > 0
-                  ? "يجب استكمال النواقص التالية قبل الاعتماد:"
-                  : "الجدول مكتمل، لكن انتبه للملاحظات التالية:"}
-              </p>
-            </div>
+                <h3
+                  className={`flex items-center gap-2 text-lg font-black ${
+                    validationModal.errors.length > 0
+                      ? "text-red-700"
+                      : "text-amber-700"
+                  }`}
+                >
+                  {validationModal.errors.length > 0 ? (
+                    <>⛔ لا يمكن اعتماد الروستر</>
+                  ) : (
+                    <>⚠️ تنبيه قبل الاعتماد</>
+                  )}
+                </h3>
+                <p className="mt-1 text-xs font-medium text-slate-600">
+                  {validationModal.errors.length > 0
+                    ? "يجب استكمال النواقص التالية قبل الاعتماد:"
+                    : "الجدول مكتمل، لكن انتبه للملاحظات التالية:"}
+                </p>
+              </div>
 
-            <div className="max-h-[55vh] overflow-y-auto px-6 py-4 space-y-4">
-              {/* الأخطاء الحاجزة: الشيفتات الناقصة */}
-              {validationModal.errors.length > 0 && (
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-bold text-red-700">
-                      شيفتات ناقصة ({validationModal.errors.length})
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {validationModal.errors.slice(0, 30).map((err, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-red-100 bg-red-50/60 px-3 py-2 text-xs"
-                      >
-                        <span className="font-bold text-slate-800">
-                          يوم {err.day} ({err.dayName}) — النوبة {err.shift}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">
-                          {err.problems}
-                        </span>
-                      </div>
-                    ))}
-                    {validationModal.errors.length > 30 && (
-                      <div className="text-center text-xs font-semibold text-slate-500">
-                        ... و {validationModal.errors.length - 30} حالة أخرى
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* الموظفون غير المجدولين */}
-              {validationModal.unscheduled.length > 0 && (
-                <div>
-                  <span className="mb-2 block text-sm font-bold text-amber-700">
-                    موظفون لم يُجدولوا هذا الشهر (
-                    {validationModal.unscheduled.length})
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {validationModal.unscheduled.map((emp, i) => (
-                      <span
-                        key={i}
-                        className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800"
-                      >
-                        {emp.name} ({emp.code})
+              <div className="max-h-[55vh] overflow-y-auto px-6 py-4 space-y-4">
+                {/* الأخطاء الحاجزة: الشيفتات الناقصة */}
+                {validationModal.errors.length > 0 && (
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-bold text-red-700">
+                        شيفتات ناقصة ({validationModal.errors.length})
                       </span>
-                    ))}
+                    </div>
+                    <div className="space-y-1.5">
+                      {validationModal.errors.slice(0, 30).map((err, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-red-100 bg-red-50/60 px-3 py-2 text-xs"
+                        >
+                          <span className="font-bold text-slate-800">
+                            يوم {err.day} ({err.dayName}) — النوبة {err.shift}
+                          </span>
+                          <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">
+                            {err.problems}
+                          </span>
+                        </div>
+                      ))}
+                      {validationModal.errors.length > 30 && (
+                        <div className="text-center text-xs font-semibold text-slate-500">
+                          ... و {validationModal.errors.length - 30} حالة أخرى
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* أزرار النافذة */}
-            <div className="flex gap-2 border-t border-slate-100 px-6 py-4">
-              <button
-                onClick={() =>
-                  setValidationModal({
-                    isOpen: false,
-                    errors: [],
-                    unscheduled: [],
-                  })
-                }
-                className="flex-1 rounded-lg bg-slate-100 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
-              >
-                {validationModal.errors.length > 0 ? "حسناً، سأكمل" : "رجوع"}
-              </button>
+                {/* الموظفون غير المجدولين */}
+                {validationModal.unscheduled.length > 0 && (
+                  <div>
+                    <span className="mb-2 block text-sm font-bold text-amber-700">
+                      موظفون لم يُجدولوا هذا الشهر (
+                      {validationModal.unscheduled.length})
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {validationModal.unscheduled.map((emp, i) => (
+                        <span
+                          key={i}
+                          className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800"
+                        >
+                          {emp.name} ({emp.code})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
-              {/* زر المتابعة يظهر فقط لو مفيش أخطاء حاجزة (تنبيه الموظفين فقط) */}
-              {validationModal.errors.length === 0 && (
+              {/* أزرار النافذة */}
+              <div className="flex gap-2 border-t border-slate-100 px-6 py-4">
                 <button
-                  onClick={() => {
+                  onClick={() =>
                     setValidationModal({
                       isOpen: false,
                       errors: [],
                       unscheduled: [],
-                    });
-                    saveRosterToServer("published");
-                  }}
-                  className="flex-1 rounded-lg bg-green-600 py-2.5 text-sm font-bold text-white transition hover:bg-green-700"
+                    })
+                  }
+                  className="flex-1 rounded-lg bg-slate-100 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
                 >
-                  متابعة الاعتماد
+                  {validationModal.errors.length > 0 ? "حسناً، سأكمل" : "رجوع"}
                 </button>
-              )}
+
+                {/* زر المتابعة يظهر فقط لو مفيش أخطاء حاجزة (تنبيه الموظفين فقط) */}
+                {validationModal.errors.length === 0 && (
+                  <button
+                    onClick={() => {
+                      setValidationModal({
+                        isOpen: false,
+                        errors: [],
+                        unscheduled: [],
+                      });
+                      saveRosterToServer("published");
+                    }}
+                    className="flex-1 rounded-lg bg-green-600 py-2.5 text-sm font-bold text-white transition hover:bg-green-700"
+                  >
+                    متابعة الاعتماد
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </AdminLayout>
   );
 };
