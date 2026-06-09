@@ -17,12 +17,31 @@ const EmployeeProfile = () => {
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
-    // جلب بيانات الموظف من اللوكال ستوريدج
-    const savedData = localStorage.getItem('employeeData');
+    const savedData = localStorage.getItem("employeeData");
     if (savedData) {
       const parsed = JSON.parse(savedData);
       setEmployee(parsed);
-      setEmail(parsed.email || ''); // لو مسجل إيميل قبل كده هيظهر هنا
+      setEmail(parsed.email || "");
+
+      // 🔄 جلب البيانات المحدثة من السيرفر فوراً لضمان ظهور الإيميل
+      const fetchFreshData = async () => {
+        try {
+          const response = await fetch(
+            `${API_URL}/api/employees/${parsed.employeeCode}`,
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setEmail(data.email || "");
+            const updated = { ...parsed, email: data.email };
+            localStorage.setItem("employeeData", JSON.stringify(updated));
+            setEmployee(updated);
+          }
+        } catch (err) {
+          console.error("خطأ في تحديث بيانات البروفايل من السيرفر", err);
+        }
+      };
+
+      fetchFreshData();
     }
   }, []);
 
