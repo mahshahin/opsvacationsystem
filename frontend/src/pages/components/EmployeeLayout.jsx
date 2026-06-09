@@ -1,23 +1,34 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, CalendarDays, FileText, LogOut, User, Menu, X, Briefcase } from 'lucide-react'; 
+import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+// ضفنا أيقونة Calendar للورديات هنا
+import {
+  Home,
+  CalendarDays,
+  FileText,
+  LogOut,
+  User,
+  Menu,
+  X,
+  Briefcase,
+  Calendar,
+} from "lucide-react";
 
 const EmployeeLayout = ({ children }) => {
   const navigate = useNavigate();
-  const location = useLocation(); 
+  const location = useLocation();
 
   // State للتحكم في ظهور واختفاء القائمة في الموبايل
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem('employeeData');
-    navigate('/');
+    localStorage.removeItem("employeeData");
+    navigate("/");
   };
 
   // دالة عشان تنقلنا وتقفل القائمة في الموبايل في نفس الوقت
   const handleNavigation = (path) => {
     navigate(path);
-    setIsMobileMenuOpen(false); 
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -71,15 +82,16 @@ const EmployeeLayout = ({ children }) => {
             <Home size={20} /> الرئيسية
           </button>
 
-          {/* 👇 الزرار الجديد بتاع جدول الورديات 👇 */}
+          {/* زرار جدول وردياتي (بعد التوحيد) */}
           <button
-            onClick={() => navigate("/my-shifts")}
-            className={`w-full flex items-center gap-3 p-3 rounded transition-colors duration-200 font-bold text-right outline-none
-            ${location.pathname === "/my-shifts" ? "bg-[#ffe600] text-black" : "hover:bg-gray-700 text-gray-200"}
-          `}
+            onClick={() => handleNavigation("/my-shifts")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
+              location.pathname === "/my-shifts"
+                ? "bg-white/10 text-white"
+                : "text-blue-100 hover:bg-white/10"
+            }`}
           >
-            <span className="text-xl">📅</span>
-            <span>جدول وردياتي</span>
+            <Calendar size={20} /> جدول وردياتي
           </button>
 
           {/* زرار سجل الإجازات */}
