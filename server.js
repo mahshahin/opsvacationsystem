@@ -156,6 +156,7 @@ app.post("/api/auth/login", async (req, res) => {
         name: regularUser.name,
         role: regularUser.role,
         leaveBalances: regularUser.leaveBalances,
+        email: regularUser.email || "",
       },
     });
   } catch (error) {
@@ -175,11 +176,9 @@ app.post("/api/admin/reset-password", async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       admin.password = await bcrypt.hash("123456", salt);
       await admin.save();
-      return res
-        .status(200)
-        .json({
-          message: `تم إعادة كلمة مرور المدير (${admin.name}) للباسوورد الافتراضي: 123456`,
-        });
+      return res.status(200).json({
+        message: `تم إعادة كلمة مرور المدير (${admin.name}) للباسوورد الافتراضي: 123456`,
+      });
     }
     const user = await User.findOne({ employeeCode });
     if (!user)
@@ -215,18 +214,14 @@ app.post("/api/leaves/request", async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (end < start)
-      return res
-        .status(400)
-        .json({
-          message: "تاريخ نهاية الإجازة لا يمكن أن يكون قبل تاريخ البداية!",
-        });
+      return res.status(400).json({
+        message: "تاريخ نهاية الإجازة لا يمكن أن يكون قبل تاريخ البداية!",
+      });
     if (leaveType !== "casual" && start < today)
-      return res
-        .status(400)
-        .json({
-          message:
-            "لا يمكن تقديم إجازة بأثر رجعي (يُسمح بذلك للإجازة العارضة فقط)!",
-        });
+      return res.status(400).json({
+        message:
+          "لا يمكن تقديم إجازة بأثر رجعي (يُسمح بذلك للإجازة العارضة فقط)!",
+      });
     const overlappingRequest = await LeaveRequest.findOne({
       employeeId: user._id,
       status: { $ne: "rejected" },
@@ -256,18 +251,14 @@ app.post("/api/leaves/request", async (req, res) => {
         0,
       );
       if (takenCasualDaysThisMonth + duration > 2)
-        return res
-          .status(400)
-          .json({
-            message: `عفواً، لقد استنفذت الحد الأقصى للعارضة هذا الشهر (متبقي لك ${2 - takenCasualDaysThisMonth} يوم).`,
-          });
+        return res.status(400).json({
+          message: `عفواً، لقد استنفذت الحد الأقصى للعارضة هذا الشهر (متبقي لك ${2 - takenCasualDaysThisMonth} يوم).`,
+        });
     }
     if (user.leaveBalances[leaveType] < duration)
-      return res
-        .status(400)
-        .json({
-          message: `رصيدك الحالي (${user.leaveBalances[leaveType]} أيام) لا يكفي لطلب ${duration} يوم!`,
-        });
+      return res.status(400).json({
+        message: `رصيدك الحالي (${user.leaveBalances[leaveType]} أيام) لا يكفي لطلب ${duration} يوم!`,
+      });
     const newLeaveReq = new LeaveRequest({
       employeeId: user._id,
       leaveType,
@@ -284,13 +275,11 @@ app.post("/api/leaves/request", async (req, res) => {
       ipAddress: req.ip,
     });
     await newLog.save();
-    res
-      .status(201)
-      .json({
-        message: "تم تقديم طلب الإجازة بنجاح.",
-        durationRequested: duration,
-        requestDetails: newLeaveReq,
-      });
+    res.status(201).json({
+      message: "تم تقديم طلب الإجازة بنجاح.",
+      durationRequested: duration,
+      requestDetails: newLeaveReq,
+    });
   } catch (error) {
     res
       .status(500)
@@ -320,15 +309,13 @@ app.post("/api/leaves/report", async (req, res) => {
       if (summary[leave.leaveType] !== undefined)
         summary[leave.leaveType] += leave.duration;
     });
-    res
-      .status(200)
-      .json({
-        message: "تم استخراج التقرير بنجاح.",
-        employeeName: user.name,
-        period: { from: startDate, to: endDate },
-        totalConsumedDays: summary,
-        detailedLeaves: leaves,
-      });
+    res.status(200).json({
+      message: "تم استخراج التقرير بنجاح.",
+      employeeName: user.name,
+      period: { from: startDate, to: endDate },
+      totalConsumedDays: summary,
+      detailedLeaves: leaves,
+    });
   } catch (error) {
     res
       .status(500)
@@ -631,22 +618,18 @@ app.put("/api/auth/change-password", async (req, res) => {
   try {
     const { employeeCode, currentPassword, newPassword } = req.body;
     if (currentPassword === newPassword) {
-      return res
-        .status(400)
-        .json({
-          message: "كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية!",
-        });
+      return res.status(400).json({
+        message: "كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية!",
+      });
     }
     let account = await Admin.findOne({ username: employeeCode });
     if (!account) account = await User.findOne({ employeeCode });
     if (!account) return res.status(404).json({ message: "الحساب غير موجود!" });
     // ✅ تحقق إضافي: لو الحساب اتعمله reset (password=undefined) نتجنب خطأ bcrypt
     if (!account.password) {
-      return res
-        .status(400)
-        .json({
-          message: "هذا الحساب غير مفعّل/تم تصفيره. برجاء إعادة التفعيل أولاً.",
-        });
+      return res.status(400).json({
+        message: "هذا الحساب غير مفعّل/تم تصفيره. برجاء إعادة التفعيل أولاً.",
+      });
     }
     const isMatch = await bcrypt.compare(currentPassword, account.password);
     if (!isMatch)
@@ -750,12 +733,10 @@ app.put("/api/employees/update-email/:code", async (req, res) => {
     );
     if (!updatedUser)
       return res.status(404).json({ message: "الموظف غير موجود" });
-    res
-      .status(200)
-      .json({
-        message: "تم حفظ البريد الإلكتروني بنجاح",
-        employee: updatedUser,
-      });
+    res.status(200).json({
+      message: "تم حفظ البريد الإلكتروني بنجاح",
+      employee: updatedUser,
+    });
   } catch (error) {
     console.error("Error updating email:", error);
     res.status(500).json({ message: "حدث خطأ في السيرفر أثناء تحديث الإيميل" });
