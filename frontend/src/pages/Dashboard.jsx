@@ -366,8 +366,15 @@ const Dashboard = () => {
                   className="absolute inset-y-0 right-3 my-auto text-gray-400 pointer-events-none"
                 />
                 <input
-                  type="date"
-                  className="w-full pl-3 pr-10 py-3 bg-transparent outline-none text-gray-700 cursor-pointer"
+                  // الخدعة هنا: لو مفيش تاريخ، خليه text عشان يقرا الـ placeholder
+                  type={startDate ? "date" : "text"}
+                  placeholder="اختر تاريخ البداية..."
+                  onFocus={(e) => (e.target.type = "date")}
+                  onBlur={(e) => {
+                    if (!startDate) e.target.type = "text";
+                  }}
+                  // السطر الطويل ده بيخفي أيقونة المتصفح الافتراضية وبيخلي الحقل كله قابل للضغط
+                  className="w-full pl-3 pr-10 py-3 bg-transparent outline-none text-gray-700 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
@@ -386,8 +393,13 @@ const Dashboard = () => {
                   className="absolute inset-y-0 right-3 my-auto text-gray-400 pointer-events-none"
                 />
                 <input
-                  type="date"
-                  className="w-full pl-3 pr-10 py-3 bg-transparent outline-none text-gray-700 cursor-pointer"
+                  type={endDate ? "date" : "text"}
+                  placeholder="اختر تاريخ النهاية..."
+                  onFocus={(e) => (e.target.type = "date")}
+                  onBlur={(e) => {
+                    if (!endDate) e.target.type = "text";
+                  }}
+                  className="w-full pl-3 pr-10 py-3 bg-transparent outline-none text-gray-700 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
