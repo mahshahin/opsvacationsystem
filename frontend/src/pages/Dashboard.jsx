@@ -192,15 +192,28 @@ const Dashboard = () => {
       </div>
     );
 
-  const maxAnnual =
-    employee.jobGrade === "كبير" || employee.jobGrade === "درجة اولى" ? 30 : 21;
-
   const fmtDate = (d) => new Date(d).toLocaleDateString("ar-EG");
   const fmtTime = (d) =>
     new Date(d).toLocaleTimeString("ar-EG", {
       hour: "2-digit",
       minute: "2-digit",
     });
+
+  // 👇 الدالة الذكية لحساب الإجمالي بناءً على الدرجة الوظيفية
+  const getAnnualMaxByGrade = (grade) => {
+    switch (grade) {
+      case "كبير":
+        return 45;
+      case "درجة اولى":
+        return 30;
+      case "درجة ثانية":
+        return 21;
+      case "درجة ثالثة":
+        return 21;
+      default:
+        return 21; // القيمة الافتراضية
+    }
+  };
 
   return (
     <EmployeeLayout>
@@ -252,19 +265,19 @@ const Dashboard = () => {
         <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6">
           <CircularProgress
             value={employee.leaveBalances?.annual || 0}
-            max={maxAnnual}
+            max={getAnnualMaxByGrade(employee.jobGrade)} // 👈 تم التعديل
             label="رصيد اعتيادي"
             type="annual"
           />
           <CircularProgress
             value={employee.leaveBalances?.casual || 0}
-            max={7}
+            max={7} // ثابت
             label="رصيد عارضة"
             type="casual"
           />
           <CircularProgress
             value={employee.leaveBalances?.compensation || 0}
-            max={0}
+            max={employee.leaveBalances?.compensation || 0} // 👈 تم التعديل لتصبح دائرة ممتلئة دائماً برقم الرصيد المتراكم
             label="بدل راحة"
             type="compensation"
           />
