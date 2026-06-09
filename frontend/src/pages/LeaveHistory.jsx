@@ -89,7 +89,7 @@ const LeaveHistory = () => {
     const types = {
       annual: "اعتيادي",
       casual: "عارضة",
-      compensation: "بدل راحة",
+      compensation: "بدل أعياد",
     };
     return types[type] || type;
   };

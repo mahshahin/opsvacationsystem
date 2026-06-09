@@ -5,15 +5,27 @@ const sendEmail = async (...args) => {
 
     // 1️⃣ لو الدالة استلمت 5 أو 6 متغيرات (يبقى ده طلب من شاشة الإجازات)
     if (args.length >= 5) {
-      const [employeeEmail, employeeName, status, leaveType, startDate, endDate] = args;
-      const isApproved = status === 'approved' || status === 'Approved';
-      const statusText = isApproved ? 'تمت الموافقة على' : 'تم رفض';
-      const color = isApproved ? '#10b981' : '#ef4444'; 
-      const typeInArabic = leaveType === 'annual' ? 'إجازة اعتيادية' : leaveType === 'casual' ? 'إجازة عارضة' : 'بدل راحة';
+      const [
+        employeeEmail,
+        employeeName,
+        status,
+        leaveType,
+        startDate,
+        endDate,
+      ] = args;
+      const isApproved = status === "approved" || status === "Approved";
+      const statusText = isApproved ? "تمت الموافقة على" : "تم رفض";
+      const color = isApproved ? "#10b981" : "#ef4444";
+      const typeInArabic =
+        leaveType === "annual"
+          ? "إجازة اعتيادية"
+          : leaveType === "casual"
+            ? "إجازة عارضة"
+            : "بدل أعياد";
 
       to = employeeEmail;
       subject = `تحديث بخصوص طلب الإجازة: ${statusText}`;
-      
+
       // تصميم إيميل الإجازات القديم
       htmlBody = `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; line-height: 1.6;">
@@ -24,8 +36,8 @@ const sendEmail = async (...args) => {
             </p>
             <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0 0 10px 0;"><strong>نوع الإجازة:</strong> ${typeInArabic}</p>
-              <p style="margin: 0 0 10px 0;"><strong>من تاريخ:</strong> ${new Date(startDate).toLocaleDateString('ar-EG')}</p>
-              <p style="margin: 0;"><strong>إلى تاريخ:</strong> ${new Date(endDate).toLocaleDateString('ar-EG')}</p>
+              <p style="margin: 0 0 10px 0;"><strong>من تاريخ:</strong> ${new Date(startDate).toLocaleDateString("ar-EG")}</p>
+              <p style="margin: 0;"><strong>إلى تاريخ:</strong> ${new Date(endDate).toLocaleDateString("ar-EG")}</p>
             </div>
             <p style="font-size: 14px; color: #6b7280; text-align: center; margin-top: 30px;">
               هذه رسالة تلقائية من نظام السيطرة المركزية، برجاء عدم الرد عليها.
@@ -33,14 +45,14 @@ const sendEmail = async (...args) => {
           </div>
         </div>
       `;
-    } 
+    }
     // 2️⃣ لو الدالة استلمت 3 متغيرات بس (يبقى ده إشعار عام زي الروستر)
     else {
       const [employeeEmail, messageSubject, textMessage] = args;
-      
+
       to = employeeEmail;
       subject = messageSubject;
-      
+
       // تصميم شيك للإشعارات العامة (الروستر)
       htmlBody = `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; line-height: 1.6;">
@@ -60,29 +72,31 @@ const sendEmail = async (...args) => {
     }
 
     // إرسال الريكويست لسكريبت جوجل
-    const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz3lN4bo6fd7Gj-THSe4KMNFdwG-2iMEA3HrZsxRK7b3WNZRu7D-tM6_mpfJoKSIBY9/exec';
+    const GOOGLE_SCRIPT_URL =
+      "https://script.google.com/macros/s/AKfycbz3lN4bo6fd7Gj-THSe4KMNFdwG-2iMEA3HrZsxRK7b3WNZRu7D-tM6_mpfJoKSIBY9/exec";
 
     const response = await fetch(GOOGLE_SCRIPT_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
+        "Content-Type": "text/plain;charset=utf-8",
       },
       body: JSON.stringify({
         to: to,
         subject: subject,
-        htmlBody: htmlBody
-      })
+        htmlBody: htmlBody,
+      }),
     });
 
     const result = await response.json();
-    if (result.status === 'success') {
-      console.log(`✅ Email sent successfully via Webhook to: ${to} | Subject: ${subject}`);
+    if (result.status === "success") {
+      console.log(
+        `✅ Email sent successfully via Webhook to: ${to} | Subject: ${subject}`,
+      );
     } else {
-      console.error('❌ Error from Google Script:', result.message);
+      console.error("❌ Error from Google Script:", result.message);
     }
-
   } catch (error) {
-    console.error('❌ Error sending email:', error.message);
+    console.error("❌ Error sending email:", error.message);
   }
 };
 

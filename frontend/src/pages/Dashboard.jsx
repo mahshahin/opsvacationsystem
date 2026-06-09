@@ -23,7 +23,11 @@ const API_URL = import.meta.env.VITE_API_URL || "";
 const LEAVE_TYPES = {
   annual: { label: "إجازة اعتيادية", short: "اعتيادي", dot: "bg-blue-500" },
   casual: { label: "إجازة عارضة", short: "عارضة", dot: "bg-amber-500" },
-  compensation: { label: "بدل راحة", short: "بدل راحة", dot: "bg-emerald-500" },
+  compensation: {
+    label: "بدل أعياد",
+    short: "بدل أعياد",
+    dot: "bg-emerald-500",
+  },
 };
 
 /* شارة الحالة (تُستخدم في الجدول والكروت) */
@@ -278,7 +282,7 @@ const Dashboard = () => {
           <CircularProgress
             value={employee.leaveBalances?.compensation || 0}
             max={employee.leaveBalances?.compensation || 0} // 👈 تم التعديل لتصبح دائرة ممتلئة دائماً برقم الرصيد المتراكم
-            label="بدل راحة"
+            label="بدل أعياد"
             type="compensation"
           />
         </div>
