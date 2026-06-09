@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { Wallet, Edit3, X, Save } from "lucide-react";
-import AdminLayout from "./components/AdminLayout";
+import AdminLayout from "../components/AdminLayout";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Clock, User, FileText, Search } from 'lucide-react';
-import AdminLayout from './components/AdminLayout'; // تأكد من مسار الـ Layout عندك
+import AdminLayout from '../components/AdminLayout'; // تأكد من مسار الـ Layout عندك
 import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || '';

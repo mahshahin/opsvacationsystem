@@ -3,20 +3,26 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './pages/components/ProtectedRoute';
 
-const Login = React.lazy(() => import('./pages/Login'));
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard')); 
-const EmployeeManagement = React.lazy(() => import('./pages/EmployeeManagement')); 
-const BalanceManagement = React.lazy(() => import('./pages/BalanceManagement'));
-const LeaveHistory = React.lazy(() => import('./pages/LeaveHistory'));
-const EmployeeHistory = React.lazy(() => import('./pages/EmployeeHistory'));
-const EmployeeReports = React.lazy(() => import('./pages/EmployeeReports'));
-const Register = React.lazy(() => import('./pages/Register'));
-const EmployeeProfile = React.lazy(() => import('./pages/EmployeeProfile'));
-const AdminProfile = React.lazy(() => import('./pages/AdminProfile'));
-const SystemLogs = React.lazy(() => import('./pages/SystemLogs'));// مسار الملف الجديد
-const RosterManagement = React.lazy(() => import('./pages/RosterManagement'));
-const MyShifts = React.lazy(() => import('./pages/MyShifts')); // استدعاء شاشة ورديات الموظف
+// استدعاءات عامة
+const Login = React.lazy(() => import('./pages/Login/Login'));// استدعاء شاشة تسجيل الدخول
+const Register = React.lazy(() => import("./pages/Login/Register"));// استدعاء شاشة التسجيل (لو عندك واحدة)
+
+//استدعاءات الخاصة بالموظف
+const Dashboard = React.lazy(() => import("./pages/Employee/Dashboard"));// استدعاء شاشة لوحة تحكم الموظف
+const MyShifts = React.lazy(() => import("./pages/Employee/MyShifts")); // استدعاء شاشة ورديات الموظف 
+const EmployeeHistory = React.lazy(() => import("./pages/Employee/EmployeeHistory"),);// استدعاء شاشة تاريخ الإجازات للموظف
+const EmployeeReports = React.lazy(() => import("./pages/Employee/EmployeeReports"),);// استدعاء شاشة تقارير الموظف
+const EmployeeProfile = React.lazy(() => import("./pages/Employee/EmployeeProfile"),);// استدعاء شاشة الملف الشخصي للموظف
+
+// استدعاءات خاصة بالإدارة
+const AdminDashboard = React.lazy(() => import('./pages/Admin/AdminDashboard'));// استدعاء شاشة لوحة تحكم الإدارة
+const EmployeeManagement = React.lazy(() => import('./pages/Admin/EmployeeManagement'));// استدعاء شاشة إدارة الموظفين 
+const BalanceManagement = React.lazy(() => import('./pages/Admin/BalanceManagement'));// استدعاء شاشة إدارة أرصدة الإجازات
+const LeaveHistory = React.lazy(() => import('./pages/Admin/LeaveHistory'));// استدعاء شاشة تاريخ الإجازات للإدارة
+const AdminProfile = React.lazy(() => import('./pages/Admin/AdminProfile'));// استدعاء شاشة الملف الشخصي للإدارة
+const SystemLogs = React.lazy(() => import('./pages/Admin/SystemLogs'));// استدعاء شاشة سجلات النظام
+const RosterManagement = React.lazy(() => import('./pages/Admin/RosterManagement'));// استدعاء شاشة إدارة الجداول
+
 
 function App() {
   return (
@@ -45,11 +51,11 @@ function App() {
           </div>
         }>
           <Routes>
-            {/* === المسارات العامة === */}
+            {/* === مسارات عامة (غير محمية) === */}
             <Route path="/" element={<Login />} />
             
-            {/* لو عندك صفحة تسجيل فعلية، شيل الكومنت من السطر اللي جاي وضيف الاستدعاء بتاعها فوق */}
-            <Route path="/register" element={<Register />} /> {/* تفعيل السطر هنا */}
+            {/* مسار التسجيل */}
+            <Route path="/register" element={<Register />} /> 
 
             {/* === مسارات الموظف (محمية) === */}
             <Route path="/dashboard" element={
@@ -57,21 +63,29 @@ function App() {
                 <Dashboard />
               </ProtectedRoute>
             } />
+
+            {/* إضافة مسارات الموظف المحمية */}
             <Route path="/profile" element={
               <ProtectedRoute>
                 <EmployeeProfile />
               </ProtectedRoute>
             } />
+
+            {/* مسارات الموظف المحمية الأخرى */}
             <Route path="/my-leaves" element={
               <ProtectedRoute>
                 <EmployeeHistory />
               </ProtectedRoute>
             } />
+
+            {/* مسارات الموظف المحمية الأخرى */}
             <Route path="/my-reports" element={
               <ProtectedRoute>
                 <EmployeeReports />
               </ProtectedRoute>
             } />
+
+            {/* مسارات الموظف المحمية الأخرى */}
             <Route path="/my-shifts" element={
               <ProtectedRoute>
                 <MyShifts />
@@ -84,37 +98,49 @@ function App() {
                 <AdminDashboard />
               </ProtectedRoute>
             } />
+
+            {/* إضافة مسارات الإدارة المحمية */}
             <Route path="/admin/employees" element={
               <ProtectedRoute requiredRole="admin">
                 <EmployeeManagement />
               </ProtectedRoute>
             } />
+
+            {/* مسارات الإدارة المحمية الأخرى */}
             <Route path="/admin/balances" element={
               <ProtectedRoute requiredRole="admin">
                 <BalanceManagement />
               </ProtectedRoute>
             } />
+
+            {/* مسارات الإدارة المحمية الأخرى */}
             <Route path="/admin/history" element={
               <ProtectedRoute requiredRole="admin">
                 <LeaveHistory />
               </ProtectedRoute>
             } />
+
+            {/* مسارات الإدارة المحمية الأخرى */}
             <Route path="/admin/profile" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminProfile />
               </ProtectedRoute>
             } />
+
+            {/* مسارات الإدارة المحمية الأخرى */}
             <Route path="/admin/logs" element={
               <ProtectedRoute requiredRole="admin">
                 <SystemLogs />
               </ProtectedRoute>
-            } />  
+            } /> 
+
+            {/* مسارات الإدارة المحمية الأخرى */} 
             <Route path="/admin/roster" element={
               <ProtectedRoute requiredRole="admin">
                 <RosterManagement />
               </ProtectedRoute>
             } />
-
+            
           </Routes>
         </Suspense>
       </div>

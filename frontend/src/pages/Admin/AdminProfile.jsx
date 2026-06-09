@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Lock, Save, ShieldCheck, Briefcase, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
-import AdminLayout from './components/AdminLayout'; // تأكد إن المسار ده صح حسب مجلداتك
+import AdminLayout from '../components/AdminLayout'; // تأكد إن المسار ده صح حسب مجلداتك
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 

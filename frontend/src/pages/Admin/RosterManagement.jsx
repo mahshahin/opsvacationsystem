@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import AdminLayout from "./components/AdminLayout";
+import AdminLayout from "../components/AdminLayout";
 import toast from "react-hot-toast";
-import "../print.css";
+import "../../print.css"; // استايل خاص بالطباعة";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 

@@ -14,8 +14,8 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import EmployeeLayout from "./components/EmployeeLayout";
-import CircularProgress from "./components/CircularProgress";
+import EmployeeLayout from "../components/EmployeeLayout";
+import CircularProgress from "../components/CircularProgress";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -85,32 +85,52 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  /* تحميل بيانات الموظف + التحديث الدوري */
+  /* تحميل بيانات الموظف + التحديث الدوري (النسخة الآمنة) */
   useEffect(() => {
-    const savedData =
-      sessionStorage.getItem("employeeData") ||
-      localStorage.getItem("employeeData");
-    if (savedData) {
-      const parsed = JSON.parse(savedData);
-      setEmployee(parsed);
-      refreshEmployeeBalance(parsed.employeeCode);
-      fetchMyRequests(parsed.employeeCode);
+    try {
+      const savedData =
+        sessionStorage.getItem("employeeData") ||
+        localStorage.getItem("employeeData");
 
-      const interval = setInterval(() => {
-        refreshEmployeeBalance(parsed.employeeCode);
-        fetchMyRequests(parsed.employeeCode);
-      }, 15000);
-      return () => clearInterval(interval);
-    } else {
+      // التأكد إن الداتا موجودة ومش عبارة عن نص صريح اسمه "undefined"
+      if (savedData && savedData !== "undefined" && savedData !== "null") {
+        const parsed = JSON.parse(savedData);
+
+        // التأكد إن البيانات اتحولت لأوبجكت سليم وفيه كود الموظف
+        if (parsed && parsed.employeeCode) {
+          setEmployee(parsed);
+          refreshEmployeeBalance(parsed.employeeCode);
+          fetchMyRequests(parsed.employeeCode);
+
+          const interval = setInterval(() => {
+            refreshEmployeeBalance(parsed.employeeCode);
+            fetchMyRequests(parsed.employeeCode);
+          }, 15000);
+          return () => clearInterval(interval);
+        } else {
+          // لو الأوبجكت ناقص أو بايظ، ارمي إيرور عشان الـ catch يمسحه
+          throw new Error("بيانات الموظف غير مكتملة");
+        }
+      } else {
+        navigate("/");
+      }
+    } catch (error) {
+      console.error(
+        "🚨 تم اكتشاف بيانات تالفة في المتصفح، جاري تنظيفها:",
+        error,
+      );
+      // تنظيف إجباري وطرد للـ Login
+      localStorage.removeItem("employeeData");
+      sessionStorage.removeItem("employeeData");
       navigate("/");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
-  /* جلب الرصيد المُحدّث من السيرفر (لإظهار الخصم بعد الموافقة) */
+  /* جلب الرصيد المُحدّث من السيرفر */
   const refreshEmployeeBalance = async (code) => {
     try {
-      const response = await fetch(`${API_URL}/api/employees/${code}`);
+      // ✅ التعديل الأول: تحديث مسار جلب البروفايل
+      const response = await fetch(`${API_URL}/api/employee/profile/${code}`);
       if (response.ok) {
         const data = await response.json();
         setEmployee((prev) => {
@@ -129,7 +149,10 @@ const Dashboard = () => {
 
   const fetchMyRequests = async (code) => {
     try {
-      const response = await fetch(`${API_URL}/api/leaves/my-requests/${code}`);
+      // ✅ التعديل الثاني: تحديث مسار جلب الطلبات
+      const response = await fetch(
+        `${API_URL}/api/employee/my-requests/${code}`,
+      );
       const data = await response.json();
       if (response.ok) setMyRequests(data);
     } catch (err) {
@@ -141,7 +164,8 @@ const Dashboard = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${API_URL}/api/leaves/request`, {
+      // ✅ التعديل الثالث: تحديث مسار تقديم الطلب
+      const response = await fetch(`${API_URL}/api/employee/leave-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -171,8 +195,9 @@ const Dashboard = () => {
 
   const confirmCancelRequest = async () => {
     try {
+      // ✅ التعديل الرابع: تحديث مسار إلغاء الطلب وتصليح السلاش المزدوجة //
       const response = await fetch(
-        `${API_URL}/api/leaves/cancel-request/${cancelModal.requestId}`,
+        `${API_URL}/api/employee/cancel-request/${cancelModal.requestId}`,
         { method: "DELETE" },
       );
       const data = await response.json();
@@ -203,7 +228,6 @@ const Dashboard = () => {
       minute: "2-digit",
     });
 
-  // 👇 الدالة الذكية لحساب الإجمالي بناءً على الدرجة الوظيفية
   const getAnnualMaxByGrade = (grade) => {
     switch (grade) {
       case "كبير":
@@ -215,7 +239,7 @@ const Dashboard = () => {
       case "درجة ثالثة":
         return 21;
       default:
-        return 21; // القيمة الافتراضية
+        return 21;
     }
   };
 
@@ -269,19 +293,19 @@ const Dashboard = () => {
         <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6">
           <CircularProgress
             value={employee.leaveBalances?.annual || 0}
-            max={getAnnualMaxByGrade(employee.jobGrade)} // 👈 تم التعديل
+            max={getAnnualMaxByGrade(employee.jobGrade)}
             label="رصيد اعتيادي"
             type="annual"
           />
           <CircularProgress
             value={employee.leaveBalances?.casual || 0}
-            max={7} // ثابت
+            max={7}
             label="رصيد عارضة"
             type="casual"
           />
           <CircularProgress
             value={employee.leaveBalances?.compensation || 0}
-            max={employee.leaveBalances?.compensation || 0} // 👈 تم التعديل لتصبح دائرة ممتلئة دائماً برقم الرصيد المتراكم
+            max={employee.leaveBalances?.compensation || 0}
             label="بدل أعياد"
             type="compensation"
           />
@@ -363,7 +387,6 @@ const Dashboard = () => {
               <div
                 className="relative bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all cursor-pointer"
                 onClick={(e) => {
-                  // الكود السحري اللي بيجبر النتيجة تفتح من أول ضغطة
                   const input = e.currentTarget.querySelector("input");
                   if (input && input.showPicker) {
                     try {
@@ -377,7 +400,6 @@ const Dashboard = () => {
                   className="absolute inset-y-0 right-3 my-auto text-gray-400 pointer-events-none z-10"
                 />
 
-                {/* النص الجميل بيظهر بس لو مفيش تاريخ تم اختياره */}
                 {!startDate && (
                   <span className="absolute inset-y-0 right-10 flex items-center text-sm text-gray-400 pointer-events-none z-10">
                     اختر تاريخ البداية...
@@ -389,7 +411,6 @@ const Dashboard = () => {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  // لو فاضي بنخفيه تماماً، لو فيه تاريخ بنظهره ونخفي أيقونة المتصفح
                   className={`w-full pl-3 pr-10 py-3 bg-transparent outline-none cursor-pointer relative z-20 ${
                     !startDate ? "opacity-0" : "opacity-100 text-gray-700"
                   } [&::-webkit-calendar-picker-indicator]:hidden`}
@@ -449,7 +470,9 @@ const Dashboard = () => {
                   </>
                 ) : (
                   <>
-                    <Send size={18} /> إرسال الطلب
+                    <span className="flex items-center gap-2">
+                      <Send size={18} /> إرسال الطلب
+                    </span>
                   </>
                 )}
               </button>
@@ -654,6 +677,6 @@ const Dashboard = () => {
       )}
     </EmployeeLayout>
   );
-};
+};;
 
 export default Dashboard;

@@ -11,7 +11,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import EmployeeLayout from "./components/EmployeeLayout";
+import EmployeeLayout from "../components/EmployeeLayout";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -45,7 +45,7 @@ const EmployeeHistory = () => {
 
   const fetchMyRequests = async (code) => {
     try {
-      const response = await fetch(`${API_URL}/api/leaves/my-requests/${code}`);
+      const response = await fetch(`${API_URL}/api/employees/my-requests/${code}`);
       const data = await response.json();
       if (response.ok) {
         setAllRequests(data);
@@ -61,7 +61,7 @@ const EmployeeHistory = () => {
   const confirmCancelRequest = async () => {
     try {
       const response = await fetch(
-        `${API_URL}/api/leaves/cancel-request/${cancelModal.requestId}`,
+        `${API_URL}/api/employees/cancel-request/${cancelModal.requestId}`,
         {
           method: "DELETE",
         },

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText, Search, Printer, CalendarDays } from "lucide-react";
 import toast from "react-hot-toast";
-import EmployeeLayout from "./components/EmployeeLayout";
+import EmployeeLayout from "../components/EmployeeLayout";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 

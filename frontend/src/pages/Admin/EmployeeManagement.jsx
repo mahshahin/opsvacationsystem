@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { UserPlus, ShieldAlert, Shield, User, Trash2, Edit2, RotateCcw, Check, X, AlertTriangle } from 'lucide-react';
-import AdminLayout from './components/AdminLayout';
+import AdminLayout from '../components/AdminLayout';
 
 // 🐛 التعديل الأول: حط رابط ريندر هنا صراحة بين علامتين التنصيص
 const API_URL = 'https://opsvacationsystem.onrender.com';

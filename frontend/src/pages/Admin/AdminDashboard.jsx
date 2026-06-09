@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, CheckCircle, XCircle, Clock } from "lucide-react";
 import toast from "react-hot-toast";
-import AdminLayout from "./components/AdminLayout"; // استيراد الـ Layout
+import AdminLayout from "../components/AdminLayout"; // استيراد الـ Layout
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 

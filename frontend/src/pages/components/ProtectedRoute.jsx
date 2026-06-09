@@ -1,20 +1,34 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React from "react";
+import { Navigate } from "react-router-dom";
 
 const ProtectedRoute = ({ children, requiredRole }) => {
-  const savedData = localStorage.getItem('employeeData');
-  const user = savedData ? JSON.parse(savedData) : null;
+  // 1. جلب البيانات بالطريقة الجديدة الموحدة (من السيرفر أو اللوكال)
+  const savedData =
+    sessionStorage.getItem("employeeData") ||
+    localStorage.getItem("employeeData");
 
-  // 1. لو مش عامل تسجيل دخول أصلاً، رجعه لشاشة الدخول
-  if (!user) return <Navigate to="/" />;
-
-  // 2. لو مطلوب صلاحية معينة (زي أدمن) وهو مش أدمن، رجعه للوحة تحكمه
-  if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/dashboard" />;
+  // 2. لو مفيش بيانات أو البيانات تالفة، ارجع فوراً لصفحة تسجيل الدخول
+  if (!savedData || savedData === "undefined" || savedData === "null") {
+    return <Navigate to="/" replace />;
   }
 
-  // 3. لو كله تمام، افتح له الصفحة
-  return children;
+  try {
+    const user = JSON.parse(savedData);
+
+    // 3. التحقق من الصلاحية (لو المسار يخص الإدارة والمستخدم مش أدمن)
+    if (requiredRole === "admin" && user.role !== "admin") {
+      // لو موظف عادي وبيحاول يدخل للأدمن، ودديه لوحة تحكم الموظف بتاعته
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    // 4. لو كل حاجة تمام، عدّيه وسيبه يدخل الصفحة
+    return children;
+  } catch (error) {
+    // حماية ضد كراش الـ JSON.parse لو الداتا تالفة
+    localStorage.removeItem("employeeData");
+    sessionStorage.removeItem("employeeData");
+    return <Navigate to="/" replace />;
+  }
 };
 
 export default ProtectedRoute;

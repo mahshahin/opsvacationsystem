@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import EmployeeLayout from "./components/EmployeeLayout";
+import EmployeeLayout from "../components/EmployeeLayout";
 import toast from "react-hot-toast";
 import {
   CalendarDays,
