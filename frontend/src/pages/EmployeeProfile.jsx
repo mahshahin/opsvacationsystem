@@ -103,11 +103,12 @@ const EmployeeProfile = () => {
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <User className="text-navy-light" /> إعدادات حسابي
           </h2>
-          <p className="text-gray-500 text-sm mt-1">الاطلاع على بياناتك الوظيفية وإدارة حسابك والبريد الإلكتروني</p>
+          <p className="text-gray-500 text-sm mt-1">
+            الاطلاع على بياناتك الوظيفية وإدارة حسابك والبريد الإلكتروني
+          </p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
           {/* العمود الأول: بيانات الموظف (للقراءة فقط) */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
@@ -115,20 +116,44 @@ const EmployeeProfile = () => {
               <div className="w-20 h-20 bg-gray-50 rounded-full border-4 border-white shadow-sm flex items-center justify-center mb-4">
                 <User size={40} className="text-gray-400" />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-1">{employee.name}</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-1">
+                {employee.name}
+              </h3>
               <p className="text-sm text-gray-500 font-medium mb-6 flex items-center gap-1">
                 <ShieldCheck size={14} className="text-green-500" /> حساب موثق
               </p>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 font-bold flex items-center gap-1 mb-1"><Hash size={12}/> كود الموظف</label>
-                  <p className="font-semibold text-gray-700 bg-gray-50 p-2 rounded-lg">{employee.employeeCode}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 font-bold flex items-center gap-1 mb-1"><Briefcase size={12}/> الصفة بالنظام</label>
+                  <label className="text-xs text-gray-400 font-bold flex items-center gap-1 mb-1">
+                    <Hash size={12} /> كود الموظف
+                  </label>
                   <p className="font-semibold text-gray-700 bg-gray-50 p-2 rounded-lg">
-                    {employee.role === 'admin' ? 'مدير نظام' : 'موظف'}
+                    {employee.employeeCode}
+                  </p>
+                </div>
+
+                {/* السطر الجديد اللي هيعرض الإيميل */}
+                <div>
+                  <label className="text-xs text-gray-400 font-bold flex items-center gap-1 mb-1">
+                    <Mail size={12} /> البريد الإلكتروني
+                  </label>
+                  <p
+                    className="font-semibold text-gray-700 bg-gray-50 p-2 rounded-lg text-left"
+                    dir="ltr"
+                  >
+                    {employee.email
+                      ? employee.email
+                      : "لم يتم تسجيل بريد إلكتروني"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-400 font-bold flex items-center gap-1 mb-1">
+                    <Briefcase size={12} /> الصفة بالنظام
+                  </label>
+                  <p className="font-semibold text-gray-700 bg-gray-50 p-2 rounded-lg">
+                    {employee.role === "admin" ? "مدير نظام" : "موظف"}
                   </p>
                 </div>
               </div>
@@ -137,25 +162,30 @@ const EmployeeProfile = () => {
 
           {/* العمود الثاني: فورمات التعديل (الإيميل والباسوورد) */}
           <div className="lg:col-span-2 space-y-6">
-            
             {/* 1. كارت البريد الإلكتروني للإشعارات */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
               {/* لمسة تصميمية خفيفة */}
               <div className="absolute top-0 left-0 w-32 h-32 bg-navy-light/5 rounded-full -ml-10 -mt-10 pointer-events-none"></div>
-              
+
               <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2 relative z-10">
-                <Mail className="text-navy-light" size={20} /> البريد الإلكتروني للإشعارات
+                <Mail className="text-navy-light" size={20} /> البريد الإلكتروني
+                للإشعارات
               </h3>
-              
-              <form onSubmit={handleUpdateEmail} className="space-y-5 max-w-md relative z-10">
+
+              <form
+                onSubmit={handleUpdateEmail}
+                className="space-y-5 max-w-md relative z-10"
+              >
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">تحديث البريد الإلكتروني</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    تحديث البريد الإلكتروني
+                  </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400 group-focus-within:text-navy-light transition-colors">
                       <Mail size={18} />
                     </div>
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
                       placeholder="example@gmail.com"
                       className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all text-gray-700 font-medium text-left"
                       value={email}
@@ -165,15 +195,18 @@ const EmployeeProfile = () => {
                     />
                   </div>
                   <p className="text-xs text-gray-400 mt-2 font-medium">
-                    <span className="text-red-500">*</span> سيتم إرسال إشعارات فورية لك عند اتخاذ الإدارة قراراً على طلبات إجازاتك.
+                    <span className="text-red-500">*</span> سيتم إرسال إشعارات
+                    فورية لك عند اتخاذ الإدارة قراراً على طلبات إجازاتك.
                   </p>
                 </div>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={emailLoading}
                   className={`mt-4 bg-navy-light text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 ${
-                    emailLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#0f172a] hover:-translate-y-0.5 hover:shadow-lg'
+                    emailLoading
+                      ? "opacity-70 cursor-not-allowed"
+                      : "hover:bg-[#0f172a] hover:-translate-y-0.5 hover:shadow-lg"
                   }`}
                 >
                   {emailLoading ? (
@@ -195,46 +228,63 @@ const EmployeeProfile = () => {
               <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <Lock className="text-navy-light" size={20} /> تغيير كلمة المرور
               </h3>
-              
-              <form onSubmit={handleUpdatePassword} className="space-y-5 max-w-md">
+
+              <form
+                onSubmit={handleUpdatePassword}
+                className="space-y-5 max-w-md"
+              >
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">كلمة المرور الحالية</label>
-                  <input 
-                    type="password" 
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    كلمة المرور الحالية
+                  </label>
+                  <input
+                    type="password"
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all"
                     value={passwords.current}
-                    onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                    onChange={(e) =>
+                      setPasswords({ ...passwords, current: e.target.value })
+                    }
                     required
                   />
                 </div>
 
                 <div className="pt-4 border-t border-gray-100">
-                  <label className="block text-sm font-bold text-gray-700 mb-2">كلمة المرور الجديدة</label>
-                  <input 
-                    type="password" 
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    كلمة المرور الجديدة
+                  </label>
+                  <input
+                    type="password"
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all"
                     value={passwords.new}
-                    onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                    onChange={(e) =>
+                      setPasswords({ ...passwords, new: e.target.value })
+                    }
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">تأكيد كلمة المرور الجديدة</label>
-                  <input 
-                    type="password" 
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    تأكيد كلمة المرور الجديدة
+                  </label>
+                  <input
+                    type="password"
                     className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 outline-none focus:border-navy-light focus:ring-4 focus:ring-navy-light/10 transition-all"
                     value={passwords.confirm}
-                    onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                    onChange={(e) =>
+                      setPasswords({ ...passwords, confirm: e.target.value })
+                    }
                     required
                   />
                 </div>
 
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={passwordLoading}
                   className={`mt-4 bg-navy-light text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 ${
-                    passwordLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-[#0f172a] hover:-translate-y-0.5 hover:shadow-lg'
+                    passwordLoading
+                      ? "opacity-70 cursor-not-allowed"
+                      : "hover:bg-[#0f172a] hover:-translate-y-0.5 hover:shadow-lg"
                   }`}
                 >
                   {passwordLoading ? (
@@ -250,7 +300,6 @@ const EmployeeProfile = () => {
                 </button>
               </form>
             </div>
-            
           </div>
         </div>
       </div>
