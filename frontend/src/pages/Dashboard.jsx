@@ -360,24 +360,39 @@ const Dashboard = () => {
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                 تاريخ البداية
               </label>
-              <div className="relative bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
+              <div
+                className="relative bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all cursor-pointer"
+                onClick={(e) => {
+                  // الكود السحري اللي بيجبر النتيجة تفتح من أول ضغطة
+                  const input = e.currentTarget.querySelector("input");
+                  if (input && input.showPicker) {
+                    try {
+                      input.showPicker();
+                    } catch (err) {}
+                  }
+                }}
+              >
                 <CalendarDays
                   size={18}
-                  className="absolute inset-y-0 right-3 my-auto text-gray-400 pointer-events-none"
+                  className="absolute inset-y-0 right-3 my-auto text-gray-400 pointer-events-none z-10"
                 />
+
+                {/* النص الجميل بيظهر بس لو مفيش تاريخ تم اختياره */}
+                {!startDate && (
+                  <span className="absolute inset-y-0 right-10 flex items-center text-sm text-gray-400 pointer-events-none z-10">
+                    اختر تاريخ البداية...
+                  </span>
+                )}
+
                 <input
-                  // الخدعة هنا: لو مفيش تاريخ، خليه text عشان يقرا الـ placeholder
-                  type={startDate ? "date" : "text"}
-                  placeholder="اختر تاريخ البداية..."
-                  onFocus={(e) => (e.target.type = "date")}
-                  onBlur={(e) => {
-                    if (!startDate) e.target.type = "text";
-                  }}
-                  // السطر الطويل ده بيخفي أيقونة المتصفح الافتراضية وبيخلي الحقل كله قابل للضغط
-                  className="w-full pl-3 pr-10 py-3 bg-transparent outline-none text-gray-700 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                  type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
+                  // لو فاضي بنخفيه تماماً، لو فيه تاريخ بنظهره ونخفي أيقونة المتصفح
+                  className={`w-full pl-3 pr-10 py-3 bg-transparent outline-none cursor-pointer relative z-20 ${
+                    !startDate ? "opacity-0" : "opacity-100 text-gray-700"
+                  } [&::-webkit-calendar-picker-indicator]:hidden`}
                 />
               </div>
             </div>
@@ -387,22 +402,36 @@ const Dashboard = () => {
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                 تاريخ النهاية
               </label>
-              <div className="relative bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
+              <div
+                className="relative bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all cursor-pointer"
+                onClick={(e) => {
+                  const input = e.currentTarget.querySelector("input");
+                  if (input && input.showPicker) {
+                    try {
+                      input.showPicker();
+                    } catch (err) {}
+                  }
+                }}
+              >
                 <CalendarDays
                   size={18}
-                  className="absolute inset-y-0 right-3 my-auto text-gray-400 pointer-events-none"
+                  className="absolute inset-y-0 right-3 my-auto text-gray-400 pointer-events-none z-10"
                 />
+
+                {!endDate && (
+                  <span className="absolute inset-y-0 right-10 flex items-center text-sm text-gray-400 pointer-events-none z-10">
+                    اختر تاريخ النهاية...
+                  </span>
+                )}
+
                 <input
-                  type={endDate ? "date" : "text"}
-                  placeholder="اختر تاريخ النهاية..."
-                  onFocus={(e) => (e.target.type = "date")}
-                  onBlur={(e) => {
-                    if (!endDate) e.target.type = "text";
-                  }}
-                  className="w-full pl-3 pr-10 py-3 bg-transparent outline-none text-gray-700 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                  type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
+                  className={`w-full pl-3 pr-10 py-3 bg-transparent outline-none cursor-pointer relative z-20 ${
+                    !endDate ? "opacity-0" : "opacity-100 text-gray-700"
+                  } [&::-webkit-calendar-picker-indicator]:hidden`}
                 />
               </div>
             </div>
