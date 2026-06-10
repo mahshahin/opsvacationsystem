@@ -51,7 +51,11 @@ const MyShifts = () => {
 
   const getStoredEmployee = () => {
     try {
-      return JSON.parse(localStorage.getItem("employeeData"));
+      const savedData =
+        sessionStorage.getItem("employeeData") ||
+        localStorage.getItem("employeeData");
+
+      return savedData ? JSON.parse(savedData) : null;
     } catch {
       return null;
     }
@@ -69,7 +73,6 @@ const MyShifts = () => {
     if (shiftName.includes("الأولى")) {
       return {
         line: "bg-sky-500",
-        ring: "border-sky-200",
         card: "from-sky-50 to-white",
         iconBox: "bg-sky-100 text-sky-700",
         badge: "bg-sky-100 text-sky-800 border-sky-200",
@@ -80,7 +83,6 @@ const MyShifts = () => {
     if (shiftName.includes("الثانية")) {
       return {
         line: "bg-emerald-500",
-        ring: "border-emerald-200",
         card: "from-emerald-50 to-white",
         iconBox: "bg-emerald-100 text-emerald-700",
         badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -90,7 +92,6 @@ const MyShifts = () => {
 
     return {
       line: "bg-violet-500",
-      ring: "border-violet-200",
       card: "from-violet-50 to-white",
       iconBox: "bg-violet-100 text-violet-700",
       badge: "bg-violet-100 text-violet-800 border-violet-200",
@@ -114,7 +115,7 @@ const MyShifts = () => {
         toast.dismiss();
 
         const res = await fetch(
-          `${API_URL}/api/roster/my-shifts?employeeId=${employeeId}&month=${month}&year=${year}`
+          `${API_URL}/api/roster/my-shifts?employeeId=${employeeId}&month=${month}&year=${year}`,
         );
 
         const data = await res.json();
@@ -192,6 +193,7 @@ const MyShifts = () => {
                       </option>
                     ))}
                   </select>
+
                   <CalendarDays
                     size={18}
                     className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -215,6 +217,7 @@ const MyShifts = () => {
                       </option>
                     ))}
                   </select>
+
                   <Clock3
                     size={18}
                     className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -252,7 +255,7 @@ const MyShifts = () => {
           {!loading && sortedShifts.length > 0 && (
             <div className="relative">
               {/* Mobile timeline line */}
-              <div className="absolute right-4 top-2 bottom-2 w-0.5 bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 md:hidden"></div>
+              <div className="absolute bottom-2 top-2 right-4 w-0.5 bg-gradient-to-b from-slate-200 via-slate-300 to-slate-200 md:hidden"></div>
 
               <div className="space-y-4 md:grid md:grid-cols-2 md:gap-5 md:space-y-0 xl:grid-cols-3">
                 {sortedShifts.map((shift, index) => {
@@ -266,7 +269,7 @@ const MyShifts = () => {
                       ></div>
 
                       <div
-                        className={`overflow-hidden rounded-3xl border bg-gradient-to-b ${shiftTheme.card} border-white/70 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                        className={`overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-b ${shiftTheme.card} shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
                       >
                         {/* Top colored strip */}
                         <div className={`h-2 w-full ${shiftTheme.line}`}></div>
@@ -339,7 +342,7 @@ const MyShifts = () => {
                                 رئيس النوبة
                               </div>
 
-                              <div className="text-sm font-black text-slate-800 sm:text-base break-words">
+                              <div className="break-words text-sm font-black text-slate-800 sm:text-base">
                                 {shift.leaderName || "غير محدد"}
                               </div>
                             </div>
@@ -362,7 +365,7 @@ const MyShifts = () => {
                                   ))}
                                 </div>
                               ) : (
-                                <div className="text-sm italic font-medium text-slate-400">
+                                <div className="text-sm font-medium italic text-slate-400">
                                   لا يوجد أفراد مسجلين
                                 </div>
                               )}

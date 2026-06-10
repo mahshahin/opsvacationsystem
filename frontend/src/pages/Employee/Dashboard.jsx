@@ -19,7 +19,7 @@ import CircularProgress from "../components/CircularProgress";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
-/* خريطة أنواع الإجازة (نص + ألوان) لإعادة الاستخدام */
+/* خريطة أنواع الإجازة */
 const LEAVE_TYPES = {
   annual: { label: "إجازة اعتيادية", short: "اعتيادي", dot: "bg-blue-500" },
   casual: { label: "إجازة عارضة", short: "عارضة", dot: "bg-amber-500" },
@@ -30,7 +30,7 @@ const LEAVE_TYPES = {
   },
 };
 
-/* شارة الحالة (تُستخدم في الجدول والكروت) */
+/* شارة الحالة */
 const StatusBadge = ({ status }) => {
   const map = {
     pending: {
@@ -49,14 +49,18 @@ const StatusBadge = ({ status }) => {
       cls: "bg-red-50 text-red-700 ring-red-200",
     },
   };
+
   const cfg = map[status];
   if (!cfg) return <span className="text-gray-400">{status}</span>;
+
   const Icon = cfg.icon;
+
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ring-1 ${cfg.cls}`}
     >
-      <Icon size={12} /> {cfg.text}
+      <Icon size={12} />
+      {cfg.text}
     </span>
   );
 };
@@ -85,18 +89,16 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  /* تحميل بيانات الموظف + التحديث الدوري (النسخة الآمنة) */
+  /* تحميل بيانات الموظف + التحديث الدوري */
   useEffect(() => {
     try {
       const savedData =
         sessionStorage.getItem("employeeData") ||
         localStorage.getItem("employeeData");
 
-      // التأكد إن الداتا موجودة ومش عبارة عن نص صريح اسمه "undefined"
       if (savedData && savedData !== "undefined" && savedData !== "null") {
         const parsed = JSON.parse(savedData);
 
-        // التأكد إن البيانات اتحولت لأوبجكت سليم وفيه كود الموظف
         if (parsed && parsed.employeeCode) {
           setEmployee(parsed);
           refreshEmployeeBalance(parsed.employeeCode);
@@ -106,65 +108,76 @@ const Dashboard = () => {
             refreshEmployeeBalance(parsed.employeeCode);
             fetchMyRequests(parsed.employeeCode);
           }, 15000);
+
           return () => clearInterval(interval);
         } else {
-          // لو الأوبجكت ناقص أو بايظ، ارمي إيرور عشان الـ catch يمسحه
           throw new Error("بيانات الموظف غير مكتملة");
         }
       } else {
         navigate("/");
       }
     } catch (error) {
-      console.error(
-        "🚨 تم اكتشاف بيانات تالفة في المتصفح، جاري تنظيفها:",
-        error,
-      );
-      // تنظيف إجباري وطرد للـ Login
+      console.error("تم اكتشاف بيانات تالفة في المتصفح:", error);
       localStorage.removeItem("employeeData");
       sessionStorage.removeItem("employeeData");
       navigate("/");
     }
   }, [navigate]);
 
-  /* جلب الرصيد المُحدّث من السيرفر */
+  /* جلب الرصيد المُحدّث */
   const refreshEmployeeBalance = async (code) => {
     try {
-      // ✅ التعديل الأول: تحديث مسار جلب البروفايل
       const response = await fetch(`${API_URL}/api/employee/profile/${code}`);
+
       if (response.ok) {
         const data = await response.json();
+
         setEmployee((prev) => {
-          const updated = { ...prev, leaveBalances: data.leaveBalances };
+          if (!prev) return prev;
+
+          const updated = {
+            ...prev,
+            leaveBalances: data.leaveBalances,
+            email: data.email || prev.email || "",
+            jobGrade: data.jobGrade || prev.jobGrade,
+            workType: data.workType || prev.workType,
+            name: data.name || prev.name,
+            role: data.role || prev.role,
+          };
+
           const storage = localStorage.getItem("employeeData")
             ? localStorage
             : sessionStorage;
+
           storage.setItem("employeeData", JSON.stringify(updated));
           return updated;
         });
       }
     } catch (err) {
-      console.error("خطأ في تحديث الرصيد");
+      console.error("خطأ في تحديث الرصيد", err);
     }
   };
 
   const fetchMyRequests = async (code) => {
     try {
-      // ✅ التعديل الثاني: تحديث مسار جلب الطلبات
       const response = await fetch(
         `${API_URL}/api/employee/my-requests/${code}`,
       );
       const data = await response.json();
-      if (response.ok) setMyRequests(data);
+
+      if (response.ok) {
+        setMyRequests(Array.isArray(data) ? data : []);
+      }
     } catch (err) {
-      console.error("خطأ في جلب الطلبات");
+      console.error("خطأ في جلب الطلبات", err);
     }
   };
 
   const handleLeaveSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+
     try {
-      // ✅ التعديل الثالث: تحديث مسار تقديم الطلب
       const response = await fetch(`${API_URL}/api/employee/leave-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,9 +189,11 @@ const Dashboard = () => {
           reason,
         }),
       });
+
       const data = await response.json();
+
       if (!response.ok) {
-        toast.error(data.message);
+        toast.error(data.message || "فشل إرسال الطلب");
       } else {
         toast.success("تم إرسال الطلب بنجاح!");
         setStartDate("");
@@ -195,16 +210,17 @@ const Dashboard = () => {
 
   const confirmCancelRequest = async () => {
     try {
-      // ✅ التعديل الرابع: تحديث مسار إلغاء الطلب وتصليح السلاش المزدوجة //
       const response = await fetch(
         `${API_URL}/api/employee/cancel-request/${cancelModal.requestId}`,
         { method: "DELETE" },
       );
+
       const data = await response.json();
+
       if (!response.ok) {
-        toast.error(data.message);
+        toast.error(data.message || "فشل إلغاء الطلب");
       } else {
-        toast.success(data.message);
+        toast.success(data.message || "تم إلغاء الطلب");
         fetchMyRequests(employee.employeeCode);
       }
     } catch (err) {
@@ -214,12 +230,13 @@ const Dashboard = () => {
     }
   };
 
-  if (!employee)
+  if (!employee) {
     return (
       <div className="min-h-screen flex items-center justify-center font-bold text-blue-600">
         جاري التحميل...
       </div>
     );
+  }
 
   const fmtDate = (d) => new Date(d).toLocaleDateString("ar-EG");
   const fmtTime = (d) =>
@@ -246,7 +263,7 @@ const Dashboard = () => {
   return (
     <EmployeeLayout>
       <div className="p-3 sm:p-4 md:p-8 max-w-7xl mx-auto">
-        {/* ============ الهيدر ============ */}
+        {/* الهيدر */}
         <header className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
@@ -261,11 +278,13 @@ const Dashboard = () => {
             <div className="w-11 h-11 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-md shrink-0">
               <User size={22} />
             </div>
+
             <div className="flex flex-col min-w-0">
               <span className="font-medium text-gray-700 text-base sm:text-lg truncate">
                 أهلاً،{" "}
                 <span className="font-bold text-blue-600">{employee.name}</span>
               </span>
+
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-sm text-gray-500 mt-1 font-medium">
                 <span className="flex items-center gap-1.5">
                   <CalendarDays size={14} className="text-gray-400" />
@@ -275,7 +294,9 @@ const Dashboard = () => {
                     month: "long",
                   })}
                 </span>
+
                 <span className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full" />
+
                 <span className="flex items-center gap-1.5" dir="ltr">
                   <Clock size={14} className="text-gray-400" />
                   {currentTime.toLocaleTimeString("ar-EG", {
@@ -289,7 +310,7 @@ const Dashboard = () => {
           </div>
         </header>
 
-        {/* ============ كروت الرصيد ============ */}
+        {/* كروت الرصيد */}
         <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6">
           <CircularProgress
             value={employee.leaveBalances?.annual || 0}
@@ -311,7 +332,7 @@ const Dashboard = () => {
           />
         </div>
 
-        {/* ============ كارت تقديم الطلب ============ */}
+        {/* كارت تقديم الطلب */}
         <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 mb-6">
           <h3 className="text-lg sm:text-xl font-bold mb-5 flex items-center gap-2 text-gray-800">
             <span className="bg-blue-50 p-2 rounded-lg text-blue-600">
@@ -329,6 +350,7 @@ const Dashboard = () => {
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                 نوع الإجازة
               </label>
+
               <button
                 type="button"
                 onClick={() => setIsLeaveMenuOpen(!isLeaveMenuOpen)}
@@ -340,6 +362,7 @@ const Dashboard = () => {
                   />
                   {LEAVE_TYPES[leaveType].label}
                 </span>
+
                 <ChevronDown
                   size={18}
                   className={`text-gray-400 transition-transform duration-300 ${
@@ -354,6 +377,7 @@ const Dashboard = () => {
                     className="fixed inset-0 z-40"
                     onClick={() => setIsLeaveMenuOpen(false)}
                   />
+
                   <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-2xl overflow-hidden py-1">
                     {Object.keys(LEAVE_TYPES).map((type) => (
                       <div
@@ -384,6 +408,7 @@ const Dashboard = () => {
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                 تاريخ البداية
               </label>
+
               <div
                 className="relative bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all cursor-pointer"
                 onClick={(e) => {
@@ -423,6 +448,7 @@ const Dashboard = () => {
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">
                 تاريخ النهاية
               </label>
+
               <div
                 className="relative bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all cursor-pointer"
                 onClick={(e) => {
@@ -469,18 +495,17 @@ const Dashboard = () => {
                     جاري الإرسال...
                   </>
                 ) : (
-                  <>
-                    <span className="flex items-center gap-2">
-                      <Send size={18} /> إرسال الطلب
-                    </span>
-                  </>
+                  <span className="flex items-center gap-2">
+                    <Send size={18} />
+                    إرسال الطلب
+                  </span>
                 )}
               </button>
             </div>
           </form>
         </div>
 
-        {/* ============ قائمة الطلبات ============ */}
+        {/* قائمة الطلبات */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
             <h3 className="font-bold text-gray-800 flex items-center gap-2">
@@ -492,7 +517,7 @@ const Dashboard = () => {
             </span>
           </div>
 
-          {/* ===== عرض الموبايل: كروت (يظهر تحت md) ===== */}
+          {/* عرض الموبايل */}
           <div className="md:hidden divide-y divide-gray-100">
             {myRequests.length > 0 ? (
               myRequests.slice(0, 10).map((req) => (
@@ -511,6 +536,7 @@ const Dashboard = () => {
                         {req.duration} يوم
                       </span>
                     </div>
+
                     <StatusBadge status={req.status} />
                   </div>
 
@@ -530,6 +556,7 @@ const Dashboard = () => {
                       <Clock size={11} />
                       {fmtDate(req.createdAt)} — {fmtTime(req.createdAt)}
                     </span>
+
                     {req.status === "pending" && (
                       <button
                         onClick={() =>
@@ -537,7 +564,8 @@ const Dashboard = () => {
                         }
                         className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"
                       >
-                        <Trash2 size={14} /> إلغاء
+                        <Trash2 size={14} />
+                        إلغاء
                       </button>
                     )}
                   </div>
@@ -550,7 +578,7 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* ===== عرض الكومبيوتر: جدول (يظهر من md فأعلى) ===== */}
+          {/* عرض الكمبيوتر */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-right">
               <thead className="bg-gray-50 text-gray-500 text-sm">
@@ -566,6 +594,7 @@ const Dashboard = () => {
                   <th className="p-4 font-semibold text-center">الإجراء</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-gray-100">
                 {myRequests.length > 0 ? (
                   myRequests.slice(0, 10).map((req) => (
@@ -580,17 +609,21 @@ const Dashboard = () => {
                           {LEAVE_TYPES[req.leaveType]?.short || req.leaveType}
                         </span>
                       </td>
+
                       <td className="p-4 text-sm text-gray-600">
                         {fmtDate(req.startDate)}
                       </td>
+
                       <td className="p-4 text-sm text-gray-600">
                         {fmtDate(req.endDate)}
                       </td>
+
                       <td className="p-4 text-center">
                         <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
                           {req.duration} يوم
                         </span>
                       </td>
+
                       <td className="p-4 text-center">
                         <div className="flex flex-col items-center">
                           <span className="text-gray-700 font-medium text-sm">
@@ -600,13 +633,16 @@ const Dashboard = () => {
                             className="text-xs text-gray-400 mt-0.5 flex items-center gap-1"
                             dir="ltr"
                           >
-                            <Clock size={11} /> {fmtTime(req.createdAt)}
+                            <Clock size={11} />
+                            {fmtTime(req.createdAt)}
                           </span>
                         </div>
                       </td>
+
                       <td className="p-4 text-center">
                         <StatusBadge status={req.status} />
                       </td>
+
                       <td className="p-4 text-center">
                         {req.status === "pending" ? (
                           <button
@@ -640,7 +676,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ============ نافذة تأكيد الإلغاء ============ */}
+      {/* نافذة تأكيد الإلغاء */}
       {cancelModal.isOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fadeIn">
@@ -648,13 +684,16 @@ const Dashboard = () => {
               <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle className="text-red-500" size={32} />
               </div>
+
               <h3 className="text-xl font-bold text-gray-800 mb-2">
                 إلغاء طلب الإجازة
               </h3>
+
               <p className="text-gray-500 mb-8">
                 هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا
                 الإجراء.
               </p>
+
               <div className="flex gap-3">
                 <button
                   onClick={confirmCancelRequest}
@@ -662,6 +701,7 @@ const Dashboard = () => {
                 >
                   نعم، إلغاء الطلب
                 </button>
+
                 <button
                   onClick={() =>
                     setCancelModal({ isOpen: false, requestId: null })
@@ -677,6 +717,6 @@ const Dashboard = () => {
       )}
     </EmployeeLayout>
   );
-};;
+};
 
 export default Dashboard;

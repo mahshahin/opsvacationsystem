@@ -1,0 +1,307 @@
+const express = require("express");
+
+const router = express.Router();
+
+const User = require("../models/User");
+const LeaveRequest = require("../models/LeaveRequest");
+const Log = require("../models/Log");
+
+/* =========================
+   Helpers
+========================= */
+
+const getUserByEmployeeCode = async (employeeCode) => {
+  return await User.findOne({ employeeCode });
+};
+
+const getProfileHandler = async (req, res) => {
+  try {
+    const { code } = req.params;
+
+    const user = await User.findOne({ employeeCode: code }).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "الموظف غير موجود!" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({
+      message: "خطأ في جلب بيانات الموظف",
+      error: error.message,
+    });
+  }
+};
+
+const getMyRequestsHandler = async (req, res) => {
+  try {
+    const { employeeCode } = req.params;
+
+    const user = await getUserByEmployeeCode(employeeCode);
+
+    if (!user) {
+      return res.status(404).json({ message: "الموظف غير موجود" });
+    }
+
+    const requests = await LeaveRequest.find({ employeeId: user._id }).sort({
+      createdAt: -1,
+    });
+
+    res.status(200).json(requests);
+  } catch (error) {
+    res.status(500).json({
+      message: "خطأ في السيرفر",
+      error: error.message,
+    });
+  }
+};
+
+const cancelRequestHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await LeaveRequest.findById(id);
+
+    if (!request) {
+      return res.status(404).json({ message: "الطلب غير موجود!" });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        message: "لا يمكن إلغاء طلب تمت معالجته بالفعل!",
+      });
+    }
+
+    await LeaveRequest.findByIdAndDelete(id);
+
+    res.status(200).json({ message: "تم إلغاء الطلب بنجاح." });
+  } catch (error) {
+    res.status(500).json({
+      message: "خطأ أثناء إلغاء الطلب",
+      error: error.message,
+    });
+  }
+};
+
+const submitLeaveRequestHandler = async (req, res) => {
+  try {
+    const { employeeCode, leaveType, startDate, endDate, reason } = req.body;
+
+    if (!employeeCode || !leaveType || !startDate || !endDate) {
+      return res.status(400).json({
+        message: "برجاء استكمال جميع البيانات الأساسية للطلب!",
+      });
+    }
+
+    const user = await getUserByEmployeeCode(employeeCode);
+
+    if (!user) {
+      return res.status(404).json({ message: "الموظف غير موجود!" });
+    }
+
+    if (user.role === "admin") {
+      return res.status(400).json({
+        message: "غير مسموح لمدير النظام بتقديم طلبات إجازة.",
+      });
+    }
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (end < start) {
+      return res.status(400).json({
+        message: "تاريخ نهاية الإجازة لا يمكن أن يكون قبل تاريخ البداية!",
+      });
+    }
+
+    if (leaveType !== "casual" && start < today) {
+      return res.status(400).json({
+        message:
+          "لا يمكن تقديم إجازة بأثر رجعي (يُسمح بذلك للإجازة العارضة فقط)!",
+      });
+    }
+
+    const overlappingRequest = await LeaveRequest.findOne({
+      employeeId: user._id,
+      status: { $ne: "rejected" },
+      $or: [{ startDate: { $lte: end }, endDate: { $gte: start } }],
+    });
+
+    if (overlappingRequest) {
+      return res.status(400).json({
+        message: "لديك بالفعل طلب إجازة يتعارض مع هذه التواريخ!",
+      });
+    }
+
+    const diffTime = Math.abs(end - start);
+    const duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    if (leaveType === "casual") {
+      if (duration > 2) {
+        return res.status(400).json({
+          message: "الإجازة العارضة لا يمكن أن تتجاوز يومين متصلين!",
+        });
+      }
+
+      const startOfMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+      const endOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+
+      const monthLeaves = await LeaveRequest.find({
+        employeeId: user._id,
+        leaveType: "casual",
+        status: { $ne: "rejected" },
+        startDate: { $gte: startOfMonth, $lte: endOfMonth },
+      });
+
+      const takenCasualDaysThisMonth = monthLeaves.reduce(
+        (total, r) => total + r.duration,
+        0,
+      );
+
+      if (takenCasualDaysThisMonth + duration > 2) {
+        return res.status(400).json({
+          message: `عفواً، لقد استنفذت الحد الأقصى للعارضة هذا الشهر (متبقي لك ${
+            2 - takenCasualDaysThisMonth
+          } يوم).`,
+        });
+      }
+    }
+
+    if (user.leaveBalances[leaveType] < duration) {
+      return res.status(400).json({
+        message: `رصيدك الحالي (${user.leaveBalances[leaveType]} أيام) لا يكفي لطلب ${duration} يوم!`,
+      });
+    }
+
+    const newLeaveReq = new LeaveRequest({
+      employeeId: user._id,
+      leaveType,
+      startDate: start,
+      endDate: end,
+      duration,
+      reason,
+    });
+
+    await newLeaveReq.save();
+
+    const newLog = new Log({
+      action: "LEAVE_REQUESTED",
+      performedBy: user._id,
+      details: `قدم ${user.name} طلب إجازة (${leaveType}) لمدة ${duration} أيام.`,
+      ipAddress: req.ip,
+    });
+
+    await newLog.save();
+
+    res.status(201).json({
+      message: "تم تقديم طلب الإجازة بنجاح.",
+      durationRequested: duration,
+      requestDetails: newLeaveReq,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "حدث خطأ أثناء تقديم الطلب",
+      error: error.message,
+    });
+  }
+};
+
+const leaveReportHandler = async (req, res) => {
+  try {
+    const { employeeCode, startDate, endDate } = req.body;
+
+    if (!employeeCode || !startDate || !endDate) {
+      return res.status(400).json({ message: "بيانات التقرير ناقصة!" });
+    }
+
+    const user = await getUserByEmployeeCode(employeeCode);
+
+    if (!user) {
+      return res.status(404).json({ message: "الموظف غير موجود!" });
+    }
+
+    const fromDate = new Date(startDate);
+    fromDate.setHours(0, 0, 0, 0);
+
+    const toDate = new Date(endDate);
+    toDate.setHours(23, 59, 59, 999);
+
+    const leaves = await LeaveRequest.find({
+      employeeId: user._id,
+      status: "approved",
+      startDate: { $gte: fromDate },
+      endDate: { $lte: toDate },
+    }).sort({ startDate: 1 });
+
+    const summary = { annual: 0, casual: 0, compensation: 0 };
+
+    leaves.forEach((leave) => {
+      if (summary[leave.leaveType] !== undefined) {
+        summary[leave.leaveType] += leave.duration;
+      }
+    });
+
+    res.status(200).json({
+      message: "تم استخراج التقرير بنجاح.",
+      employeeName: user.name,
+      period: { from: startDate, to: endDate },
+      totalConsumedDays: summary,
+      detailedLeaves: leaves,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "خطأ أثناء استخراج التقرير",
+      error: error.message,
+    });
+  }
+};
+
+const updateEmailHandler = async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "برجاء إدخال البريد الإلكتروني" });
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { employeeCode: code },
+      { email: email.trim().toLowerCase() },
+      { new: true },
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "الموظف غير موجود" });
+    }
+
+    res.status(200).json({
+      message: "تم حفظ البريد الإلكتروني بنجاح",
+      employee: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating email:", error);
+    res.status(500).json({
+      message: "حدث خطأ في السيرفر أثناء تحديث الإيميل",
+    });
+  }
+};
+
+/* =========================
+   Final unified employee routes
+========================= */
+
+router.post("/leave-request", submitLeaveRequestHandler);
+router.post("/report", leaveReportHandler);
+router.get("/my-requests/:employeeCode", getMyRequestsHandler);
+router.get("/profile/:code", getProfileHandler);
+router.put("/update-email/:code", updateEmailHandler);
+router.delete("/cancel-request/:id", cancelRequestHandler);
+
+module.exports = router;

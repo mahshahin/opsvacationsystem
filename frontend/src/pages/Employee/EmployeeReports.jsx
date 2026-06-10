@@ -19,7 +19,10 @@ const EmployeeReports = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const savedData = localStorage.getItem("employeeData");
+    const savedData =
+      sessionStorage.getItem("employeeData") ||
+      localStorage.getItem("employeeData");
+
     if (savedData) {
       setEmployee(JSON.parse(savedData));
     } else {
@@ -29,6 +32,7 @@ const EmployeeReports = () => {
 
   const handleGenerateReport = async (e) => {
     e.preventDefault();
+
     if (!startDate || !endDate) {
       toast.error("برجاء تحديد تاريخ البداية والنهاية");
       return;
@@ -40,8 +44,9 @@ const EmployeeReports = () => {
     }
 
     setLoading(true);
+
     try {
-      const response = await fetch(`${API_URL}/api/leaves/report`, {
+      const response = await fetch(`${API_URL}/api/employee/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -52,6 +57,7 @@ const EmployeeReports = () => {
       });
 
       const data = await response.json();
+
       if (!response.ok) {
         toast.error(data.message || "حدث خطأ في استخراج التقرير");
       } else {
@@ -69,12 +75,13 @@ const EmployeeReports = () => {
     window.print();
   };
 
-  if (!employee)
+  if (!employee) {
     return (
       <div className="min-h-screen flex items-center justify-center font-bold text-blue-600">
         جاري التحميل...
       </div>
     );
+  }
 
   return (
     <EmployeeLayout>
@@ -85,7 +92,14 @@ const EmployeeReports = () => {
             @media print {
               body * { visibility: hidden; }
               #printable-report, #printable-report * { visibility: visible; }
-              #printable-report { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white;}
+              #printable-report {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+                background: white;
+              }
               .no-print { display: none !important; }
             }
           `}
@@ -94,7 +108,8 @@ const EmployeeReports = () => {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 no-print">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <FileText className="text-blue-600" /> تقارير الإجازات
+              <FileText className="text-blue-600" />
+              تقارير الإجازات
             </h2>
             <p className="text-gray-500 text-sm mt-1">
               استخرج كشف حساب تفصيلي لإجازاتك المستهلكة
@@ -102,16 +117,16 @@ const EmployeeReports = () => {
           </div>
         </header>
 
-        {/* لوحة البحث (تم تحديث التصميم ليطابق الشاشة الرئيسية) */}
+        {/* لوحة البحث */}
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 mb-8 no-print relative overflow-hidden">
-          {/* لمسة تصميمية في الخلفية */}
+          {/* لمسة تصميمية */}
           <div className="absolute top-0 left-0 w-32 h-32 bg-blue-600/5 rounded-full -ml-10 -mt-10 pointer-events-none"></div>
 
           <form
             onSubmit={handleGenerateReport}
             className="flex flex-col md:flex-row items-center gap-5 relative z-20"
           >
-            {/* حقل من تاريخ */}
+            {/* من تاريخ */}
             <div className="relative group z-20 flex-1 w-full">
               <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-focus-within:text-blue-600 transition-colors z-20">
                 <CalendarDays size={18} />
@@ -125,14 +140,16 @@ const EmployeeReports = () => {
 
               <input
                 type="date"
-                className={`relative w-full pl-4 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!startDate ? "text-transparent" : "text-gray-700"} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`}
+                className={`relative w-full pl-4 pr-12 py-3.5 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${
+                  !startDate ? "text-transparent" : "text-gray-700"
+                } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`}
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
               />
             </div>
 
-            {/* حقل إلى تاريخ */}
+            {/* إلى تاريخ */}
             <div className="relative group z-20 flex-1 w-full">
               <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-focus-within:text-blue-600 transition-colors z-20">
                 <CalendarDays size={18} />
@@ -146,14 +163,16 @@ const EmployeeReports = () => {
 
               <input
                 type="date"
-                className={`relative w-full pl-4 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${!endDate ? "text-transparent" : "text-gray-700"} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`}
+                className={`relative w-full pl-4 pr-12 py-3.5 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${
+                  !endDate ? "text-transparent" : "text-gray-700"
+                } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`}
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
               />
             </div>
 
-            {/* زرار الاستخراج */}
+            {/* زرار استخراج التقرير */}
             <button
               type="submit"
               disabled={loading}
@@ -166,7 +185,8 @@ const EmployeeReports = () => {
                 </div>
               ) : (
                 <>
-                  <Search size={20} /> استخراج التقرير
+                  <Search size={20} />
+                  استخراج التقرير
                 </>
               )}
             </button>
@@ -195,11 +215,13 @@ const EmployeeReports = () => {
                   {new Date(reportData.period.to).toLocaleDateString("ar-EG")}
                 </p>
               </div>
+
               <button
                 onClick={handlePrint}
                 className="no-print flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold transition border border-gray-300"
               >
-                <Printer size={18} /> طباعة التقرير
+                <Printer size={18} />
+                طباعة التقرير
               </button>
             </div>
 
@@ -207,6 +229,7 @@ const EmployeeReports = () => {
             <h4 className="font-bold text-lg text-gray-800 mb-4 border-r-4 border-blue-600 pr-3">
               ملخص الأيام المستهلكة (المقبولة فقط)
             </h4>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
                 <span className="font-bold text-gray-600">اعتيادي</span>
@@ -214,12 +237,14 @@ const EmployeeReports = () => {
                   {reportData.totalConsumedDays.annual} يوم
                 </span>
               </div>
+
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
                 <span className="font-bold text-gray-600">عارضة</span>
                 <span className="text-2xl font-black text-yellow-600">
                   {reportData.totalConsumedDays.casual} يوم
                 </span>
               </div>
+
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
                 <span className="font-bold text-gray-600">بدل أعياد</span>
                 <span className="text-2xl font-black text-green-600">
@@ -232,6 +257,7 @@ const EmployeeReports = () => {
             <h4 className="font-bold text-lg text-gray-800 mb-4 border-r-4 border-blue-600 pr-3">
               تفاصيل الإجازات في هذه الفترة
             </h4>
+
             {reportData.detailedLeaves.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-right border border-gray-200 rounded-lg">
@@ -243,6 +269,7 @@ const EmployeeReports = () => {
                       <th className="p-4 text-center border-b">عدد الأيام</th>
                     </tr>
                   </thead>
+
                   <tbody className="divide-y divide-gray-100">
                     {reportData.detailedLeaves.map((leave) => (
                       <tr key={leave._id} className="hover:bg-gray-50">
@@ -253,14 +280,17 @@ const EmployeeReports = () => {
                               ? "عارضة"
                               : "بدل أعياد"}
                         </td>
+
                         <td className="p-4 text-gray-600">
                           {new Date(leave.startDate).toLocaleDateString(
                             "ar-EG",
                           )}
                         </td>
+
                         <td className="p-4 text-gray-600">
                           {new Date(leave.endDate).toLocaleDateString("ar-EG")}
                         </td>
+
                         <td className="p-4 text-center font-bold">
                           {leave.duration} يوم
                         </td>

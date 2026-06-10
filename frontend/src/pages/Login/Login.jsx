@@ -60,7 +60,9 @@ const Login = () => {
 
       if (!response.ok) {
         setError(data.message || "فشل تسجيل الدخول");
+        toast.error(data.message || "فشل تسجيل الدخول");
       } else {
+        // حفظ بيانات المستخدم حسب remember me
         if (rememberMe) {
           localStorage.setItem("employeeData", JSON.stringify(data.user));
           sessionStorage.removeItem("employeeData");
@@ -81,6 +83,7 @@ const Login = () => {
       }
     } catch (err) {
       setError("حدث خطأ في الاتصال بالسيرفر. تأكد أن السيرفر يعمل.");
+      toast.error("حدث خطأ في الاتصال بالسيرفر.");
     } finally {
       setLoading(false);
     }
@@ -91,15 +94,15 @@ const Login = () => {
       <div className="max-w-4xl w-full bg-white rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden min-h-[500px]">
         {/* اللوحة اليمنى - التصميم الاحترافي الجديد */}
         <div className="w-full md:w-2/5 relative overflow-hidden flex flex-col items-center justify-center p-8 md:p-10 text-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950">
-          {/* 1. إضاءات مشعة (Glowing Blobs) بدل الدوائر المصمتة القديمة */}
+          {/* 1. إضاءات مشعة */}
           <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500 opacity-20 blur-[80px] rounded-full translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
           <div className="absolute bottom-0 left-0 w-72 h-72 bg-indigo-400 opacity-20 blur-[80px] rounded-full -translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
 
-          {/* 2. شبكة نظام خفيفة في الخلفية (Tech Grid Pattern) */}
+          {/* 2. شبكة نظام خفيفة */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none"></div>
 
           <div className="relative z-10 flex flex-col h-full w-full justify-between">
-            {/* تأثير زجاجي خفيف حول اللوجو */}
+            {/* اللوجو */}
             <div className="w-full flex justify-center mt-2 mb-8">
               <div className="p-5 bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 shadow-2xl">
                 <img
@@ -110,28 +113,26 @@ const Login = () => {
               </div>
             </div>
 
-            {/* النصوص بتنسيق عصري */}
+            {/* النصوص */}
             <div className="flex-1 flex flex-col items-center justify-center space-y-6">
               <div className="space-y-3">
                 <h3 className="text-3xl md:text-2xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-blue-200">
-                  أهلاً بك من جديد{" "}
+                  أهلاً بك من جديد
                 </h3>
                 <p className="text-base md:text-lg font-medium text-blue-100/80 max-w-[260px] mx-auto leading-relaxed">
                   منصتك المركزية لكل ما يخص إجازاتك ومواعيد عملك
                 </p>
               </div>
 
-              {/* خط فاصل أنيق */}
               <div className="w-16 h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-40 rounded-full"></div>
 
-              {/* زرار تفاعلي مع تأثير عند الوقوف عليه */}
+              {/* الجزء ده متساب زي ما هو */}
               <button
                 onClick={() => navigate("/register")}
                 className="group relative mt-4 px-8 py-3.5 w-[85%] md:w-auto overflow-hidden rounded-full bg-white/10 text-white border border-white/20 backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-blue-900 hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:-translate-y-1"
               >
                 <span className="relative z-10 font-bold text-sm md:text-base flex items-center justify-center gap-2">
                   تفعيل حساب جديد
-                  {/* سهم بيتحرك مع الـ Hover */}
                   <svg
                     className="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1"
                     fill="none"

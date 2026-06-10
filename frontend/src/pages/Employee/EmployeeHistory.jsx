@@ -33,7 +33,10 @@ const EmployeeHistory = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
 
   useEffect(() => {
-    const savedData = localStorage.getItem("employeeData");
+    const savedData =
+      sessionStorage.getItem("employeeData") ||
+      localStorage.getItem("employeeData");
+
     if (savedData) {
       const parsedEmployee = JSON.parse(savedData);
       setEmployee(parsedEmployee);
@@ -45,10 +48,18 @@ const EmployeeHistory = () => {
 
   const fetchMyRequests = async (code) => {
     try {
-      const response = await fetch(`${API_URL}/api/employees/my-requests/${code}`);
+      setLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/employee/my-requests/${code}`,
+      );
+
       const data = await response.json();
+
       if (response.ok) {
-        setAllRequests(data);
+        setAllRequests(Array.isArray(data) ? data : []);
+      } else {
+        toast.error(data.message || "حدث خطأ في جلب سجل الإجازات");
       }
     } catch (err) {
       toast.error("حدث خطأ في جلب سجل الإجازات");
@@ -57,51 +68,55 @@ const EmployeeHistory = () => {
     }
   };
 
-  // دالة تأكيد الإلغاء (اللي بتشتغل لما الموظف يدوس "نعم" في النافذة)
+  // دالة تأكيد الإلغاء
   const confirmCancelRequest = async () => {
     try {
       const response = await fetch(
-        `${API_URL}/api/employees/cancel-request/${cancelModal.requestId}`,
+        `${API_URL}/api/employee/cancel-request/${cancelModal.requestId}`,
         {
           method: "DELETE",
         },
       );
+
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.message);
+        toast.error(data.message || "فشل إلغاء الطلب");
       } else {
-        toast.success(data.message);
-        fetchMyRequests(employee.employeeCode); // تحديث السجل فوراً
+        toast.success(data.message || "تم إلغاء الطلب بنجاح");
+        fetchMyRequests(employee.employeeCode);
       }
     } catch (err) {
       toast.error("حدث خطأ أثناء الاتصال بالسيرفر");
     } finally {
-      // قفل النافذة في كل الحالات
       setCancelModal({ isOpen: false, requestId: null });
     }
   };
 
-  // استخراج السنوات المتاحة في السجل ديناميكياً
+  // استخراج السنوات المتاحة
   const availableYears = useMemo(() => {
-    const years = allRequests.map((req) =>
-      new Date(req.startDate).getFullYear(),
-    );
+    const years = allRequests
+      .filter((req) => req.startDate)
+      .map((req) => new Date(req.startDate).getFullYear());
+
     return [...new Set(years)].sort((a, b) => b - a);
   }, [allRequests]);
 
-  // محرك الفلترة الذكي
+  // محرك الفلترة
   const filteredRequests = useMemo(() => {
     return allRequests.filter((req) => {
       if (!req.startDate) return false;
+
       const reqDate = new Date(req.startDate);
 
       const matchYear =
         selectedYear === "all" ||
         reqDate.getFullYear().toString() === selectedYear;
+
       const matchMonth =
         selectedMonth === "all" ||
         (reqDate.getMonth() + 1).toString() === selectedMonth;
+
       const matchStatus =
         selectedStatus === "all" || req.status === selectedStatus;
 
@@ -114,32 +129,39 @@ const EmployeeHistory = () => {
       case "pending":
         return (
           <span className="flex items-center justify-center gap-1 text-xs font-bold px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">
-            <Clock size={12} /> قيد الانتظار
+            <Clock size={12} />
+            قيد الانتظار
           </span>
         );
+
       case "approved":
         return (
           <span className="flex items-center justify-center gap-1 text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded-full">
-            <CheckCircle size={12} /> مقبول
+            <CheckCircle size={12} />
+            مقبول
           </span>
         );
+
       case "rejected":
         return (
           <span className="flex items-center justify-center gap-1 text-xs font-bold px-2 py-1 bg-red-100 text-red-700 rounded-full">
-            <XCircle size={12} /> مرفوض
+            <XCircle size={12} />
+            مرفوض
           </span>
         );
+
       default:
         return status;
     }
   };
 
-  if (!employee)
+  if (!employee) {
     return (
       <div className="min-h-screen flex items-center justify-center text-blue-600 font-bold">
         جاري التحميل...
       </div>
     );
+  }
 
   return (
     <EmployeeLayout>
@@ -147,7 +169,8 @@ const EmployeeHistory = () => {
         <header className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <div>
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <CalendarDays className="text-blue-600" /> سجل الإجازات الشامل
+              <CalendarDays className="text-blue-600" />
+              سجل الإجازات الشامل
             </h2>
             <p className="text-gray-500 text-sm mt-1">
               كشف حساب بجميع طلباتك السابقة وحالاتها
@@ -207,9 +230,9 @@ const EmployeeHistory = () => {
           </div>
         </header>
 
-        {/* شريط الإحصائيات السريعة */}
+        {/* شريط الإحصائيات */}
         <div className="mb-4 text-sm font-bold text-gray-600 flex items-center gap-2">
-          إجمالي الطلبات المعروضة:{" "}
+          إجمالي الطلبات المعروضة:
           <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
             {filteredRequests.length} طلب
           </span>
@@ -229,6 +252,7 @@ const EmployeeHistory = () => {
                   <th className="p-4 text-center">الإجراء</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
@@ -246,15 +270,18 @@ const EmployeeHistory = () => {
                             ? "عارضة"
                             : "بدل أعياد"}
                       </td>
+
                       <td className="p-4 text-sm text-gray-600">
-                        {new Date(req.startDate).toLocaleDateString("ar-EG")}{" "}
+                        {new Date(req.startDate).toLocaleDateString("ar-EG")}
                         <br />
                         <span className="text-xs text-gray-400">إلى</span>{" "}
                         {new Date(req.endDate).toLocaleDateString("ar-EG")}
                       </td>
+
                       <td className="p-4 text-sm font-bold text-blue-600 text-center">
                         {req.duration} يوم
                       </td>
+
                       <td className="p-4 text-center">
                         <div className="flex flex-col items-center justify-center">
                           <span className="text-gray-700 font-medium">
@@ -269,14 +296,19 @@ const EmployeeHistory = () => {
                             <Clock size={12} />
                             {new Date(req.createdAt).toLocaleTimeString(
                               "ar-EG",
-                              { hour: "2-digit", minute: "2-digit" },
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
                             )}
                           </span>
                         </div>
                       </td>
+
                       <td className="p-4 text-center">
                         {getStatusBadge(req.status)}
                       </td>
+
                       <td className="p-4 text-center">
                         {req.status === "pending" ? (
                           <button
@@ -312,44 +344,47 @@ const EmployeeHistory = () => {
             </table>
           </div>
         </div>
-      </div>
 
-      {/* === نافذة التأكيد المنبثقة (Modal) === */}
-      {cancelModal.isOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="text-red-500" size={32} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">
-                إلغاء طلب الإجازة
-              </h3>
-              <p className="text-gray-500 mb-8">
-                هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا
-                الإجراء.
-              </p>
+        {/* نافذة التأكيد المنبثقة */}
+        {cancelModal.isOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="text-red-500" size={32} />
+                </div>
 
-              <div className="flex gap-3">
-                <button
-                  onClick={confirmCancelRequest}
-                  className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition shadow-sm hover:shadow-md"
-                >
-                  نعم، إلغاء الطلب
-                </button>
-                <button
-                  onClick={() =>
-                    setCancelModal({ isOpen: false, requestId: null })
-                  }
-                  className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition"
-                >
-                  تراجع
-                </button>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  إلغاء طلب الإجازة
+                </h3>
+
+                <p className="text-gray-500 mb-8">
+                  هل أنت متأكد من رغبتك في إلغاء هذا الطلب؟ لا يمكن التراجع عن
+                  هذا الإجراء.
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={confirmCancelRequest}
+                    className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition shadow-sm hover:shadow-md"
+                  >
+                    نعم، إلغاء الطلب
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setCancelModal({ isOpen: false, requestId: null })
+                    }
+                    className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition"
+                  >
+                    تراجع
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </EmployeeLayout>
   );
 };
