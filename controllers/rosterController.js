@@ -1,9 +1,41 @@
-const User = require("../models/User"); // تأكد من اسم موديل الموظفين
+const User = require("../models/User");
 const LeaveRequest = require("../models/LeaveRequest");
-const Roster = require("../models/Roster"); // استدعاء موديل الروستر الجديد
-const sendEmail = require("../utils/sendEmail"); // 📧 استدعاء دالة النودميلر
+const Roster = require("../models/Roster");
+const sendEmail = require("../utils/sendEmail");
 
-// 1. دالة جلب التهيئة (بقت بتجيب الموظفين + الإجازات + الجدول لو محفوظ)
+/* =========================
+   Helpers
+========================= */
+
+const isMapLike = (value) => {
+  return (
+    value &&
+    typeof value.get === "function" &&
+    typeof value.entries === "function"
+  );
+};
+
+const getRosterEntries = (details) => {
+  if (!details) return [];
+  return isMapLike(details)
+    ? Array.from(details.entries())
+    : Object.entries(details);
+};
+
+const getRosterDay = (details, dayNumber) => {
+  if (!details) return null;
+
+  if (isMapLike(details)) {
+    return details.get(String(dayNumber)) || details.get(dayNumber) || null;
+  }
+
+  return details?.[dayNumber] || details?.[String(dayNumber)] || null;
+};
+
+/* =========================
+   1) جلب بيانات التهيئة
+========================= */
+
 exports.getRosterInitData = async (req, res) => {
   try {
     const month = Number(req.query.month);
@@ -51,56 +83,62 @@ exports.getRosterInitData = async (req, res) => {
   }
 };
 
-// 2. دالة الحفظ الذكية (للمسودة أو الاعتماد أو التعديل)
+/* =========================
+   2) حفظ الروستر
+========================= */
+
 exports.saveRoster = async (req, res) => {
   try {
-    const { month, year, status, rosterDetails } = req.body;
+    const month = Number(req.body.month);
+    const year = Number(req.body.year);
+    const { status, rosterDetails } = req.body;
 
     if (!month || !year || !rosterDetails) {
-      return res
-        .status(400)
-        .json({ success: false, message: "بيانات غير مكتملة" });
+      return res.status(400).json({
+        success: false,
+        message: "بيانات غير مكتملة",
+      });
     }
 
-    // 🔍 خطوة ذكية: نعرف ده جدول جديد ولا تعديل عشان نحدد صيغة الإيميل؟
     const existingRoster = await Roster.findOne({ month, year });
     const isUpdate = existingRoster && existingRoster.status === "published";
 
-    // 🛡️ الدرع الواقي: تنظيف البيانات في الباك إند قبل الحفظ 🛡️
-    // بنلف على كل يوم وكل نوبة، وأي خانة فاضية بنخليها null عشان Mongoose ترضى بيها
+    // تنظيف البيانات قبل الحفظ
     for (const day in rosterDetails) {
-      ["shift1", "shift2", "shift3"].forEach((shift) => {
-        if (rosterDetails[day][shift]) {
-          // تنظيف رئيس النوبة
-          if (rosterDetails[day][shift].leader === "") {
-            rosterDetails[day][shift].leader = null;
+      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+        if (rosterDetails[day][shiftKey]) {
+          if (rosterDetails[day][shiftKey].leader === "") {
+            rosterDetails[day][shiftKey].leader = null;
           }
-          // تنظيف أفراد النوبة
-          if (Array.isArray(rosterDetails[day][shift].members)) {
-            rosterDetails[day][shift].members = rosterDetails[day][
-              shift
+
+          if (Array.isArray(rosterDetails[day][shiftKey].members)) {
+            rosterDetails[day][shiftKey].members = rosterDetails[day][
+              shiftKey
             ].members.map((member) => (member === "" ? null : member));
           }
         }
       });
     }
 
-    // دلوقتي الداتا بقت نظيفة 100% وجاهزة للحفظ
     const roster = await Roster.findOneAndUpdate(
       { month, year },
       { status, details: rosterDetails },
-      { returnDocument: "after", upsert: true },
+      { new: true, upsert: true },
     );
 
-    // 📧 إرسال الإيميلات في الخلفية لو الجدول "أعتمد" (مش مسودة)
+    // إرسال إيميلات لو الجدول معتمد
     if (status === "published") {
-      // نجمع الـ IDs بتاعة الموظفين اللي في الجدول ده بدون تكرار
       const uniqueUserIds = new Set();
+
       for (const day in rosterDetails) {
         ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
           const shift = rosterDetails[day][shiftKey];
+
           if (shift) {
-            if (shift.leader) uniqueUserIds.add(shift.leader.toString());
+            if (shift.leader) {
+              uniqueUserIds.add(shift.leader.toString());
+            }
+
             if (Array.isArray(shift.members)) {
               shift.members.forEach((member) => {
                 if (member) uniqueUserIds.add(member.toString());
@@ -110,20 +148,18 @@ exports.saveRoster = async (req, res) => {
         });
       }
 
-      // نجيب إيميلات الموظفين دول من الداتابيز
       const usersToNotify = await User.find({
         _id: { $in: Array.from(uniqueUserIds) },
       }).select("email name");
 
-      // نحدد عنوان ونص الإيميل بناءً على هو جديد ولا تعديل
       const subject = isUpdate
         ? `تعديل في جدول ورديات شهر ${month}/${year}`
         : `نشر جدول ورديات شهر ${month}/${year}`;
+
       const message = isUpdate
         ? `عزيزي الموظف،\n\nتم إجراء تعديلات على جدول وردياتك لشهر ${month}/${year}. برجاء مراجعة النظام لمعرفة مواعيدك الجديدة.`
         : `عزيزي الموظف،\n\nتم اعتماد ونشر جدول الورديات لشهر ${month}/${year}. يمكنك الآن الدخول للنظام لمعرفة أيام عملك.`;
 
-      // نبعت الإيميلات في الخلفية من غير await
       usersToNotify.forEach((user) => {
         if (user.email) {
           sendEmail(user.email, subject, message).catch((err) =>
@@ -133,7 +169,7 @@ exports.saveRoster = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message:
         status === "published"
@@ -143,14 +179,22 @@ exports.saveRoster = async (req, res) => {
     });
   } catch (error) {
     console.error("Error saving roster:", error);
-    res.status(500).json({ success: false, message: "حدث خطأ أثناء الحفظ" });
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء الحفظ",
+    });
   }
 };
 
-// 3. دالة جلب ورديات موظف محدد (شاشة الموظف)
+/* =========================
+   3) ورديات موظف محدد
+========================= */
+
 exports.getMyShifts = async (req, res) => {
   try {
-    const { employeeId, month, year } = req.query;
+    const employeeId = String(req.query.employeeId || "");
+    const month = Number(req.query.month);
+    const year = Number(req.query.year);
 
     if (!employeeId || !month || !year) {
       return res.status(400).json({
@@ -159,11 +203,9 @@ exports.getMyShifts = async (req, res) => {
       });
     }
 
-    // 1. نجيب الجدول "المعتمد" فقط للشهر والسنة دي
     const roster = await Roster.findOne({ month, year, status: "published" });
 
     if (!roster) {
-      // لو مفيش جدول معتمد، نرجع مصفوفة فاضية عشان الفرونت إند يكتب "لا يوجد جدول معتمد"
       return res.status(200).json({
         success: true,
         shifts: [],
@@ -171,26 +213,23 @@ exports.getMyShifts = async (req, res) => {
       });
     }
 
-    // 2. هندور جوه أيام الشهر على شفتات الموظف ده
     const myShifts = [];
-    const userIdsToFetch = new Set(); // بنجمع هنا كل الـ IDs بتاعة زمايله عشان نجيب أساميهم مرة واحدة
+    const userIdsToFetch = new Set();
 
-    // roster.details.entries() بتلف على كل يوم في الجدول
-    for (const [day, dayData] of roster.details.entries()) {
+    const dayEntries = getRosterEntries(roster.details);
+
+    for (const [day, dayData] of dayEntries) {
       ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
-        const shift = dayData[shiftKey];
+        const shift = dayData?.[shiftKey];
         if (!shift) return;
 
-        // هل الموظف ده رئيس النوبة دي؟
         const isLeader = shift.leader && shift.leader.toString() === employeeId;
 
-        // أو هل هو فرد من أفراد النوبة دي؟
         const isMember =
-          shift.members &&
+          Array.isArray(shift.members) &&
           shift.members.some((m) => m && m.toString() === employeeId);
 
         if (isLeader || isMember) {
-          // لو لقيناه، نسجل تفاصيل النوبة
           myShifts.push({
             day: Number(day),
             shiftName:
@@ -204,46 +243,162 @@ exports.getMyShifts = async (req, res) => {
             memberIds: shift.members || [],
           });
 
-          // نحفظ الـ IDs بتاعة الطاقم كله عشان نجيب أساميهم من الداتابيز
-          if (shift.leader) userIdsToFetch.add(shift.leader.toString());
-          if (shift.members)
-            shift.members.forEach((m) => m && userIdsToFetch.add(m.toString()));
+          if (shift.leader) {
+            userIdsToFetch.add(shift.leader.toString());
+          }
+
+          if (Array.isArray(shift.members)) {
+            shift.members.forEach((m) => {
+              if (m) userIdsToFetch.add(m.toString());
+            });
+          }
         }
       });
     }
 
-    // 3. نجيب أسماء الطاقم من الداتابيز بخبطة واحدة
     const users = await User.find({
       _id: { $in: Array.from(userIdsToFetch) },
     }).select("name");
 
-    // نعمل قاموس (Dictionary) سريع يربط الـ ID بالاسم
     const userNames = {};
     users.forEach((u) => {
       userNames[u._id.toString()] = u.name;
     });
 
-    // 4. نركب الأسماء جوه الشفتات بدل الـ IDs
     const formattedShifts = myShifts.map((shift) => ({
       day: shift.day,
       shiftName: shift.shiftName,
       role: shift.role,
       leaderName: shift.leaderId
-        ? userNames[shift.leaderId.toString()]
+        ? userNames[shift.leaderId.toString()] || "غير محدد"
         : "غير محدد",
-      teamNames: shift.memberIds
-        .map((id) => (id ? userNames[id.toString()] : null))
+      teamNames: (shift.memberIds || [])
+        .map((id) => (id ? userNames[id.toString()] || null : null))
         .filter(Boolean),
     }));
 
-    // نرتبهم من أول يوم في الشهر لآخره
     formattedShifts.sort((a, b) => a.day - b.day);
 
-    res.status(200).json({ success: true, shifts: formattedShifts });
+    return res.status(200).json({
+      success: true,
+      shifts: formattedShifts,
+    });
   } catch (error) {
     console.error("Error fetching my shifts:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "حدث خطأ أثناء جلب الجدول" });
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء جلب الجدول",
+    });
+  }
+};
+
+/* =========================
+   4) الروستر المعتمد الكامل
+========================= */
+
+exports.getPublishedFullRoster = async (req, res) => {
+  try {
+    const month = Number(req.query.month);
+    const year = Number(req.query.year);
+
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: "برجاء تحديد الشهر والسنة",
+      });
+    }
+
+    const roster = await Roster.findOne({ month, year, status: "published" });
+
+    if (!roster) {
+      return res.status(200).json({
+        success: true,
+        days: [],
+        message: "لا يوجد جدول معتمد لهذا الشهر حتى الآن",
+      });
+    }
+
+    const detailsEntries = getRosterEntries(roster.details);
+
+    const userIds = new Set();
+
+    detailsEntries.forEach(([, dayData]) => {
+      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+        const shift = dayData?.[shiftKey];
+        if (!shift) return;
+
+        if (shift.leader) {
+          userIds.add(shift.leader.toString());
+        }
+
+        if (Array.isArray(shift.members)) {
+          shift.members.forEach((member) => {
+            if (member) userIds.add(member.toString());
+          });
+        }
+      });
+    });
+
+    const users = await User.find({
+      _id: { $in: Array.from(userIds) },
+    }).select("name");
+
+    const userNames = {};
+    users.forEach((u) => {
+      userNames[u._id.toString()] = u.name;
+    });
+
+    const weekDays = [
+      "الأحد",
+      "الاثنين",
+      "الثلاثاء",
+      "الأربعاء",
+      "الخميس",
+      "الجمعة",
+      "السبت",
+    ];
+
+    const daysCount = new Date(year, month, 0).getDate();
+
+    const mapShift = (shift) => {
+      return {
+        leaderName: shift?.leader
+          ? userNames[shift.leader.toString()] || "—"
+          : "—",
+        memberNames: Array.isArray(shift?.members)
+          ? shift.members
+              .map((id) => (id ? userNames[id.toString()] || null : null))
+              .filter(Boolean)
+          : [],
+      };
+    };
+
+    const days = Array.from({ length: daysCount }, (_, i) => {
+      const dayNumber = i + 1;
+      const dateObj = new Date(year, month - 1, dayNumber);
+      const dayData = getRosterDay(roster.details, dayNumber);
+
+      return {
+        dayNumber,
+        dayName: weekDays[dateObj.getDay()],
+        shift1: mapShift(dayData?.shift1),
+        shift2: mapShift(dayData?.shift2),
+        shift3: mapShift(dayData?.shift3),
+        notes: dayData?.notes || "",
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      month,
+      year,
+      days,
+    });
+  } catch (error) {
+    console.error("Error fetching published full roster:", error);
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء جلب الروستر المعتمد",
+    });
   }
 };

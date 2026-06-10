@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import ProtectedRoute from './pages/components/ProtectedRoute';
+import EmployeeFullRoster from "./pages/Employee/EmployeeFullRoster";
 
 // استدعاءات عامة
 const Login = React.lazy(() => import('./pages/Login/Login'));// استدعاء شاشة تسجيل الدخول
@@ -13,6 +14,7 @@ const MyShifts = React.lazy(() => import("./pages/Employee/MyShifts")); // اس�
 const EmployeeHistory = React.lazy(() => import("./pages/Employee/EmployeeHistory"),);// استدعاء شاشة تاريخ الإجازات للموظف
 const EmployeeReports = React.lazy(() => import("./pages/Employee/EmployeeReports"),);// استدعاء شاشة تقارير الموظف
 const EmployeeProfile = React.lazy(() => import("./pages/Employee/EmployeeProfile"),);// استدعاء شاشة الملف الشخصي للموظف
+
 
 // استدعاءات خاصة بالإدارة
 const AdminDashboard = React.lazy(() => import('./pages/Admin/AdminDashboard'));// استدعاء شاشة لوحة تحكم الإدارة
@@ -91,6 +93,13 @@ function App() {
                 <MyShifts />
               </ProtectedRoute>
             } />  
+
+            {/* مسارات الموظف المحمية الأخرى */}
+            <Route path="/Employee/full-roster" element={
+              <ProtectedRoute>
+                <EmployeeFullRoster />
+              </ProtectedRoute>
+            } />
 
             {/* === مسارات الإدارة (محمية وصلاحية أدمن فقط) === */}
             <Route path="/admin" element={
