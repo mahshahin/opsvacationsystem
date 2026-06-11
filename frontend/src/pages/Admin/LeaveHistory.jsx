@@ -14,6 +14,21 @@ import AdminLayout from "../components/AdminLayout";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+const monthNames = [
+  "يناير",
+  "فبراير",
+  "مارس",
+  "أبريل",
+  "مايو",
+  "يونيو",
+  "يوليو",
+  "أغسطس",
+  "سبتمبر",
+  "أكتوبر",
+  "نوفمبر",
+  "ديسمبر",
+];
+
 const LeaveHistory = () => {
   const [allLeaves, setAllLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -94,11 +109,24 @@ const LeaveHistory = () => {
     return types[type] || type;
   };
 
+  const getTypeBadge = (type) => {
+    switch (type) {
+      case "annual":
+        return "bg-blue-100 text-blue-700";
+      case "casual":
+        return "bg-amber-100 text-amber-700";
+      case "compensation":
+        return "bg-emerald-100 text-emerald-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case "approved":
         return (
-          <span className="flex items-center justify-center gap-1 rounded text-xs font-bold bg-green-100 text-green-700 px-2 py-1">
+          <span className="inline-flex items-center justify-center gap-1 rounded-full bg-green-100 text-green-700 px-2.5 py-1 text-xs font-bold">
             <CheckCircle size={14} />
             تمت الموافقة
           </span>
@@ -106,7 +134,7 @@ const LeaveHistory = () => {
 
       case "rejected":
         return (
-          <span className="flex items-center justify-center gap-1 rounded text-xs font-bold bg-red-100 text-red-700 px-2 py-1">
+          <span className="inline-flex items-center justify-center gap-1 rounded-full bg-red-100 text-red-700 px-2.5 py-1 text-xs font-bold">
             <XCircle size={14} />
             مرفوض
           </span>
@@ -114,7 +142,7 @@ const LeaveHistory = () => {
 
       default:
         return (
-          <span className="flex items-center justify-center gap-1 rounded text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1">
+          <span className="inline-flex items-center justify-center gap-1 rounded-full bg-yellow-100 text-yellow-700 px-2.5 py-1 text-xs font-bold">
             <Clock size={14} />
             قيد الانتظار
           </span>
@@ -198,7 +226,6 @@ const LeaveHistory = () => {
 
   const handleCancelLeave = async (leave) => {
     const confirmed = await confirmCancelLeaveToast(leave);
-
     if (!confirmed) return;
 
     const loadingToastId = toast.loading("جاري إلغاء الإجازة...");
@@ -233,10 +260,10 @@ const LeaveHistory = () => {
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-8">
-        <header className="mb-8 flex flex-col items-start justify-between gap-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm xl:flex-row xl:items-center">
+      <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
+        <header className="mb-6 md:mb-8 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 md:p-6 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800">
               أرشيف إجازات الموظفين
             </h2>
             <p className="mt-1 text-sm text-gray-500">
@@ -244,11 +271,11 @@ const LeaveHistory = () => {
             </p>
           </div>
 
-          {/* لوحة الفلاتر */}
-          <div className="flex w-full flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-2.5 xl:w-auto">
+          {/* الفلاتر */}
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap xl:items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200">
             {/* فلتر الموظف */}
-            <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded border border-gray-200 bg-white px-3 py-1.5 shadow-sm">
-              <Filter size={16} className="text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm min-w-0 xl:min-w-[220px]">
+              <Filter size={16} className="text-gray-400 shrink-0" />
               <select
                 value={selectedEmp}
                 onChange={(e) => setSelectedEmp(e.target.value)}
@@ -264,8 +291,8 @@ const LeaveHistory = () => {
             </div>
 
             {/* فلتر السنة */}
-            <div className="flex min-w-[120px] flex-1 items-center gap-2 rounded border border-gray-200 bg-white px-3 py-1.5 shadow-sm">
-              <Calendar size={16} className="text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm min-w-0 xl:min-w-[120px]">
+              <Calendar size={16} className="text-gray-400 shrink-0" />
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
@@ -281,8 +308,8 @@ const LeaveHistory = () => {
             </div>
 
             {/* فلتر الشهر */}
-            <div className="flex min-w-[120px] flex-1 items-center gap-2 rounded border border-gray-200 bg-white px-3 py-1.5 shadow-sm">
-              <CalendarDays size={16} className="text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm min-w-0 xl:min-w-[120px]">
+              <CalendarDays size={16} className="text-gray-400 shrink-0" />
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
@@ -291,7 +318,7 @@ const LeaveHistory = () => {
                 <option value="all">كل الشهور</option>
                 {[...Array(12)].map((_, i) => (
                   <option key={i + 1} value={i + 1}>
-                    شهر {i + 1}
+                    {monthNames[i]}
                   </option>
                 ))}
               </select>
@@ -299,104 +326,200 @@ const LeaveHistory = () => {
           </div>
         </header>
 
-        {/* شريط الإحصائيات */}
-        <div className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-600">
+        {/* الإحصائية */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm font-bold text-gray-600">
           إجمالي النتائج المعروضة:
-          <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-800">
             {filteredLeaves.length} طلب إجازة
           </span>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-          <table className="w-full text-right">
-            <thead className="border-b bg-gray-50 text-sm text-gray-500">
-              <tr>
-                <th className="p-4">الموظف</th>
-                <th className="p-4">نوع الإجازة</th>
-                <th className="p-4 text-center">المدة</th>
-                <th className="p-4 text-center">التاريخ (من - إلى)</th>
-                <th className="p-4 text-center">حالة الطلب</th>
-                <th className="p-4">تاريخ التقديم</th>
-                <th className="p-4 text-center">إجراءات</th>
-              </tr>
-            </thead>
+        {/* Mobile Cards */}
+        <div className="space-y-4 md:hidden">
+          {loading ? (
+            <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-400 shadow-sm">
+              جاري تحميل الأرشيف...
+            </div>
+          ) : filteredLeaves.length > 0 ? (
+            filteredLeaves.map((leave) => (
+              <div
+                key={leave._id}
+                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    {leave.employeeId ? (
+                      <>
+                        <div className="font-black text-gray-800 break-words">
+                          {leave.employeeId.name}
+                        </div>
+                        <div className="mt-1 text-xs text-gray-400">
+                          كود: {leave.employeeId.employeeCode}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-sm text-red-400">موظف محذوف</span>
+                    )}
+                  </div>
 
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr>
-                  <td colSpan="7" className="p-8 text-center text-gray-400">
-                    جاري تحميل الأرشيف...
-                  </td>
-                </tr>
-              ) : filteredLeaves.length > 0 ? (
-                filteredLeaves.map((leave) => (
-                  <tr key={leave._id} className="transition hover:bg-gray-50">
-                    <td className="p-4">
-                      {leave.employeeId ? (
-                        <>
-                          <div className="font-bold text-gray-800">
-                            {leave.employeeId.name}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            كود: {leave.employeeId.employeeCode}
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-sm text-red-400">موظف محذوف</span>
-                      )}
-                    </td>
+                  <div className="shrink-0">{getStatusBadge(leave.status)}</div>
+                </div>
 
-                    <td className="p-4 font-medium text-gray-600">
-                      {translateType(leave.leaveType)}
-                    </td>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-bold ${getTypeBadge(
+                      leave.leaveType,
+                    )}`}
+                  >
+                    {translateType(leave.leaveType)}
+                  </span>
 
-                    <td className="p-4 text-center font-bold text-blue-600">
-                      {leave.duration} أيام
-                    </td>
+                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                    {leave.duration} أيام
+                  </span>
+                </div>
 
-                    <td className="p-4 text-center text-sm text-gray-500">
+                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                  <div className="rounded-xl bg-gray-50 p-3">
+                    <div className="text-xs font-bold text-gray-500 mb-1">
+                      من
+                    </div>
+                    <div className="font-bold text-gray-700">
                       {formatDate(leave.startDate)}
-                      <br />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-gray-50 p-3">
+                    <div className="text-xs font-bold text-gray-500 mb-1">
                       إلى
-                      <br />
+                    </div>
+                    <div className="font-bold text-gray-700">
                       {formatDate(leave.endDate)}
-                    </td>
+                    </div>
+                  </div>
+                </div>
 
-                    <td className="p-4 text-center">
-                      {getStatusBadge(leave.status)}
-                    </td>
+                <div className="mb-4 flex items-center gap-1 text-xs text-gray-400">
+                  <Clock size={13} />
+                  {formatDate(leave.createdAt)}
+                </div>
 
-                    <td className="p-4 text-sm text-gray-400">
-                      <div className="mt-3 flex items-center gap-1">
-                        <Clock size={14} />
-                        {formatDate(leave.createdAt)}
-                      </div>
-                    </td>
+                <button
+                  onClick={() => handleCancelLeave(leave)}
+                  disabled={deletingId === leave._id}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-100 px-3 py-2.5 text-sm font-bold text-red-700 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 size={16} />
+                  {deletingId === leave._id ? "جاري الإلغاء..." : "إلغاء نهائي"}
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-gray-400 shadow-sm">
+              <Archive size={40} className="mx-auto mb-3 text-gray-300" />
+              لا توجد نتائج تتطابق مع الفلاتر المحددة.
+            </div>
+          )}
+        </div>
 
-                    <td className="p-4 text-center">
-                      <button
-                        onClick={() => handleCancelLeave(leave)}
-                        disabled={deletingId === leave._id}
-                        className="inline-flex items-center justify-center gap-1 rounded-lg bg-red-100 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Trash2 size={14} />
-                        {deletingId === leave._id
-                          ? "جاري الإلغاء..."
-                          : "إلغاء نهائي"}
-                      </button>
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right">
+              <thead className="border-b bg-gray-50 text-sm text-gray-500">
+                <tr>
+                  <th className="p-4">الموظف</th>
+                  <th className="p-4">نوع الإجازة</th>
+                  <th className="p-4 text-center">المدة</th>
+                  <th className="p-4 text-center">التاريخ (من - إلى)</th>
+                  <th className="p-4 text-center">حالة الطلب</th>
+                  <th className="p-4">تاريخ التقديم</th>
+                  <th className="p-4 text-center">إجراءات</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan="7" className="p-8 text-center text-gray-400">
+                      جاري تحميل الأرشيف...
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="p-12 text-center text-gray-400">
-                    <Archive size={40} className="mx-auto mb-3 text-gray-300" />
-                    لا توجد نتائج تتطابق مع الفلاتر المحددة.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                ) : filteredLeaves.length > 0 ? (
+                  filteredLeaves.map((leave) => (
+                    <tr key={leave._id} className="transition hover:bg-gray-50">
+                      <td className="p-4">
+                        {leave.employeeId ? (
+                          <>
+                            <div className="font-bold text-gray-800">
+                              {leave.employeeId.name}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              كود: {leave.employeeId.employeeCode}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-sm text-red-400">
+                            موظف محذوف
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="p-4 font-medium text-gray-600">
+                        {translateType(leave.leaveType)}
+                      </td>
+
+                      <td className="p-4 text-center font-bold text-blue-600">
+                        {leave.duration} أيام
+                      </td>
+
+                      <td className="p-4 text-center text-sm text-gray-500">
+                        {formatDate(leave.startDate)}
+                        <br />
+                        إلى
+                        <br />
+                        {formatDate(leave.endDate)}
+                      </td>
+
+                      <td className="p-4 text-center">
+                        {getStatusBadge(leave.status)}
+                      </td>
+
+                      <td className="p-4 text-sm text-gray-400">
+                        <div className="mt-3 flex items-center gap-1">
+                          <Clock size={14} />
+                          {formatDate(leave.createdAt)}
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-center">
+                        <button
+                          onClick={() => handleCancelLeave(leave)}
+                          disabled={deletingId === leave._id}
+                          className="inline-flex items-center justify-center gap-1 rounded-lg bg-red-100 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 size={14} />
+                          {deletingId === leave._id
+                            ? "جاري الإلغاء..."
+                            : "إلغاء نهائي"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="p-12 text-center text-gray-400">
+                      <Archive
+                        size={40}
+                        className="mx-auto mb-3 text-gray-300"
+                      />
+                      لا توجد نتائج تتطابق مع الفلاتر المحددة.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </AdminLayout>

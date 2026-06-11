@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   User,
   Lock,
@@ -9,6 +9,8 @@ import {
   Mail,
   Eye,
   EyeOff,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import EmployeeLayout from "../components/EmployeeLayout";
@@ -133,6 +135,70 @@ const EmployeeProfile = () => {
     }
   };
 
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  const passwordChecks = useMemo(() => {
+    const newPassword = passwords.new || "";
+
+    return {
+      minLength: newPassword.length >= 8,
+      upperCase: /[A-Z]/.test(newPassword),
+      lowerCase: /[a-z]/.test(newPassword),
+      number: /\d/.test(newPassword),
+      special: /[^A-Za-z0-9]/.test(newPassword),
+    };
+  }, [passwords.new]);
+
+  const passwordStrength = useMemo(() => {
+    const newPassword = passwords.new || "";
+    const score = Object.values(passwordChecks).filter(Boolean).length;
+
+    if (!newPassword) {
+      return {
+        score: 0,
+        label: "لم يتم الإدخال بعد",
+        color: "text-gray-400",
+        barColor: "bg-gray-200",
+        width: "0%",
+      };
+    }
+
+    if (score <= 2) {
+      return {
+        score,
+        label: "ضعيفة",
+        color: "text-red-600",
+        barColor: "bg-red-500",
+        width: `${(score / 5) * 100}%`,
+      };
+    }
+
+    if (score <= 4) {
+      return {
+        score,
+        label: "متوسطة",
+        color: "text-amber-600",
+        barColor: "bg-amber-500",
+        width: `${(score / 5) * 100}%`,
+      };
+    }
+
+    return {
+      score,
+      label: "قوية",
+      color: "text-green-600",
+      barColor: "bg-green-500",
+      width: "100%",
+    };
+  }, [passwords.new, passwordChecks]);
+
+  const isStrongPassword = Object.values(passwordChecks).every(Boolean);
+
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
 
@@ -142,6 +208,12 @@ const EmployeeProfile = () => {
 
     if (passwords.current === passwords.new) {
       return toast.error("كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية!");
+    }
+
+    if (!isStrongPassword) {
+      return toast.error(
+        "كلمة المرور الجديدة ضعيفة. يجب أن تحتوي على 8 أحرف على الأقل، وحرف كبير وصغير ورقم ورمز خاص.",
+      );
     }
 
     setPasswordLoading(true);
@@ -172,12 +244,16 @@ const EmployeeProfile = () => {
     }
   };
 
-  const togglePasswordVisibility = (field) => {
-    setShowPasswords((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }));
-  };
+  const RuleItem = ({ ok, text }) => (
+    <div
+      className={`flex items-center gap-2 text-xs font-medium ${
+        ok ? "text-green-600" : "text-gray-400"
+      }`}
+    >
+      {ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+      <span>{text}</span>
+    </div>
+  );
 
   if (!employee) {
     return (
@@ -397,6 +473,54 @@ const EmployeeProfile = () => {
                       )}
                     </button>
                   </div>
+
+                  {/* مؤشر القوة */}
+                  <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-black text-gray-700">
+                        قوة كلمة المرور
+                      </span>
+                      <span
+                        className={`text-xs font-black ${passwordStrength.color}`}
+                      >
+                        {passwordStrength.label}
+                      </span>
+                    </div>
+
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${passwordStrength.barColor}`}
+                        style={{ width: passwordStrength.width }}
+                      ></div>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs font-black text-gray-700">
+                        يجب أن تحتوي كلمة المرور الجديدة على:
+                      </div>
+
+                      <RuleItem
+                        ok={passwordChecks.minLength}
+                        text="8 أحرف على الأقل"
+                      />
+                      <RuleItem
+                        ok={passwordChecks.upperCase}
+                        text="حرف إنجليزي كبير واحد على الأقل"
+                      />
+                      <RuleItem
+                        ok={passwordChecks.lowerCase}
+                        text="حرف إنجليزي صغير واحد على الأقل"
+                      />
+                      <RuleItem
+                        ok={passwordChecks.number}
+                        text="رقم واحد على الأقل"
+                      />
+                      <RuleItem
+                        ok={passwordChecks.special}
+                        text="رمز خاص واحد على الأقل مثل @ أو !"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* تأكيد كلمة المرور */}
@@ -460,5 +584,16 @@ const EmployeeProfile = () => {
     </EmployeeLayout>
   );
 };
+
+const RuleItem = ({ ok, text }) => (
+  <div
+    className={`flex items-center gap-2 text-xs font-medium ${
+      ok ? "text-green-600" : "text-gray-400"
+    }`}
+  >
+    {ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+    <span>{text}</span>
+  </div>
+);
 
 export default EmployeeProfile;

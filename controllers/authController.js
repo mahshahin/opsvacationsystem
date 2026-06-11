@@ -4,6 +4,18 @@ const User = require("../models/User");
 const Admin = require("../models/Admin");
 const Log = require("../models/Log");
 
+// Helper: التحقق من قوة كلمة المرور
+const isStrongPassword = (password) => {
+  return (
+    typeof password === "string" &&
+    password.length >= 8 &&
+    /[A-Z]/.test(password) &&
+    /[a-z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  );
+};
+
 // تفعيل الحساب
 exports.register = async (req, res) => {
   try {
@@ -12,6 +24,13 @@ exports.register = async (req, res) => {
     if (!employeeCode || !password) {
       return res.status(400).json({
         message: "برجاء إدخال كود الموظف وكلمة المرور الجديدة!",
+      });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        message:
+          "كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص.",
       });
     }
 
@@ -128,6 +147,13 @@ exports.changePassword = async (req, res) => {
     if (currentPassword === newPassword) {
       return res.status(400).json({
         message: "كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية!",
+      });
+    }
+
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({
+        message:
+          "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل وتحتوي على حرف كبير وحرف صغير ورقم ورمز خاص.",
       });
     }
 
