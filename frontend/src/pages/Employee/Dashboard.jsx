@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   User,
@@ -21,12 +21,29 @@ const API_URL = import.meta.env.VITE_API_URL || "";
 
 /* خريطة أنواع الإجازة */
 const LEAVE_TYPES = {
-  annual: { label: "إجازة اعتيادية", short: "اعتيادي", dot: "bg-blue-500" },
-  casual: { label: "إجازة عارضة", short: "عارضة", dot: "bg-amber-500" },
+  annual: {
+    label: "إجازة اعتيادية",
+    short: "اعتيادي",
+    dot: "bg-blue-500",
+    badge: "bg-blue-100 text-blue-700",
+    soft: "bg-blue-50 border-blue-100",
+    strip: "bg-blue-500",
+  },
+  casual: {
+    label: "إجازة عارضة",
+    short: "عارضة",
+    dot: "bg-amber-500",
+    badge: "bg-amber-100 text-amber-700",
+    soft: "bg-amber-50 border-amber-100",
+    strip: "bg-amber-500",
+  },
   compensation: {
     label: "بدل أعياد",
     short: "بدل أعياد",
     dot: "bg-emerald-500",
+    badge: "bg-emerald-100 text-emerald-700",
+    soft: "bg-emerald-50 border-emerald-100",
+    strip: "bg-emerald-500",
   },
 };
 
@@ -80,7 +97,6 @@ const Dashboard = () => {
   const [leaveType, setLeaveType] = useState("annual");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   /* الساعة الحية */
@@ -186,7 +202,7 @@ const Dashboard = () => {
           leaveType,
           startDate,
           endDate,
-          reason,
+          reason: "",
         }),
       });
 
@@ -198,7 +214,6 @@ const Dashboard = () => {
         toast.success("تم إرسال الطلب بنجاح!");
         setStartDate("");
         setEndDate("");
-        setReason("");
         fetchMyRequests(employee.employeeCode);
       }
     } catch (err) {
@@ -259,6 +274,8 @@ const Dashboard = () => {
         return 21;
     }
   };
+
+  const latestRequests = useMemo(() => myRequests.slice(0, 10), [myRequests]);
 
   return (
     <EmployeeLayout>
@@ -517,62 +534,128 @@ const Dashboard = () => {
             </span>
           </div>
 
-          {/* عرض الموبايل */}
-          <div className="md:hidden divide-y divide-gray-100">
-            {myRequests.length > 0 ? (
-              myRequests.slice(0, 10).map((req) => (
-                <div key={req._id} className="p-4">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full ${
-                          LEAVE_TYPES[req.leaveType]?.dot || "bg-gray-400"
-                        }`}
-                      />
-                      <span className="font-bold text-gray-800">
-                        {LEAVE_TYPES[req.leaveType]?.short || req.leaveType}
-                      </span>
-                      <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                        {req.duration} يوم
-                      </span>
+          {/* عرض الموبايل - محسّن */}
+          <div className="md:hidden p-4 space-y-4">
+            {latestRequests.length > 0 ? (
+              latestRequests.map((req) => {
+                const typeInfo = LEAVE_TYPES[req.leaveType] || {
+                  short: req.leaveType,
+                  badge: "bg-gray-100 text-gray-700",
+                  soft: "bg-gray-50 border-gray-100",
+                  strip: "bg-gray-400",
+                };
+
+                return (
+                  <div
+                    key={req._id}
+                    className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm"
+                  >
+                    {/* Top color strip */}
+                    <div className={`h-1.5 ${typeInfo.strip}`}></div>
+
+                    <div className="p-4">
+                      {/* Header */}
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${typeInfo.badge}`}
+                            >
+                              <span
+                                className={`h-2 w-2 rounded-full ${typeInfo.dot}`}
+                              ></span>
+                              {typeInfo.short}
+                            </span>
+
+                            <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                              {req.duration} يوم
+                            </span>
+                          </div>
+
+                          <div className="mt-2 text-sm font-bold text-slate-800">
+                            طلب إجازة رقم {String(req._id).slice(-6)}
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          <StatusBadge status={req.status} />
+                        </div>
+                      </div>
+
+                      {/* Dates */}
+                      <div className="mb-3 rounded-2xl border p-3 bg-slate-50 border-slate-100">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-500">
+                          <CalendarDays size={13} />
+                          فترة الإجازة
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 rounded-xl bg-white px-3 py-2 text-center shadow-sm">
+                            <div className="text-[11px] font-bold text-slate-400">
+                              من
+                            </div>
+                            <div className="mt-1 text-sm font-black text-slate-800">
+                              {fmtDate(req.startDate)}
+                            </div>
+                          </div>
+
+                          <ArrowLeft
+                            size={16}
+                            className="shrink-0 text-slate-400"
+                          />
+
+                          <div className="flex-1 rounded-xl bg-white px-3 py-2 text-center shadow-sm">
+                            <div className="text-[11px] font-bold text-slate-400">
+                              إلى
+                            </div>
+                            <div className="mt-1 text-sm font-black text-slate-800">
+                              {fmtDate(req.endDate)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Created at */}
+                      <div className="mb-4 rounded-2xl bg-gray-50 px-3 py-2.5">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 mb-1">
+                          <Clock size={13} />
+                          تاريخ التقديم
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-sm">
+                          <span className="font-bold text-slate-700">
+                            {fmtDate(req.createdAt)}
+                          </span>
+                          <span
+                            className="text-xs font-medium text-slate-400"
+                            dir="ltr"
+                          >
+                            {fmtTime(req.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action */}
+                      {req.status === "pending" ? (
+                        <button
+                          onClick={() =>
+                            setCancelModal({ isOpen: true, requestId: req._id })
+                          }
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100"
+                        >
+                          <Trash2 size={16} />
+                          إلغاء الطلب
+                        </button>
+                      ) : (
+                        <div className="text-center text-xs font-medium text-slate-400">
+                          لا توجد إجراءات متاحة لهذا الطلب
+                        </div>
+                      )}
                     </div>
-
-                    <StatusBadge status={req.status} />
                   </div>
-
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2 bg-gray-50 rounded-lg px-3 py-2">
-                    <span className="font-medium">
-                      {fmtDate(req.startDate)}
-                    </span>
-                    <ArrowLeft size={14} className="text-gray-400 shrink-0" />
-                    <span className="font-medium">{fmtDate(req.endDate)}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span
-                      className="flex items-center gap-1 text-[11px] text-gray-400"
-                      dir="ltr"
-                    >
-                      <Clock size={11} />
-                      {fmtDate(req.createdAt)} — {fmtTime(req.createdAt)}
-                    </span>
-
-                    {req.status === "pending" && (
-                      <button
-                        onClick={() =>
-                          setCancelModal({ isOpen: true, requestId: req._id })
-                        }
-                        className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"
-                      >
-                        <Trash2 size={14} />
-                        إلغاء
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
-              <div className="p-10 text-center text-gray-400">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-10 text-center text-gray-400">
                 لا يوجد طلبات سابقة حتى الآن
               </div>
             )}
@@ -596,8 +679,8 @@ const Dashboard = () => {
               </thead>
 
               <tbody className="divide-y divide-gray-100">
-                {myRequests.length > 0 ? (
-                  myRequests.slice(0, 10).map((req) => (
+                {latestRequests.length > 0 ? (
+                  latestRequests.map((req) => (
                     <tr key={req._id} className="hover:bg-gray-50 transition">
                       <td className="p-4">
                         <span className="flex items-center gap-2 font-medium text-gray-700">
@@ -694,7 +777,7 @@ const Dashboard = () => {
                 الإجراء.
               </p>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={confirmCancelRequest}
                   className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition shadow-sm hover:shadow-md"
