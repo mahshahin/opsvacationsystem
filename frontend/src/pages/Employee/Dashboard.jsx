@@ -245,13 +245,7 @@ const Dashboard = () => {
     }
   };
 
-  if (!employee) {
-    return (
-      <div className="min-h-screen flex items-center justify-center font-bold text-blue-600">
-        جاري التحميل...
-      </div>
-    );
-  }
+  const latestRequests = useMemo(() => myRequests.slice(0, 10), [myRequests]);
 
   const fmtDate = (d) => new Date(d).toLocaleDateString("ar-EG");
   const fmtTime = (d) =>
@@ -275,7 +269,13 @@ const Dashboard = () => {
     }
   };
 
-  const latestRequests = useMemo(() => myRequests.slice(0, 10), [myRequests]);
+  if (!employee) {
+    return (
+      <div className="min-h-screen flex items-center justify-center font-bold text-blue-600">
+        جاري التحميل...
+      </div>
+    );
+  }
 
   return (
     <EmployeeLayout>
