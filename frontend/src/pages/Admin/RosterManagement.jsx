@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import AdminLayout from "../components/AdminLayout";
 import toast from "react-hot-toast";
-import "../../print.css"; // استايل خاص بالطباعة";
+import "../../print.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -31,7 +31,11 @@ const weekDays = [
   "السبت",
 ];
 
-const shiftLabels = { shift1: "الأولى", shift2: "الثانية", shift3: "الثالثة" };
+const shiftLabels = {
+  shift1: "الأولى",
+  shift2: "الثانية",
+  shift3: "الثالثة",
+};
 
 const shiftThemes = {
   shift1: {
@@ -65,6 +69,7 @@ const yearOptions = [currentYear, currentYear - 1];
 const createEmptyRoster = (selectedMonth, selectedYear) => {
   const daysCount = new Date(selectedYear, selectedMonth, 0).getDate();
   const initialRoster = {};
+
   for (let d = 1; d <= daysCount; d++) {
     initialRoster[d] = {
       shift1: { leader: "", members: ["", "", ""] },
@@ -73,15 +78,18 @@ const createEmptyRoster = (selectedMonth, selectedYear) => {
       notes: "",
     };
   }
+
   return initialRoster;
 };
 
 const normalizeRosterData = (details, selectedMonth, selectedYear) => {
   const base = createEmptyRoster(selectedMonth, selectedYear);
   if (!details) return base;
+
   Object.keys(base).forEach((day) => {
     const sourceDay = details?.[day];
     if (!sourceDay) return;
+
     base[day] = {
       shift1: {
         leader: sourceDay.shift1?.leader || "",
@@ -110,6 +118,7 @@ const normalizeRosterData = (details, selectedMonth, selectedYear) => {
       notes: sourceDay.notes || "",
     };
   });
+
   return base;
 };
 
@@ -163,6 +172,7 @@ const EmployeeDropdown = ({
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return employees;
+
     return employees.filter((emp) => {
       const name = String(emp.name || "").toLowerCase();
       const code = String(emp.employeeCode || "").toLowerCase();
@@ -172,20 +182,24 @@ const EmployeeDropdown = ({
 
   useEffect(() => {
     if (!open) return;
+
     const handleOutsideClick = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setOpen(false);
         setSearch("");
       }
     };
+
     const handleEscape = (e) => {
       if (e.key === "Escape") {
         setOpen(false);
         setSearch("");
       }
     };
+
     document.addEventListener("mousedown", handleOutsideClick);
     document.addEventListener("keydown", handleEscape);
+
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
       document.removeEventListener("keydown", handleEscape);
@@ -217,10 +231,12 @@ const EmployeeDropdown = ({
             ) : selectedAlert ? (
               <span className="text-xs">🌴</span>
             ) : null}
+
             <span className="truncate">
               {selectedEmp ? selectedEmp.name : placeholder}
             </span>
           </div>
+
           <svg
             className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition ${
               open ? "rotate-180" : ""
@@ -246,6 +262,7 @@ const EmployeeDropdown = ({
               <span>{selectedAlert.badgeText}</span>
             </div>
           )}
+
           {selectedUsage?.isUsedElsewhere && (
             <div className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
               <span>⚠️</span>
@@ -333,6 +350,7 @@ const EmployeeDropdown = ({
                             </div>
                           )}
                         </div>
+
                         <div className="flex shrink-0 flex-col items-end gap-1">
                           {alert && (
                             <span
@@ -341,11 +359,13 @@ const EmployeeDropdown = ({
                               {alert.badgeText}
                             </span>
                           )}
+
                           {usage?.isUsedElsewhere && (
                             <span className="rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[9px] font-bold text-purple-700">
                               مكرر
                             </span>
                           )}
+
                           {isSelected && !disabled && (
                             <span className="text-xs font-black text-blue-600">
                               ✓
@@ -377,154 +397,42 @@ const RosterManagement = () => {
   const [rosterStatus, setRosterStatus] = useState(null);
   const [rosterData, setRosterData] = useState({});
   const [loading, setLoading] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 1024);
 
-  // ✅ جديد: نافذة التحقق قبل الاعتماد
   const [validationModal, setValidationModal] = useState({
     isOpen: false,
-    errors: [], // الأيام/الشيفتات الناقصة (تمنع الاعتماد)
-    unscheduled: [], // الموظفون غير المجدولين
+    errors: [],
+    unscheduled: [],
   });
 
   const handlePrint = () => {
     window.print();
   };
 
-  // ✅ جديد: التحقق من اكتمال الروستر قبل الاعتماد
-  const validateRoster = () => {
-    const errors = [];
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 1024);
+    };
 
-    // 1) فحص كل يوم/شيفت
-    daysInMonth.forEach((day) => {
-      const dayData = rosterData[day.dayNumber];
-      if (!dayData) return;
-
-      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
-        const shiftData = dayData[shiftKey] || {};
-        const hasLeader = !!normalizeId(shiftData.leader);
-        const membersCount = (shiftData.members || []).filter(
-          (m) => !!normalizeId(m),
-        ).length;
-
-        // إجمالي الناس في الشيفت (الرئيس + الأفراد)
-        const totalPeople = (hasLeader ? 1 : 0) + membersCount;
-
-        const problems = [];
-
-        // التحذيرات المطلوبة
-        if (!hasLeader && membersCount > 0) problems.push("بدون رئيس نوبة");
-        if (membersCount < 3 && totalPeople > 0)
-          problems.push(`يوجد ${3 - membersCount} خانات أفراد فارغة`);
-        if (totalPeople === 1) problems.push("الشيفت به موظف واحد فقط!");
-        if (totalPeople === 0) problems.push("الشيفت فارغ تماماً");
-
-        // لو الشيفت مش كامل (فيه مشكلة)، ضيفه في قائمة التحذيرات
-        if (problems.length > 0) {
-          errors.push({
-            day: day.dayNumber,
-            dayName: day.dayName,
-            shift: shiftLabels[shiftKey],
-            problems: problems.join(" — "),
-          });
-        }
-      });
-    });
-
-    // 2) فحص الموظفين غير المجدولين
-    const scheduledIds = new Set();
-    Object.values(rosterData).forEach((dayData) => {
-      if (!dayData) return;
-      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
-        const s = dayData[shiftKey] || {};
-        if (s.leader) scheduledIds.add(normalizeId(s.leader));
-        (s.members || []).forEach((m) => {
-          if (m) scheduledIds.add(normalizeId(m));
-        });
-      });
-    });
-
-    const unscheduled = employees
-      .filter((emp) => {
-        if (emp.role === "admin") return false;
-        const id = normalizeId(emp._id);
-        if (scheduledIds.has(id)) return false;
-        const onLeaveAllMonth = daysInMonth.every(
-          (day) => !!getEmployeeAlert(emp._id, day.dayNumber),
-        );
-        return !onLeaveAllMonth;
-      })
-      .map((emp) => ({
-        name: emp.name,
-        code: emp.employeeCode || "—",
-      }));
-
-    return { errors, unscheduled };
-  };
-
-  const handleSaveRoster = async (status) => {
-    // ✅ التحقق يُطبّق فقط عند الاعتماد/النشر (المسودة تُحفظ دون تحقق)
-    if (status === "published") {
-      const { errors, unscheduled } = validateRoster();
-
-      // 🔍 تشخيص مؤقت — افتح Console (F12) وشوف الأرقام دي عند الضغط على اعتماد
-      console.log("🔍 [تحقق الروستر] عدد الأخطاء:", errors.length);
-      console.log("🔍 [تحقق الروستر] الأخطاء:", errors);
-      console.log(
-        "🔍 [تحقق الروستر] غير المجدولين:",
-        unscheduled.length,
-        unscheduled,
-      );
-      console.log("🔍 [تحقق الروستر] عدد أيام الشهر:", daysInMonth.length);
-      console.log("🔍 [تحقق الروستر] عدد الموظفين:", employees.length);
-
-      if (errors.length > 0) {
-        setValidationModal({ isOpen: true, errors, unscheduled });
-        return; // يمنع الاعتماد
-      }
-      // لا أخطاء حاجزة، لكن نعرض تنبيه الموظفين غير المجدولين (إن وُجد) للتأكيد
-      if (unscheduled.length > 0) {
-        setValidationModal({ isOpen: true, errors: [], unscheduled });
-        return;
-      }
-    }
-
-    await saveRosterToServer(status);
-  };
-
-  // الحفظ الفعلي للسيرفر (يُستدعى مباشرة أو بعد التأكيد من النافذة)
-  const saveRosterToServer = async (status) => {
-    const payload = { month, year, status, rosterDetails: rosterData };
-    try {
-      // ✅ إصلاح fetch (كان tagged template خاطئ)
-      const response = await fetch(`${API_URL}/api/roster/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (result.success) {
-        toast.success(result.message || "تم الحفظ بنجاح");
-        setRosterStatus(status);
-      } else {
-        toast.error(result.message || "فشل حفظ الروستر");
-      }
-    } catch (error) {
-      console.error("Error saving roster:", error);
-      toast.error("حدث خطأ في الاتصال بالسيرفر");
-    }
-  };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const daysInMonth = useMemo(() => {
     const daysCount = new Date(year, month, 0).getDate();
     const daysArray = [];
+
     for (let d = 1; d <= daysCount; d++) {
       const dateObj = new Date(year, month - 1, d);
       daysArray.push({ dayNumber: d, dayName: weekDays[dateObj.getDay()] });
     }
+
     return daysArray;
   }, [month, year]);
 
   useEffect(() => {
     let isMounted = true;
+
     const fetchInitData = async () => {
       setLoading(true);
       try {
@@ -548,6 +456,7 @@ const RosterManagement = () => {
                 })
               : [],
           );
+
           setLeaves(Array.isArray(data.leaves) ? data.leaves : []);
 
           if (data.existingRoster) {
@@ -581,6 +490,7 @@ const RosterManagement = () => {
     };
 
     fetchInitData();
+
     return () => {
       isMounted = false;
     };
@@ -590,6 +500,7 @@ const RosterManagement = () => {
     setRosterData((prev) => {
       const newData = { ...prev };
       if (!newData[dayNum]) return prev;
+
       const dayCopy = {
         ...newData[dayNum],
         shift1: {
@@ -605,6 +516,7 @@ const RosterManagement = () => {
           members: [...newData[dayNum].shift3.members],
         },
       };
+
       if (role === "leader") {
         dayCopy[shift].leader = value;
       } else if (role === "members") {
@@ -612,6 +524,7 @@ const RosterManagement = () => {
       } else if (role === "notes") {
         dayCopy.notes = value;
       }
+
       newData[dayNum] = dayCopy;
       return newData;
     });
@@ -625,14 +538,17 @@ const RosterManagement = () => {
     const matchedLeave = leaves.find((leave) => {
       const leaveEmpId = normalizeId(leave.employeeId);
       if (!leaveEmpId || leaveEmpId !== targetEmpId) return false;
+
       const status = String(leave.status || "")
         .trim()
         .toLowerCase();
       if (!["approved", "pending"].includes(status)) return false;
+
       const start = new Date(leave.startDate);
       const end = new Date(leave.endDate);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
+
       return currentDate >= start && currentDate <= end;
     });
 
@@ -671,17 +587,20 @@ const RosterManagement = () => {
       currentRole,
       currentMemberIndex,
     );
+
     const usedSlots = [];
 
     ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
       const shiftData = dayData[shiftKey];
       if (!shiftData) return;
+
       if (shiftData.leader && normalizeId(shiftData.leader) === targetId) {
         usedSlots.push({
           key: getSlotKey(shiftKey, "leader"),
           label: getSlotLabel(shiftKey, "leader"),
         });
       }
+
       (shiftData.members || []).forEach((member, index) => {
         if (member && normalizeId(member) === targetId) {
           usedSlots.push({
@@ -702,11 +621,122 @@ const RosterManagement = () => {
     };
   };
 
+  const validateRoster = () => {
+    const errors = [];
+
+    daysInMonth.forEach((day) => {
+      const dayData = rosterData[day.dayNumber];
+      if (!dayData) return;
+
+      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+        const shiftData = dayData[shiftKey] || {};
+        const hasLeader = !!normalizeId(shiftData.leader);
+        const membersCount = (shiftData.members || []).filter(
+          (m) => !!normalizeId(m),
+        ).length;
+
+        const totalPeople = (hasLeader ? 1 : 0) + membersCount;
+        const problems = [];
+
+        if (!hasLeader && membersCount > 0) problems.push("بدون رئيس نوبة");
+        if (membersCount < 3 && totalPeople > 0)
+          problems.push(`يوجد ${3 - membersCount} خانات أفراد فارغة`);
+        if (totalPeople === 1) problems.push("الشيفت به موظف واحد فقط!");
+        if (totalPeople === 0) problems.push("الشيفت فارغ تماماً");
+
+        if (problems.length > 0) {
+          errors.push({
+            day: day.dayNumber,
+            dayName: day.dayName,
+            shift: shiftLabels[shiftKey],
+            problems: problems.join(" — "),
+          });
+        }
+      });
+    });
+
+    const scheduledIds = new Set();
+
+    Object.values(rosterData).forEach((dayData) => {
+      if (!dayData) return;
+
+      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+        const s = dayData[shiftKey] || {};
+        if (s.leader) scheduledIds.add(normalizeId(s.leader));
+        (s.members || []).forEach((m) => {
+          if (m) scheduledIds.add(normalizeId(m));
+        });
+      });
+    });
+
+    const unscheduled = employees
+      .filter((emp) => {
+        if (emp.role === "admin") return false;
+        const id = normalizeId(emp._id);
+        if (scheduledIds.has(id)) return false;
+
+        const onLeaveAllMonth = daysInMonth.every(
+          (day) => !!getEmployeeAlert(emp._id, day.dayNumber),
+        );
+
+        return !onLeaveAllMonth;
+      })
+      .map((emp) => ({
+        name: emp.name,
+        code: emp.employeeCode || "—",
+      }));
+
+    return { errors, unscheduled };
+  };
+
+  const handleSaveRoster = async (status) => {
+    if (status === "published") {
+      const { errors, unscheduled } = validateRoster();
+
+      if (errors.length > 0) {
+        setValidationModal({ isOpen: true, errors, unscheduled });
+        return;
+      }
+
+      if (unscheduled.length > 0) {
+        setValidationModal({ isOpen: true, errors: [], unscheduled });
+        return;
+      }
+    }
+
+    await saveRosterToServer(status);
+  };
+
+  const saveRosterToServer = async (status) => {
+    const payload = { month, year, status, rosterDetails: rosterData };
+
+    try {
+      const response = await fetch(`${API_URL}/api/roster/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(result.message || "تم الحفظ بنجاح");
+        setRosterStatus(status);
+      } else {
+        toast.error(result.message || "فشل حفظ الروستر");
+      }
+    } catch (error) {
+      console.error("Error saving roster:", error);
+      toast.error("حدث خطأ في الاتصال بالسيرفر");
+    }
+  };
+
   const handleEmployeeSelect = (dayNum, shift, role, memberIndex, newValue) => {
     if (!newValue) {
       handleRosterChange(dayNum, shift, role, memberIndex, "");
       return;
     }
+
     const usage = getEmployeeDayUsage(
       dayNum,
       newValue,
@@ -714,11 +744,12 @@ const RosterManagement = () => {
       role,
       memberIndex,
     );
+
     if (usage?.isUsedElsewhere) {
-      // ✅ إصلاح toast.error (كان tagged template خاطئ)
       toast.error(`الموظف ده مضاف بالفعل في ${usage.label} لنفس اليوم`);
       return;
     }
+
     handleRosterChange(dayNum, shift, role, memberIndex, newValue);
   };
 
@@ -745,6 +776,70 @@ const RosterManagement = () => {
       />
     );
   };
+
+  if (isMobileView) {
+    return (
+      <AdminLayout>
+        <div className="min-h-screen bg-slate-50 p-4 md:p-6" dir="rtl">
+          <div className="mx-auto max-w-2xl">
+            <div className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 text-2xl">
+                  💻
+                </div>
+
+                <div>
+                  <h1 className="text-xl md:text-2xl font-black text-slate-800">
+                    إدارة الروستر
+                  </h1>
+                  <p className="text-sm font-medium text-slate-500 mt-1">
+                    هذه الصفحة مخصّصة للاستخدام من خلال جهاز كمبيوتر أو لابتوب
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                <p className="text-sm md:text-base font-bold text-amber-800 leading-7">
+                  يُفضّل التوجّه إلى جهاز كمبيوتر لإدارة الجدول الشهري، وذلك
+                  لضمان سهولة التعديل، مراجعة الشيفتات، واستخدام جميع أدوات
+                  الروستر بشكل صحيح.
+                </p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-200">
+                  <div className="text-lg font-black text-slate-800">
+                    أفضل عرض
+                  </div>
+                  <div className="text-xs font-medium text-slate-500 mt-1">
+                    شاشة واسعة للجدول الكامل
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-200">
+                  <div className="text-lg font-black text-slate-800">
+                    سهولة تعديل
+                  </div>
+                  <div className="text-xs font-medium text-slate-500 mt-1">
+                    تنقّل أسرع بين الأيام والشيفتات
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-200">
+                  <div className="text-lg font-black text-slate-800">
+                    دقة أعلى
+                  </div>
+                  <div className="text-xs font-medium text-slate-500 mt-1">
+                    تقليل الأخطاء أثناء التسكين
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -1005,6 +1100,7 @@ const RosterManagement = () => {
                         "leader",
                       )}
                     </td>
+
                     <td
                       className={`border-2 border-black p-1.5 ${shiftThemes.shift1.cell}`}
                     >
@@ -1039,6 +1135,7 @@ const RosterManagement = () => {
                         "leader",
                       )}
                     </td>
+
                     <td
                       className={`border-2 border-black p-1.5 ${shiftThemes.shift2.cell}`}
                     >
@@ -1073,6 +1170,7 @@ const RosterManagement = () => {
                         "leader",
                       )}
                     </td>
+
                     <td
                       className={`border-2 border-black p-1.5 ${shiftThemes.shift3.cell}`}
                     >
@@ -1114,6 +1212,7 @@ const RosterManagement = () => {
                         rows="2"
                         placeholder="ملاحظات..."
                       ></textarea>
+
                       <span className="print-only print-cell-text">
                         {rosterData[day.dayNumber]?.notes || ""}
                       </span>
@@ -1147,6 +1246,7 @@ const RosterManagement = () => {
                 >
                   حفظ كمسودة
                 </button>
+
                 <button
                   onClick={() => handleSaveRoster("published")}
                   className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
@@ -1159,12 +1259,10 @@ const RosterManagement = () => {
         </div>
       </div>
 
-      {/* ============ نافذة التحقق قبل الاعتماد (عبر Portal على body) ============ */}
       {validationModal.isOpen &&
         createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 no-print">
             <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-              {/* رأس النافذة */}
               <div
                 className={`px-6 py-4 ${
                   validationModal.errors.length > 0
@@ -1185,6 +1283,7 @@ const RosterManagement = () => {
                     <>⚠️ تنبيه قبل الاعتماد</>
                   )}
                 </h3>
+
                 <p className="mt-1 text-xs font-medium text-slate-600">
                   {validationModal.errors.length > 0
                     ? "يجب استكمال النواقص التالية قبل الاعتماد:"
@@ -1193,7 +1292,6 @@ const RosterManagement = () => {
               </div>
 
               <div className="max-h-[55vh] overflow-y-auto px-6 py-4 space-y-4">
-                {/* الأخطاء الحاجزة: الشيفتات الناقصة */}
                 {validationModal.errors.length > 0 && (
                   <div>
                     <div className="mb-2 flex items-center justify-between">
@@ -1201,6 +1299,7 @@ const RosterManagement = () => {
                         شيفتات ناقصة ({validationModal.errors.length})
                       </span>
                     </div>
+
                     <div className="space-y-1.5">
                       {validationModal.errors.slice(0, 30).map((err, i) => (
                         <div
@@ -1210,11 +1309,13 @@ const RosterManagement = () => {
                           <span className="font-bold text-slate-800">
                             يوم {err.day} ({err.dayName}) — النوبة {err.shift}
                           </span>
+
                           <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">
                             {err.problems}
                           </span>
                         </div>
                       ))}
+
                       {validationModal.errors.length > 30 && (
                         <div className="text-center text-xs font-semibold text-slate-500">
                           ... و {validationModal.errors.length - 30} حالة أخرى
@@ -1224,13 +1325,13 @@ const RosterManagement = () => {
                   </div>
                 )}
 
-                {/* الموظفون غير المجدولين */}
                 {validationModal.unscheduled.length > 0 && (
                   <div>
                     <span className="mb-2 block text-sm font-bold text-amber-700">
                       موظفون لم يُجدولوا هذا الشهر (
                       {validationModal.unscheduled.length})
                     </span>
+
                     <div className="flex flex-wrap gap-1.5">
                       {validationModal.unscheduled.map((emp, i) => (
                         <span
@@ -1245,8 +1346,6 @@ const RosterManagement = () => {
                 )}
               </div>
 
-              {/* أزرار النافذة */}
-              {/* أزرار النافذة */}
               <div className="flex gap-2 border-t border-slate-100 px-6 py-4">
                 <button
                   onClick={() =>
@@ -1261,7 +1360,6 @@ const RosterManagement = () => {
                   رجوع لتعديل الجدول
                 </button>
 
-                {/* زر المتابعة بقى بيظهر دايماً حتى لو فيه أخطاء، عشان يديك الصلاحية تكمل */}
                 <button
                   onClick={() => {
                     setValidationModal({
@@ -1273,8 +1371,8 @@ const RosterManagement = () => {
                   }}
                   className={`flex-1 rounded-lg py-2.5 text-sm font-bold text-white transition ${
                     validationModal.errors.length > 0
-                      ? "bg-red-600 hover:bg-red-700" // أحمر لو فيه تحذيرات
-                      : "bg-green-600 hover:bg-green-700" // أخضر لو الجدول سليم 100%
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-green-600 hover:bg-green-700"
                   }`}
                 >
                   {validationModal.errors.length > 0
