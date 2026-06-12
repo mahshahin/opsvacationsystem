@@ -2,23 +2,22 @@ import React from "react";
 import { Umbrella, AlertCircle, Coffee } from "lucide-react";
 
 /**
- * دائرة تقدّم (Circular Progress) — نسخة محكمة ومضمونة.
- * ترسم نسبة value/max على شكل قوس دائري متدرّج اللون.
- * عند تغيّر value (مثل خصم الرصيد) يتحرك القوس بسلاسة.
+ * دائرة تقدّم (Circular Progress)
+ * تعرض:
+ * - الرقم الحالي
+ * - نوع الرصيد
+ * - من أصل كام (إذا كان max منطقي)
  */
 const CircularProgress = ({ value, max, label, type }) => {
-  // أبعاد ثابتة ومتناسقة مع الـ viewBox (لا قص للأطراف)
-  const SIZE = 120; // أبعاد الـ viewBox
-  const STROKE = 12; // عرض الخط
-  const radius = (SIZE - STROKE) / 2; // 54 — يضمن عدم خروج الخط عن الإطار
-  const center = SIZE / 2; // 60
+  const SIZE = 120;
+  const STROKE = 12;
+  const radius = (SIZE - STROKE) / 2;
+  const center = SIZE / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // قيم آمنة
   const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
   const safeMax = Number.isFinite(Number(max)) ? Number(max) : 0;
 
-  // النسبة (0..100). لو max=0 وفيه رصيد => ممتلئة (لتجنب القسمة على صفر)
   let percentage;
   if (safeMax > 0) {
     percentage = Math.min(Math.max((safeValue / safeMax) * 100, 0), 100);
@@ -36,6 +35,7 @@ const CircularProgress = ({ value, max, label, type }) => {
       icon: (
         <Umbrella className="w-3 h-3 md:w-5 md:h-5 text-blue-500 mb-0 md:mb-1" />
       ),
+      helperClass: "text-blue-600/80",
     },
     casual: {
       from: "#f59e0b",
@@ -44,6 +44,7 @@ const CircularProgress = ({ value, max, label, type }) => {
       icon: (
         <AlertCircle className="w-3 h-3 md:w-5 md:h-5 text-yellow-500 mb-0 md:mb-1" />
       ),
+      helperClass: "text-yellow-700/80",
     },
     compensation: {
       from: "#10b981",
@@ -52,11 +53,15 @@ const CircularProgress = ({ value, max, label, type }) => {
       icon: (
         <Coffee className="w-3 h-3 md:w-5 md:h-5 text-green-500 mb-0 md:mb-1" />
       ),
+      helperClass: "text-green-700/80",
     },
   };
 
   const cfg = config[type] || config.annual;
   const gradId = `grad-${type}`;
+
+  const helperText =
+    type === "compensation" || safeMax <= 0 ? "رصيد حالي" : `من أصل ${safeMax}`;
 
   return (
     <div
@@ -76,7 +81,7 @@ const CircularProgress = ({ value, max, label, type }) => {
             </linearGradient>
           </defs>
 
-          {/* المسار الخلفي (رمادي فاتح) */}
+          {/* المسار الخلفي */}
           <circle
             cx={center}
             cy={center}
@@ -104,9 +109,11 @@ const CircularProgress = ({ value, max, label, type }) => {
         {/* المحتوى في المنتصف */}
         <div className="absolute flex flex-col items-center justify-center">
           {cfg.icon}
+
           <span className="text-base md:text-3xl font-bold text-gray-700 leading-none">
             {safeValue}
           </span>
+
           <span className="text-[8px] md:text-[11px] font-semibold text-gray-400">
             يوم
           </span>
@@ -115,6 +122,12 @@ const CircularProgress = ({ value, max, label, type }) => {
 
       <span className="text-[9px] md:text-sm font-bold text-gray-700 bg-white px-2 py-1 md:px-4 md:py-1.5 rounded-full shadow-sm border border-gray-100/50 text-center whitespace-nowrap">
         {label}
+      </span>
+
+      <span
+        className={`mt-1 text-[8px] md:text-[11px] font-bold ${cfg.helperClass} text-center`}
+      >
+        {helperText}
       </span>
     </div>
   );

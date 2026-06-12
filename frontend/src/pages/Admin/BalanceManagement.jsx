@@ -17,6 +17,7 @@ const BalanceManagement = () => {
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [balances, setBalances] = useState({
     annual: 0,
+    annualLeaveQuota: 21,
     casual: 0,
     compensation: 0,
   });
@@ -78,6 +79,7 @@ const BalanceManagement = () => {
     setSelectedEmp(emp);
     setBalances({
       annual: emp.leaveBalances?.annual || 0,
+      annualLeaveQuota: emp.annualLeaveQuota || 21,
       casual: emp.leaveBalances?.casual || 0,
       compensation: emp.leaveBalances?.compensation || 0,
     });
@@ -89,6 +91,7 @@ const BalanceManagement = () => {
     setSelectedEmp(null);
     setBalances({
       annual: 0,
+      annualLeaveQuota: 21,
       casual: 0,
       compensation: 0,
     });
@@ -97,6 +100,11 @@ const BalanceManagement = () => {
   const handleSaveBalances = async (e) => {
     e.preventDefault();
     if (!selectedEmp?._id) return;
+
+    if (Number(balances.annual) > Number(balances.annualLeaveQuota)) {
+      toast.error("الرصيد المتبقي لا يمكن أن يكون أكبر من الاستحقاق السنوي.");
+      return;
+    }
 
     try {
       setSavingBalances(true);
@@ -108,6 +116,7 @@ const BalanceManagement = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             annual: Number(balances.annual),
+            annualLeaveQuota: Number(balances.annualLeaveQuota),
             casual: Number(balances.casual),
             compensation: Number(balances.compensation),
           }),
@@ -225,6 +234,9 @@ const BalanceManagement = () => {
                     <div className="text-lg font-black text-blue-800">
                       {emp.leaveBalances?.annual || 0}
                     </div>
+                    <div className="mt-1 text-[11px] font-bold text-blue-600/80">
+                      من أصل {emp.annualLeaveQuota || 0}
+                    </div>
                   </div>
 
                   <div className="rounded-xl bg-amber-50 p-3">
@@ -234,6 +246,9 @@ const BalanceManagement = () => {
                     <div className="text-lg font-black text-amber-800">
                       {emp.leaveBalances?.casual || 0}
                     </div>
+                    <div className="mt-1 text-[11px] font-bold text-amber-600/80">
+                      من أصل 7
+                    </div>
                   </div>
 
                   <div className="col-span-2 rounded-xl bg-emerald-50 p-3">
@@ -242,6 +257,9 @@ const BalanceManagement = () => {
                     </div>
                     <div className="text-lg font-black text-emerald-800">
                       {emp.leaveBalances?.compensation || 0}
+                    </div>
+                    <div className="mt-1 text-[11px] font-bold text-emerald-600/80">
+                      رصيد حالي
                     </div>
                   </div>
                 </div>
@@ -288,7 +306,7 @@ const BalanceManagement = () => {
         {/* Desktop Table */}
         <div className="hidden md:block overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
           <div className="w-full overflow-x-auto">
-            <table className="w-full text-right min-w-[800px]">
+            <table className="w-full text-right min-w-[950px]">
               <thead className="bg-gray-50 text-gray-500 text-sm border-b">
                 <tr>
                   <th className="p-4 whitespace-nowrap">الكود</th>
@@ -322,18 +340,44 @@ const BalanceManagement = () => {
                       <td className="p-4 text-gray-500 font-medium whitespace-nowrap">
                         {emp.employeeCode}
                       </td>
+
                       <td className="p-4 font-bold text-gray-800 whitespace-nowrap">
                         {emp.name}
                       </td>
-                      <td className="p-4 text-center font-bold text-blue-600 whitespace-nowrap">
-                        {emp.leaveBalances?.annual || 0}
+
+                      <td className="p-4 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-blue-600">
+                            {emp.leaveBalances?.annual || 0}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            من أصل {emp.annualLeaveQuota || 0}
+                          </span>
+                        </div>
                       </td>
-                      <td className="p-4 text-center font-bold text-orange-500 whitespace-nowrap">
-                        {emp.leaveBalances?.casual || 0}
+
+                      <td className="p-4 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-orange-500">
+                            {emp.leaveBalances?.casual || 0}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            من أصل 7
+                          </span>
+                        </div>
                       </td>
-                      <td className="p-4 text-center font-bold text-green-600 whitespace-nowrap">
-                        {emp.leaveBalances?.compensation || 0}
+
+                      <td className="p-4 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-green-600">
+                            {emp.leaveBalances?.compensation || 0}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            رصيد حالي
+                          </span>
+                        </div>
                       </td>
+
                       <td className="p-4 text-center whitespace-nowrap">
                         <button
                           onClick={() => openEditModal(emp)}
@@ -356,9 +400,15 @@ const BalanceManagement = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-5 md:p-6 shadow-2xl">
               <div className="mb-6 flex items-center justify-between border-b pb-3">
-                <h3 className="text-lg md:text-xl font-bold text-gray-800">
-                  تعديل أرصدة: {selectedEmp?.name}
-                </h3>
+                <div>
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800">
+                    تعديل أرصدة: {selectedEmp?.name}
+                  </h3>
+                  <p className="mt-1 text-xs text-gray-500 font-medium">
+                    الرصيد الاعتيادي المتبقي يجب ألا يتجاوز الاستحقاق السنوي
+                    الأصلي
+                  </p>
+                </div>
 
                 <button
                   onClick={closeModal}
@@ -371,7 +421,25 @@ const BalanceManagement = () => {
               <form onSubmit={handleSaveBalances} className="space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-bold text-gray-700">
-                    الرصيد الاعتيادي
+                    الاستحقاق السنوي الأصلي
+                  </label>
+                  <input
+                    type="number"
+                    value={balances.annualLeaveQuota}
+                    onChange={(e) =>
+                      setBalances({
+                        ...balances,
+                        annualLeaveQuota: e.target.value,
+                      })
+                    }
+                    className="w-full rounded-xl border p-3 outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-bold text-gray-700">
+                    الرصيد الاعتيادي المتبقي
                   </label>
                   <input
                     type="number"

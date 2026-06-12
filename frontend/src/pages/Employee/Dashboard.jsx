@@ -154,6 +154,8 @@ const Dashboard = () => {
           const updated = {
             ...prev,
             leaveBalances: data.leaveBalances,
+            annualLeaveQuota:
+              data.annualLeaveQuota || prev.annualLeaveQuota || 21,
             email: data.email || prev.email || "",
             jobGrade: data.jobGrade || prev.jobGrade,
             workType: data.workType || prev.workType,
@@ -254,21 +256,6 @@ const Dashboard = () => {
       minute: "2-digit",
     });
 
-  const getAnnualMaxByGrade = (grade) => {
-    switch (grade) {
-      case "كبير":
-        return 45;
-      case "درجة اولى":
-        return 30;
-      case "درجة ثانية":
-        return 21;
-      case "درجة ثالثة":
-        return 21;
-      default:
-        return 21;
-    }
-  };
-
   if (!employee) {
     return (
       <div className="min-h-screen flex items-center justify-center font-bold text-blue-600">
@@ -331,7 +318,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6 mb-6">
           <CircularProgress
             value={employee.leaveBalances?.annual || 0}
-            max={getAnnualMaxByGrade(employee.jobGrade)}
+            max={employee.annualLeaveQuota || 21}
             label="رصيد اعتيادي"
             type="annual"
           />
@@ -343,7 +330,7 @@ const Dashboard = () => {
           />
           <CircularProgress
             value={employee.leaveBalances?.compensation || 0}
-            max={employee.leaveBalances?.compensation || 0}
+            max={Math.max(employee.leaveBalances?.compensation || 0, 1)}
             label="بدل أعياد"
             type="compensation"
           />
@@ -543,6 +530,7 @@ const Dashboard = () => {
                   badge: "bg-gray-100 text-gray-700",
                   soft: "bg-gray-50 border-gray-100",
                   strip: "bg-gray-400",
+                  dot: "bg-gray-400",
                 };
 
                 return (

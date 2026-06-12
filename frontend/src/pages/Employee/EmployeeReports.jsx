@@ -1,10 +1,38 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Search, Printer, CalendarDays } from "lucide-react";
+import {
+  FileText,
+  Search,
+  Printer,
+  CalendarDays,
+  Clock,
+  CheckCircle,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import EmployeeLayout from "../components/EmployeeLayout";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
+
+const leaveTypeConfig = {
+  annual: {
+    label: "اعتيادي",
+    badge: "bg-blue-100 text-blue-700",
+    dot: "bg-blue-500",
+    soft: "bg-blue-50 border-blue-100",
+  },
+  casual: {
+    label: "عارضة",
+    badge: "bg-amber-100 text-amber-700",
+    dot: "bg-amber-500",
+    soft: "bg-amber-50 border-amber-100",
+  },
+  compensation: {
+    label: "بدل أعياد",
+    badge: "bg-emerald-100 text-emerald-700",
+    dot: "bg-emerald-500",
+    soft: "bg-emerald-50 border-emerald-100",
+  },
+};
 
 const EmployeeReports = () => {
   const navigate = useNavigate();
@@ -75,6 +103,27 @@ const EmployeeReports = () => {
     window.print();
   };
 
+  const reportSummary = useMemo(() => {
+    if (!reportData) return null;
+
+    const total =
+      Number(reportData.totalConsumedDays?.annual || 0) +
+      Number(reportData.totalConsumedDays?.casual || 0) +
+      Number(reportData.totalConsumedDays?.compensation || 0);
+
+    return {
+      total,
+      annual: reportData.totalConsumedDays?.annual || 0,
+      casual: reportData.totalConsumedDays?.casual || 0,
+      compensation: reportData.totalConsumedDays?.compensation || 0,
+    };
+  }, [reportData]);
+
+  const formatDate = (value) => {
+    if (!value) return "---";
+    return new Date(value).toLocaleDateString("ar-EG");
+  };
+
   if (!employee) {
     return (
       <div className="min-h-screen flex items-center justify-center font-bold text-blue-600">
@@ -85,8 +134,7 @@ const EmployeeReports = () => {
 
   return (
     <EmployeeLayout>
-      <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
-        {/* الجزء الخاص بالطباعة */}
+      <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
         <style>
           {`
             @media print {
@@ -105,211 +153,325 @@ const EmployeeReports = () => {
           `}
         </style>
 
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 no-print">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <FileText className="text-blue-600" />
-              تقارير الإجازات
-            </h2>
-            <p className="text-gray-500 text-sm mt-1">
-              استخرج كشف حساب تفصيلي لإجازاتك المستهلكة
-            </p>
-          </div>
-        </header>
+        <div className="mx-auto max-w-7xl">
+          {/* Header */}
+          <header className="mb-6 md:mb-8 rounded-2xl border border-gray-100 bg-white p-5 md:p-6 shadow-sm no-print">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-700">
+                  <FileText size={14} />
+                  تقارير الإجازات
+                </div>
 
-        {/* لوحة البحث */}
-        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 mb-8 no-print relative overflow-hidden">
-          {/* لمسة تصميمية */}
-          <div className="absolute top-0 left-0 w-32 h-32 bg-blue-600/5 rounded-full -ml-10 -mt-10 pointer-events-none"></div>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-800">
+                  كشف حساب الإجازات
+                </h2>
 
-          <form
-            onSubmit={handleGenerateReport}
-            className="flex flex-col md:flex-row items-center gap-5 relative z-20"
-          >
-            {/* من تاريخ */}
-            <div className="relative group z-20 flex-1 w-full">
-              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-focus-within:text-blue-600 transition-colors z-20">
-                <CalendarDays size={18} />
+                <p className="mt-2 text-sm font-medium text-gray-500">
+                  استخرج تقريرًا تفصيليًا لإجازاتك المقبولة خلال فترة محددة
+                </p>
               </div>
 
-              {!startDate && (
-                <div className="absolute inset-y-0 right-0 pr-12 flex items-center pointer-events-none text-gray-500 font-medium z-10">
-                  من تاريخ
+              <div className="rounded-2xl bg-gray-50 border border-gray-200 px-4 py-3 text-center">
+                <div className="text-xs font-bold text-gray-500">
+                  الموظف الحالي
                 </div>
-              )}
-
-              <input
-                type="date"
-                className={`relative w-full pl-4 pr-12 py-3.5 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${
-                  !startDate ? "text-transparent" : "text-gray-700"
-                } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* إلى تاريخ */}
-            <div className="relative group z-20 flex-1 w-full">
-              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-gray-400 group-focus-within:text-blue-600 transition-colors z-20">
-                <CalendarDays size={18} />
+                <div className="mt-1 text-sm md:text-base font-black text-gray-800">
+                  {employee.name}
+                </div>
+                <div className="mt-1 text-xs text-gray-400">
+                  كود: {employee.employeeCode}
+                </div>
               </div>
-
-              {!endDate && (
-                <div className="absolute inset-y-0 right-0 pr-12 flex items-center pointer-events-none text-gray-500 font-medium z-10">
-                  إلى تاريخ
-                </div>
-              )}
-
-              <input
-                type="date"
-                className={`relative w-full pl-4 pr-12 py-3.5 border border-gray-200 rounded-xl outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-medium cursor-pointer z-20 bg-transparent ${
-                  !endDate ? "text-transparent" : "text-gray-700"
-                } [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-30`}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                required
-              />
             </div>
+          </header>
 
-            {/* زرار استخراج التقرير */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-700 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 z-10 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+          {/* Filter Form */}
+          <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 no-print">
+            <form
+              onSubmit={handleGenerateReport}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4"
             >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  جاري الاستخراج...
+              {/* Start Date */}
+              <div className="relative group">
+                <label className="mb-2 block text-sm font-bold text-gray-700">
+                  من تاريخ
+                </label>
+
+                <div className="relative">
+                  <CalendarDays
+                    size={18}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                  />
+
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pr-11 pl-4 text-sm font-medium text-gray-700 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10"
+                  />
                 </div>
-              ) : (
+              </div>
+
+              {/* End Date */}
+              <div className="relative group">
+                <label className="mb-2 block text-sm font-bold text-gray-700">
+                  إلى تاريخ
+                </label>
+
+                <div className="relative">
+                  <CalendarDays
+                    size={18}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10"
+                  />
+
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    required
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-3 pr-11 pl-4 text-sm font-medium text-gray-700 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10"
+                  />
+                </div>
+              </div>
+
+              {/* Submit */}
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {loading ? (
+                    <>
+                      <span className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
+                      جاري الاستخراج...
+                    </>
+                  ) : (
+                    <>
+                      <Search size={18} />
+                      استخراج التقرير
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Report */}
+          {reportData && (
+            <div
+              id="printable-report"
+              className="rounded-2xl border border-gray-100 bg-white p-5 md:p-8 shadow-sm"
+            >
+              {/* Top */}
+              <div className="mb-8 flex flex-col gap-4 border-b pb-6 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-800 mb-2">
+                    تقرير إجازات الموظف
+                  </h3>
+
+                  <p className="text-gray-700 font-bold">
+                    الاسم: {reportData.employeeName}
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    الفترة من: {formatDate(reportData.period.from)} - إلى:{" "}
+                    {formatDate(reportData.period.to)}
+                  </p>
+                </div>
+
+                <button
+                  onClick={handlePrint}
+                  className="no-print inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-200"
+                >
+                  <Printer size={18} />
+                  طباعة التقرير
+                </button>
+              </div>
+
+              {/* Summary Cards */}
+              {reportSummary && (
                 <>
-                  <Search size={20} />
-                  استخراج التقرير
+                  <h4 className="mb-4 border-r-4 border-blue-600 pr-3 text-lg font-black text-gray-800">
+                    ملخص الأيام المستهلكة (المقبولة فقط)
+                  </h4>
+
+                  <div className="mb-10 grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <div className="text-xs font-bold text-slate-500">
+                        الإجمالي
+                      </div>
+                      <div className="mt-2 text-2xl font-black text-slate-800">
+                        {reportSummary.total}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                      <div className="text-xs font-bold text-blue-700">
+                        اعتيادي
+                      </div>
+                      <div className="mt-2 text-2xl font-black text-blue-800">
+                        {reportSummary.annual}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                      <div className="text-xs font-bold text-amber-700">
+                        عارضة
+                      </div>
+                      <div className="mt-2 text-2xl font-black text-amber-800">
+                        {reportSummary.casual}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                      <div className="text-xs font-bold text-emerald-700">
+                        بدل أعياد
+                      </div>
+                      <div className="mt-2 text-2xl font-black text-emerald-800">
+                        {reportSummary.compensation}
+                      </div>
+                    </div>
+                  </div>
                 </>
               )}
-            </button>
-          </form>
+
+              {/* Details */}
+              <h4 className="mb-4 border-r-4 border-blue-600 pr-3 text-lg font-black text-gray-800">
+                تفاصيل الإجازات في هذه الفترة
+              </h4>
+
+              {reportData.detailedLeaves.length > 0 ? (
+                <>
+                  {/* Mobile Cards */}
+                  <div className="space-y-4 md:hidden">
+                    {reportData.detailedLeaves.map((leave) => {
+                      const typeInfo = leaveTypeConfig[leave.leaveType] || {
+                        label: leave.leaveType,
+                        badge: "bg-gray-100 text-gray-700",
+                        dot: "bg-gray-400",
+                        soft: "bg-gray-50 border-gray-100",
+                      };
+
+                      return (
+                        <div
+                          key={leave._id}
+                          className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+                        >
+                          <div className={`h-1.5 ${typeInfo.dot}`}></div>
+
+                          <div className="p-4">
+                            <div className="mb-4 flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${typeInfo.badge}`}
+                                >
+                                  <span
+                                    className={`h-2 w-2 rounded-full ${typeInfo.dot}`}
+                                  ></span>
+                                  {typeInfo.label}
+                                </span>
+
+                                <div className="mt-2 text-sm font-black text-gray-800">
+                                  إجازة معتمدة
+                                </div>
+                              </div>
+
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
+                                <CheckCircle size={12} />
+                                {leave.duration} يوم
+                              </span>
+                            </div>
+
+                            <div
+                              className={`rounded-2xl border p-3 ${typeInfo.soft}`}
+                            >
+                              <div className="mb-2 flex items-center gap-2 text-xs font-bold text-slate-500">
+                                <CalendarDays size={13} />
+                                فترة الإجازة
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex-1 rounded-xl bg-white px-3 py-2 text-center shadow-sm">
+                                  <div className="text-[11px] font-bold text-slate-400">
+                                    من
+                                  </div>
+                                  <div className="mt-1 text-sm font-black text-slate-800">
+                                    {formatDate(leave.startDate)}
+                                  </div>
+                                </div>
+
+                                <div className="text-slate-400">←</div>
+
+                                <div className="flex-1 rounded-xl bg-white px-3 py-2 text-center shadow-sm">
+                                  <div className="text-[11px] font-bold text-slate-400">
+                                    إلى
+                                  </div>
+                                  <div className="mt-1 text-sm font-black text-slate-800">
+                                    {formatDate(leave.endDate)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop Table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-right border border-gray-200 rounded-lg">
+                      <thead className="bg-gray-100 text-gray-700 text-sm">
+                        <tr>
+                          <th className="p-4 border-b">نوع الإجازة</th>
+                          <th className="p-4 border-b">من تاريخ</th>
+                          <th className="p-4 border-b">إلى تاريخ</th>
+                          <th className="p-4 text-center border-b">
+                            عدد الأيام
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody className="divide-y divide-gray-100">
+                        {reportData.detailedLeaves.map((leave) => (
+                          <tr key={leave._id} className="hover:bg-gray-50">
+                            <td className="p-4 font-bold text-gray-800">
+                              {leaveTypeConfig[leave.leaveType]?.label ||
+                                leave.leaveType}
+                            </td>
+
+                            <td className="p-4 text-gray-600">
+                              {formatDate(leave.startDate)}
+                            </td>
+
+                            <td className="p-4 text-gray-600">
+                              {formatDate(leave.endDate)}
+                            </td>
+
+                            <td className="p-4 text-center font-bold">
+                              {leave.duration} يوم
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8 text-center text-gray-500">
+                  <CalendarDays
+                    size={40}
+                    className="mx-auto mb-2 text-gray-400"
+                  />
+                  لم تقم باستهلاك أي إجازات (مقبولة) في هذه الفترة.
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* التقرير المستخرج */}
-        {reportData && (
-          <div
-            id="printable-report"
-            className="bg-white p-8 rounded-xl shadow-sm border border-gray-100"
-          >
-            {/* ترويسة الطباعة */}
-            <div className="flex justify-between items-start mb-8 border-b pb-6">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                  تقرير إجازات الموظف
-                </h3>
-                <p className="text-gray-600 font-medium">
-                  الاسم: {reportData.employeeName}
-                </p>
-                <p className="text-gray-500 text-sm mt-1">
-                  الفترة من:{" "}
-                  {new Date(reportData.period.from).toLocaleDateString("ar-EG")}{" "}
-                  - إلى:{" "}
-                  {new Date(reportData.period.to).toLocaleDateString("ar-EG")}
-                </p>
-              </div>
-
-              <button
-                onClick={handlePrint}
-                className="no-print flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold transition border border-gray-300"
-              >
-                <Printer size={18} />
-                طباعة التقرير
-              </button>
-            </div>
-
-            {/* ملخص الاستهلاك */}
-            <h4 className="font-bold text-lg text-gray-800 mb-4 border-r-4 border-blue-600 pr-3">
-              ملخص الأيام المستهلكة (المقبولة فقط)
-            </h4>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
-                <span className="font-bold text-gray-600">اعتيادي</span>
-                <span className="text-2xl font-black text-blue-600">
-                  {reportData.totalConsumedDays.annual} يوم
-                </span>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
-                <span className="font-bold text-gray-600">عارضة</span>
-                <span className="text-2xl font-black text-yellow-600">
-                  {reportData.totalConsumedDays.casual} يوم
-                </span>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex justify-between items-center">
-                <span className="font-bold text-gray-600">بدل أعياد</span>
-                <span className="text-2xl font-black text-green-600">
-                  {reportData.totalConsumedDays.compensation} يوم
-                </span>
-              </div>
-            </div>
-
-            {/* تفاصيل الطلبات */}
-            <h4 className="font-bold text-lg text-gray-800 mb-4 border-r-4 border-blue-600 pr-3">
-              تفاصيل الإجازات في هذه الفترة
-            </h4>
-
-            {reportData.detailedLeaves.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-right border border-gray-200 rounded-lg">
-                  <thead className="bg-gray-100 text-gray-700 text-sm">
-                    <tr>
-                      <th className="p-4 border-b">نوع الإجازة</th>
-                      <th className="p-4 border-b">من تاريخ</th>
-                      <th className="p-4 border-b">إلى تاريخ</th>
-                      <th className="p-4 text-center border-b">عدد الأيام</th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-gray-100">
-                    {reportData.detailedLeaves.map((leave) => (
-                      <tr key={leave._id} className="hover:bg-gray-50">
-                        <td className="p-4 font-bold text-gray-800">
-                          {leave.leaveType === "annual"
-                            ? "اعتيادي"
-                            : leave.leaveType === "casual"
-                              ? "عارضة"
-                              : "بدل أعياد"}
-                        </td>
-
-                        <td className="p-4 text-gray-600">
-                          {new Date(leave.startDate).toLocaleDateString(
-                            "ar-EG",
-                          )}
-                        </td>
-
-                        <td className="p-4 text-gray-600">
-                          {new Date(leave.endDate).toLocaleDateString("ar-EG")}
-                        </td>
-
-                        <td className="p-4 text-center font-bold">
-                          {leave.duration} يوم
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center p-8 bg-gray-50 rounded-lg border border-gray-200 text-gray-500">
-                <CalendarDays
-                  size={40}
-                  className="mx-auto mb-2 text-gray-400"
-                />
-                لم تقم باستهلاك أي إجازات (مقبولة) في هذه الفترة.
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </EmployeeLayout>
   );

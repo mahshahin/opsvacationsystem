@@ -6,7 +6,18 @@ const LeaveRequest = require("../models/LeaveRequest");
 const Admin = require("../models/Admin");
 const sendLeaveEmail = require("../utils/sendEmail");
 
-// إضافة موظف
+/* =========================
+   Helpers
+========================= */
+
+// قيمة افتراضية فقط لو الأدمن لم يحدد الاستحقاق السنوي يدويًا
+const getDefaultAnnualQuota = (jobGrade) => {
+  return jobGrade === "كبير" || jobGrade === "درجة اولى" ? 30 : 21;
+};
+
+/* =========================
+   إضافة موظف
+========================= */
 exports.addEmployee = async (req, res) => {
   try {
     const {
@@ -16,6 +27,7 @@ exports.addEmployee = async (req, res) => {
       jobGrade,
       workType,
       compensationBalance,
+      annualLeaveQuota,
     } = req.body;
 
     if (!employeeCode || !name) {
@@ -33,10 +45,13 @@ exports.addEmployee = async (req, res) => {
     let userJobGrade = jobGrade;
     let userWorkType = workType || "شيفت";
     let annualBalance = 0;
+    let annualQuota = 0;
 
     if (role === "admin") {
       userJobGrade = undefined;
       userWorkType = undefined;
+      annualBalance = 0;
+      annualQuota = 0;
     } else {
       if (!jobGrade) {
         return res.status(400).json({
@@ -44,7 +59,13 @@ exports.addEmployee = async (req, res) => {
         });
       }
 
-      annualBalance = jobGrade === "كبير" || jobGrade === "درجة اولى" ? 30 : 21;
+      const parsedQuota = Number(annualLeaveQuota);
+      annualQuota =
+        !Number.isNaN(parsedQuota) && parsedQuota >= 0
+          ? parsedQuota
+          : getDefaultAnnualQuota(jobGrade);
+
+      annualBalance = annualQuota;
     }
 
     const newEmployee = new User({
@@ -53,6 +74,7 @@ exports.addEmployee = async (req, res) => {
       role: role || "employee",
       jobGrade: userJobGrade,
       workType: userWorkType,
+      annualLeaveQuota: annualQuota,
       leaveBalances: {
         annual: annualBalance,
         casual: role === "admin" ? 0 : 7,
@@ -81,7 +103,9 @@ exports.addEmployee = async (req, res) => {
   }
 };
 
-// تصفير كلمة المرور
+/* =========================
+   تصفير كلمة المرور
+========================= */
 exports.resetPassword = async (req, res) => {
   try {
     const { employeeCode } = req.body;
@@ -123,11 +147,16 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// الطلبات المعلقة
+/* =========================
+   الطلبات المعلقة
+========================= */
 exports.getPendingRequests = async (req, res) => {
   try {
     const requests = await LeaveRequest.find({ status: "pending" })
-      .populate("employeeId", "name employeeCode jobGrade leaveBalances")
+      .populate(
+        "employeeId",
+        "name employeeCode jobGrade leaveBalances annualLeaveQuota",
+      )
       .sort({ createdAt: 1 });
 
     res.status(200).json(requests);
@@ -139,7 +168,9 @@ exports.getPendingRequests = async (req, res) => {
   }
 };
 
-// معالجة الطلبات
+/* =========================
+   معالجة الطلبات
+========================= */
 exports.handleRequest = async (req, res) => {
   try {
     const { requestId, action } = req.body;
@@ -209,7 +240,9 @@ exports.handleRequest = async (req, res) => {
   }
 };
 
-// الموظفين
+/* =========================
+   الموظفين
+========================= */
 exports.getEmployees = async (req, res) => {
   try {
     const employees = await User.find().sort({ employeeCode: 1 });
@@ -222,7 +255,9 @@ exports.getEmployees = async (req, res) => {
   }
 };
 
-// تعديل موظف
+/* =========================
+   تعديل موظف
+========================= */
 exports.updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
@@ -249,16 +284,11 @@ exports.updateEmployee = async (req, res) => {
     if (user.role === "admin") {
       user.jobGrade = undefined;
       user.workType = undefined;
+      user.annualLeaveQuota = 0;
     } else {
       user.jobGrade = jobGrade || user.jobGrade;
       user.workType = workType || user.workType;
-
-      if (jobGrade) {
-        user.leaveBalances.annual =
-          jobGrade === "كبير" || jobGrade === "درجة اولى" ? 30 : 21;
-
-        user.markModified("leaveBalances");
-      }
+      // ✅ لم نعد نغير leaveBalances.annual ولا annualLeaveQuota تلقائيًا حسب الدرجة
     }
 
     await user.save();
@@ -280,7 +310,9 @@ exports.updateEmployee = async (req, res) => {
   }
 };
 
-// حذف موظف
+/* =========================
+   حذف موظف
+========================= */
 exports.deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
@@ -317,11 +349,13 @@ exports.deleteEmployee = async (req, res) => {
   }
 };
 
-// تعديل الأرصدة
+/* =========================
+   تعديل الأرصدة
+========================= */
 exports.updateBalances = async (req, res) => {
   try {
     const { id } = req.params;
-    const { annual, casual, compensation } = req.body;
+    const { annual, annualLeaveQuota, casual, compensation } = req.body;
 
     const user = await User.findById(id);
 
@@ -335,9 +369,44 @@ exports.updateBalances = async (req, res) => {
       });
     }
 
-    user.leaveBalances.annual = Number(annual);
-    user.leaveBalances.casual = Number(casual);
-    user.leaveBalances.compensation = Number(compensation);
+    const parsedAnnual = Number(annual);
+    const parsedQuota = Number(annualLeaveQuota);
+    const parsedCasual = Number(casual);
+    const parsedCompensation = Number(compensation);
+
+    if (
+      Number.isNaN(parsedAnnual) ||
+      Number.isNaN(parsedQuota) ||
+      Number.isNaN(parsedCasual) ||
+      Number.isNaN(parsedCompensation)
+    ) {
+      return res.status(400).json({
+        message: "برجاء إدخال قيم صحيحة للأرصدة.",
+      });
+    }
+
+    if (
+      parsedAnnual < 0 ||
+      parsedQuota < 0 ||
+      parsedCasual < 0 ||
+      parsedCompensation < 0
+    ) {
+      return res.status(400).json({
+        message: "لا يمكن إدخال قيم سالبة في الأرصدة.",
+      });
+    }
+
+    if (parsedAnnual > parsedQuota) {
+      return res.status(400).json({
+        message:
+          "الرصيد الاعتيادي المتبقي لا يمكن أن يكون أكبر من الاستحقاق السنوي.",
+      });
+    }
+
+    user.annualLeaveQuota = parsedQuota;
+    user.leaveBalances.annual = parsedAnnual;
+    user.leaveBalances.casual = parsedCasual;
+    user.leaveBalances.compensation = parsedCompensation;
     user.markModified("leaveBalances");
 
     await user.save();
@@ -359,7 +428,9 @@ exports.updateBalances = async (req, res) => {
   }
 };
 
-// السجلات
+/* =========================
+   السجلات
+========================= */
 exports.getLogs = async (req, res) => {
   try {
     const logs = await Log.find().sort({ createdAt: -1 }).limit(200);
@@ -372,11 +443,13 @@ exports.getLogs = async (req, res) => {
   }
 };
 
-// أرشيف الإجازات
+/* =========================
+   أرشيف الإجازات
+========================= */
 exports.getLeaveArchive = async (req, res) => {
   try {
     const requests = await LeaveRequest.find()
-      .populate("employeeId", "name employeeCode jobGrade")
+      .populate("employeeId", "name employeeCode jobGrade annualLeaveQuota")
       .sort({ createdAt: -1 });
 
     res.status(200).json(requests);
@@ -388,7 +461,9 @@ exports.getLeaveArchive = async (req, res) => {
   }
 };
 
-// حذف نهائي من الأرشيف
+/* =========================
+   حذف نهائي من الأرشيف
+========================= */
 exports.deleteLeaveArchive = async (req, res) => {
   try {
     const { id } = req.params;
@@ -450,7 +525,9 @@ exports.deleteLeaveArchive = async (req, res) => {
   }
 };
 
-// إنشاء مدير
+/* =========================
+   إنشاء مدير
+========================= */
 exports.createAdmin = async (req, res) => {
   try {
     const { username, name, password } = req.body;
@@ -488,7 +565,9 @@ exports.createAdmin = async (req, res) => {
   }
 };
 
-// قائمة المدراء
+/* =========================
+   قائمة المدراء
+========================= */
 exports.getAdminsList = async (req, res) => {
   try {
     const admins = await Admin.find().select("-password");
@@ -501,7 +580,9 @@ exports.getAdminsList = async (req, res) => {
   }
 };
 
-// تعديل مدير
+/* =========================
+   تعديل مدير
+========================= */
 exports.updateAdmin = async (req, res) => {
   try {
     const { name, username } = req.body;
@@ -535,7 +616,9 @@ exports.updateAdmin = async (req, res) => {
   }
 };
 
-// حذف مدير
+/* =========================
+   حذف مدير
+========================= */
 exports.deleteAdmin = async (req, res) => {
   try {
     const admin = await Admin.findById(req.params.id);
