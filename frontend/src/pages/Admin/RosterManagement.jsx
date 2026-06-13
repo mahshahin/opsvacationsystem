@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import AdminLayout from "../components/AdminLayout";
 import toast from "react-hot-toast";
 import "../../print.css";
+import { ChevronDown, Users } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -397,7 +398,7 @@ const RosterManagement = () => {
   const [rosterStatus, setRosterStatus] = useState(null);
   const [rosterData, setRosterData] = useState({});
   const [loading, setLoading] = useState(false);
-  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 1024);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const [validationModal, setValidationModal] = useState({
     isOpen: false,
@@ -405,18 +406,14 @@ const RosterManagement = () => {
     unscheduled: [],
   });
 
+  const [summarySearch, setSummarySearch] = useState("");
+  const [summarySort, setSummarySort] = useState("total-desc");
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+
   const handlePrint = () => {
     window.print();
   };
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobileView(window.innerWidth < 1024);
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   const daysInMonth = useMemo(() => {
     const daysCount = new Date(year, month, 0).getDate();
@@ -671,7 +668,6 @@ const RosterManagement = () => {
 
     const unscheduled = employees
       .filter((emp) => {
-        if (emp.role === "admin") return false;
         const id = normalizeId(emp._id);
         if (scheduledIds.has(id)) return false;
 
@@ -777,73 +773,238 @@ const RosterManagement = () => {
     );
   };
 
-  if (isMobileView) {
-    return (
-      <AdminLayout>
-        <div className="min-h-screen bg-slate-50 p-4 md:p-6" dir="rtl">
-          <div className="mx-auto max-w-2xl">
-            <div className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 text-2xl">
-                  💻
-                </div>
+  /* ======= حساب أيام الإجازات المعتمدة فقط داخل الشهر ======= */
+  const getApprovedLeaveDaysInsideMonth = (leave) => {
+    const monthStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
-                <div>
-                  <h1 className="text-xl md:text-2xl font-black text-slate-800">
-                    إدارة الروستر
-                  </h1>
-                  <p className="text-sm font-medium text-slate-500 mt-1">
-                    هذه الصفحة مخصّصة للاستخدام من خلال جهاز كمبيوتر أو لابتوب
-                  </p>
-                </div>
-              </div>
+    const leaveStart = new Date(leave.startDate);
+    const leaveEnd = new Date(leave.endDate);
 
-              <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-                <p className="text-sm md:text-base font-bold text-amber-800 leading-7">
-                  يُفضّل التوجّه إلى جهاز كمبيوتر لإدارة الجدول الشهري، وذلك
-                  لضمان سهولة التعديل، مراجعة الشيفتات، واستخدام جميع أدوات
-                  الروستر بشكل صحيح.
-                </p>
-              </div>
+    leaveStart.setHours(0, 0, 0, 0);
+    leaveEnd.setHours(23, 59, 59, 999);
 
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-200">
-                  <div className="text-lg font-black text-slate-800">
-                    أفضل عرض
-                  </div>
-                  <div className="text-xs font-medium text-slate-500 mt-1">
-                    شاشة واسعة للجدول الكامل
-                  </div>
-                </div>
+    const start = leaveStart > monthStart ? leaveStart : monthStart;
+    const end = leaveEnd < monthEnd ? leaveEnd : monthEnd;
 
-                <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-200">
-                  <div className="text-lg font-black text-slate-800">
-                    سهولة تعديل
-                  </div>
-                  <div className="text-xs font-medium text-slate-500 mt-1">
-                    تنقّل أسرع بين الأيام والشيفتات
-                  </div>
-                </div>
+    if (start > end) return 0;
 
-                <div className="rounded-2xl bg-slate-50 p-3 text-center border border-slate-200">
-                  <div className="text-lg font-black text-slate-800">
-                    دقة أعلى
-                  </div>
-                  <div className="text-xs font-medium text-slate-500 mt-1">
-                    تقليل الأخطاء أثناء التسكين
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </AdminLayout>
+    return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  /* ======= ملخص توزيع الورديات + الإجازات المعتمدة ======= */
+  const employeeRosterSummary = useMemo(() => {
+    const summaryMap = {};
+
+    employees.forEach((emp) => {
+      const id = normalizeId(emp._id);
+
+      summaryMap[id] = {
+        _id: id,
+        name: emp.name,
+        employeeCode: emp.employeeCode || "—",
+        total: 0,
+        leaderCount: 0,
+        memberCount: 0,
+        shift1Count: 0,
+        shift2Count: 0,
+        shift3Count: 0,
+        approvedLeaveDays: 0,
+      };
+    });
+
+    Object.values(rosterData).forEach((dayData) => {
+      if (!dayData) return;
+
+      ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+        const shift = dayData[shiftKey];
+        if (!shift) return;
+
+        if (shift.leader) {
+          const leaderId = normalizeId(shift.leader);
+          if (summaryMap[leaderId]) {
+            summaryMap[leaderId].total += 1;
+            summaryMap[leaderId].leaderCount += 1;
+            summaryMap[leaderId][`${shiftKey}Count`] += 1;
+          }
+        }
+
+        (shift.members || []).forEach((member) => {
+          const memberId = normalizeId(member);
+          if (summaryMap[memberId]) {
+            summaryMap[memberId].total += 1;
+            summaryMap[memberId].memberCount += 1;
+            summaryMap[memberId][`${shiftKey}Count`] += 1;
+          }
+        });
+      });
+    });
+
+    leaves.forEach((leave) => {
+      const empId = normalizeId(leave.employeeId);
+      if (!summaryMap[empId]) return;
+
+      const status = String(leave.status || "")
+        .trim()
+        .toLowerCase();
+      if (status !== "approved") return;
+
+      const daysInsideMonth = getApprovedLeaveDaysInsideMonth(leave);
+      if (!daysInsideMonth) return;
+
+      summaryMap[empId].approvedLeaveDays += daysInsideMonth;
+    });
+
+    return Object.values(summaryMap);
+  }, [employees, rosterData, leaves, month, year]);
+
+  const employeeSummaryStats = useMemo(() => {
+    const totalAssignments = employeeRosterSummary.reduce(
+      (sum, emp) => sum + emp.total,
+      0,
     );
-  }
+
+    const scheduledCount = employeeRosterSummary.filter(
+      (emp) => emp.total > 0,
+    ).length;
+
+    const unscheduledCount = employeeRosterSummary.filter(
+      (emp) => emp.total === 0,
+    ).length;
+
+    const totalApprovedLeaveDays = employeeRosterSummary.reduce(
+      (sum, emp) => sum + emp.approvedLeaveDays,
+      0,
+    );
+
+    const averageAssignments =
+      scheduledCount > 0 ? totalAssignments / scheduledCount : 0;
+
+    return {
+      totalAssignments,
+      scheduledCount,
+      unscheduledCount,
+      totalApprovedLeaveDays,
+      averageAssignments,
+    };
+  }, [employeeRosterSummary]);
+
+  const getEmployeeLoadStatus = (emp) => {
+    if (emp.total === 0) {
+      return {
+        text: "غير مجدول",
+        cls: "bg-gray-100 text-gray-700",
+      };
+    }
+
+    const avg = employeeSummaryStats.averageAssignments;
+
+    if (avg === 0) {
+      return {
+        text: "—",
+        cls: "bg-slate-100 text-slate-700",
+      };
+    }
+
+    if (emp.total < avg * 0.7) {
+      return {
+        text: "أقل من المتوسط",
+        cls: "bg-amber-100 text-amber-700",
+      };
+    }
+
+    if (emp.total > avg * 1.3) {
+      return {
+        text: "ضغط عالي",
+        cls: "bg-red-100 text-red-700",
+      };
+    }
+
+    return {
+      text: "متوازن",
+      cls: "bg-green-100 text-green-700",
+    };
+  };
+
+  const visibleEmployeeRosterSummary = useMemo(() => {
+    let rows = [...employeeRosterSummary];
+
+    const q = summarySearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((emp) => {
+        const name = String(emp.name || "").toLowerCase();
+        const code = String(emp.employeeCode || "").toLowerCase();
+        return name.includes(q) || code.includes(q);
+      });
+    }
+
+    switch (summarySort) {
+      case "total-asc":
+        rows.sort((a, b) => a.total - b.total);
+        break;
+      case "code-asc":
+        rows.sort(
+          (a, b) => Number(a.employeeCode || 0) - Number(b.employeeCode || 0),
+        );
+        break;
+      case "leader-desc":
+        rows.sort((a, b) => b.leaderCount - a.leaderCount);
+        break;
+      case "shift1-desc":
+        rows.sort((a, b) => b.shift1Count - a.shift1Count);
+        break;
+      case "shift2-desc":
+        rows.sort((a, b) => b.shift2Count - a.shift2Count);
+        break;
+      case "shift3-desc":
+        rows.sort((a, b) => b.shift3Count - a.shift3Count);
+        break;
+      default:
+        rows.sort((a, b) => b.total - a.total);
+    }
+
+    return rows;
+  }, [employeeRosterSummary, summarySearch, summarySort]);
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-slate-50 p-2 md:p-4" dir="rtl">
+      {/* رسالة الموبايل */}
+      <div
+        className="block lg:hidden no-print print:hidden min-h-screen bg-slate-50 p-4 md:p-6"
+        dir="rtl"
+      >
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 text-2xl">
+                💻
+              </div>
+              <div>
+                <h1 className="text-xl md:text-2xl font-black text-slate-800">
+                  إدارة الروستر
+                </h1>
+                <p className="text-sm font-medium text-slate-500 mt-1">
+                  هذه الصفحة مخصّصة للاستخدام من خلال جهاز كمبيوتر أو لابتوب
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+              <p className="text-sm md:text-base font-bold text-amber-800 leading-7">
+                يُفضّل التوجّه إلى جهاز كمبيوتر لإدارة الجدول الشهري، وذلك لضمان
+                سهولة التعديل، مراجعة الشيفتات، واستخدام جميع أدوات الروستر بشكل
+                صحيح.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* الصفحة الأصلية */}
+      <div
+        className="hidden lg:block print:block min-h-screen bg-slate-50 p-2 md:p-4"
+        dir="rtl"
+      >
         <div className="mx-auto w-full">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -1221,6 +1382,233 @@ const RosterManagement = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* ملخص توزيع الورديات */}
+          {/* ملخص توزيع الورديات - قابل للطي */}
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm no-print overflow-hidden">
+            {/* Header button */}
+            <button
+              type="button"
+              onClick={() => setIsSummaryOpen((prev) => !prev)}
+              className="w-full px-4 py-4 md:px-5 flex items-center justify-between gap-3 bg-white hover:bg-slate-50 transition text-right"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Users className="text-blue-600" size={18} />
+                  <h3 className="text-lg font-black text-slate-800">
+                    ملخص توزيع الورديات على الموظفين
+                  </h3>
+                </div>
+
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  يوضح نصيب كل موظف من إجمالي الورديات وعدد أيام الإجازات
+                  المعتمدة خلال الشهر
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700">
+                  {visibleEmployeeRosterSummary.length} موظف
+                </span>
+
+                <ChevronDown
+                  size={20}
+                  className={`text-slate-500 transition-transform duration-300 ${
+                    isSummaryOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* Animated content */}
+            <div
+              className={`transition-all duration-500 ease-in-out ${
+                isSummaryOpen
+                  ? "max-h-[2000px] opacity-100"
+                  : "max-h-0 opacity-0"
+              } overflow-hidden`}
+            >
+              <div className="border-t border-slate-100">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 md:p-5 border-b border-slate-100 bg-slate-50/60">
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                    <div className="text-[11px] font-bold text-blue-700">
+                      إجمالي التكليفات
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-blue-800">
+                      {employeeSummaryStats.totalAssignments}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-green-100 bg-green-50 p-3">
+                    <div className="text-[11px] font-bold text-green-700">
+                      موظفون مجدولون
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-green-800">
+                      {employeeSummaryStats.scheduledCount}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-[11px] font-bold text-slate-700">
+                      غير مجدولين
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-slate-800">
+                      {employeeSummaryStats.unscheduledCount}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                    <div className="text-[11px] font-bold text-emerald-700">
+                      أيام الإجازات المعتمدة
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-emerald-800">
+                      {employeeSummaryStats.totalApprovedLeaveDays}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-b border-slate-100 px-4 py-4 md:px-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-700">
+                        توزيع الورديات بالتفصيل
+                      </h4>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={summarySearch}
+                        onChange={(e) => setSummarySearch(e.target.value)}
+                        placeholder="ابحث بالاسم أو الكود..."
+                        className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      />
+
+                      <select
+                        value={summarySort}
+                        onChange={(e) => setSummarySort(e.target.value)}
+                        className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      >
+                        <option value="total-desc">ترتيب: الأكثر ورديات</option>
+                        <option value="total-asc">ترتيب: الأقل ورديات</option>
+                        <option value="code-asc">ترتيب: حسب الكود</option>
+                        <option value="leader-desc">
+                          ترتيب: الأكثر رؤساء نوبة
+                        </option>
+                        <option value="shift1-desc">
+                          ترتيب: الأكثر بالأولى
+                        </option>
+                        <option value="shift2-desc">
+                          ترتيب: الأكثر بالثانية
+                        </option>
+                        <option value="shift3-desc">
+                          ترتيب: الأكثر بالثالثة
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[980px] text-right text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="p-3 whitespace-nowrap">الكود</th>
+                        <th className="p-3 whitespace-nowrap">الاسم</th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الإجمالي
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          رئيس نوبة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          فرد نوبة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الأولى
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الثانية
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الثالثة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الإجازات المعتمدة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الحالة
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100">
+                      {visibleEmployeeRosterSummary.map((emp) => {
+                        const status = getEmployeeLoadStatus(emp);
+
+                        return (
+                          <tr
+                            key={emp._id}
+                            className="hover:bg-slate-50 transition"
+                          >
+                            <td className="p-3 font-bold text-slate-600">
+                              {emp.employeeCode}
+                            </td>
+                            <td className="p-3 font-bold text-slate-800">
+                              {emp.name}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black text-blue-700">
+                                {emp.total}
+                              </span>
+                            </td>
+                            <td className="p-3 text-center font-bold text-indigo-700">
+                              {emp.leaderCount}
+                            </td>
+                            <td className="p-3 text-center font-bold text-slate-700">
+                              {emp.memberCount}
+                            </td>
+                            <td className="p-3 text-center">
+                              {emp.shift1Count}
+                            </td>
+                            <td className="p-3 text-center">
+                              {emp.shift2Count}
+                            </td>
+                            <td className="p-3 text-center">
+                              {emp.shift3Count}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                                {emp.approvedLeaveDays} يوم
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-xs font-bold ${status.cls}`}
+                              >
+                                {status.text}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {visibleEmployeeRosterSummary.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan="10"
+                            className="p-8 text-center text-sm font-medium text-slate-400"
+                          >
+                            لا توجد نتائج مطابقة لبحث الملخص
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap justify-end gap-2 no-print">
