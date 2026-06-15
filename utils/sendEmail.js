@@ -3,8 +3,8 @@ const sendEmail = async (...args) => {
   try {
     let to, subject, htmlBody;
 
-    // 1️⃣ لو الدالة استلمت 5 أو 6 متغيرات (يبقى ده طلب من شاشة الإجازات)
-    if (args.length >= 5) {
+    // 1) لو الدالة استلمت 6 متغيرات أو أكثر (يبقى ده طلب من شاشة الإجازات)
+    if (args.length >= 6) {
       const [
         employeeEmail,
         employeeName,
@@ -13,9 +13,11 @@ const sendEmail = async (...args) => {
         startDate,
         endDate,
       ] = args;
+
       const isApproved = status === "approved" || status === "Approved";
       const statusText = isApproved ? "تمت الموافقة على" : "تم رفض";
       const color = isApproved ? "#10b981" : "#ef4444";
+
       const typeInArabic =
         leaveType === "annual"
           ? "إجازة اعتيادية"
@@ -26,7 +28,6 @@ const sendEmail = async (...args) => {
       to = employeeEmail;
       subject = `تحديث بخصوص طلب الإجازة: ${statusText}`;
 
-      // تصميم إيميل الإجازات القديم
       htmlBody = `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; line-height: 1.6;">
           <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; border-top: 5px solid ${color}; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
@@ -46,14 +47,14 @@ const sendEmail = async (...args) => {
         </div>
       `;
     }
-    // 2️⃣ لو الدالة استلمت 3 متغيرات بس (يبقى ده إشعار عام زي الروستر)
+
+    // 2) لو الدالة استلمت 3 متغيرات بس (يبقى ده إشعار عام زي الروستر أو إشعار للإدارة)
     else {
       const [employeeEmail, messageSubject, textMessage] = args;
 
       to = employeeEmail;
       subject = messageSubject;
 
-      // تصميم شيك للإشعارات العامة (الروستر)
       htmlBody = `
         <div dir="rtl" style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb; line-height: 1.6;">
           <div style="max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; border-top: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
@@ -71,7 +72,6 @@ const sendEmail = async (...args) => {
       `;
     }
 
-    // إرسال الريكويست لسكريبت جوجل
     const GOOGLE_SCRIPT_URL =
       "https://script.google.com/macros/s/AKfycbz3lN4bo6fd7Gj-THSe4KMNFdwG-2iMEA3HrZsxRK7b3WNZRu7D-tM6_mpfJoKSIBY9/exec";
 
@@ -81,17 +81,16 @@ const sendEmail = async (...args) => {
         "Content-Type": "text/plain;charset=utf-8",
       },
       body: JSON.stringify({
-        to: to,
-        subject: subject,
-        htmlBody: htmlBody,
+        to,
+        subject,
+        htmlBody,
       }),
     });
 
     const result = await response.json();
+
     if (result.status === "success") {
-      console.log(
-        `✅ Email sent successfully via Webhook to: ${to} | Subject: ${subject}`,
-      );
+      console.log(`✅ Email sent successfully to: ${to} | Subject: ${subject}`);
     } else {
       console.error("❌ Error from Google Script:", result.message);
     }

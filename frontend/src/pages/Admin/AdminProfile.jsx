@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Briefcase,
   Hash,
+  Mail,
   Eye,
   EyeOff,
   CheckCircle2,
@@ -21,6 +22,12 @@ const AdminProfile = () => {
   const navigate = useNavigate();
 
   const [adminUser, setAdminUser] = useState(null);
+
+  // البريد الإلكتروني
+  const [email, setEmail] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  // الباسورد
   const [passwords, setPasswords] = useState({
     current: "",
     new: "",
@@ -28,27 +35,89 @@ const AdminProfile = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  // إظهار/إخفاء الباسورد
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
     confirm: false,
   });
 
-  useEffect(() => {
-    const savedData =
-      sessionStorage.getItem("employeeData") ||
-      localStorage.getItem("employeeData");
+  const getStoredAdminData = () => {
+    try {
+      const sessionData = sessionStorage.getItem("employeeData");
+      const localData = localStorage.getItem("employeeData");
 
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        setAdminUser(parsed);
-      } catch (error) {
-        console.error("خطأ في قراءة بيانات المستخدم", error);
-        localStorage.removeItem("employeeData");
-        sessionStorage.removeItem("employeeData");
-        navigate("/");
+      if (sessionData) {
+        return {
+          source: "session",
+          data: JSON.parse(sessionData),
+        };
       }
+
+      if (localData) {
+        return {
+          source: "local",
+          data: JSON.parse(localData),
+        };
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const updateStoredAdminData = (updatedData) => {
+    if (sessionStorage.getItem("employeeData")) {
+      sessionStorage.setItem("employeeData", JSON.stringify(updatedData));
+    } else if (localStorage.getItem("employeeData")) {
+      localStorage.setItem("employeeData", JSON.stringify(updatedData));
+    }
+  };
+
+  useEffect(() => {
+    const stored = getStoredAdminData();
+
+    if (stored?.data) {
+      const parsed = stored.data;
+      setAdminUser(parsed);
+      setEmail(parsed.email || "");
+
+      const fetchFreshAdminData = async () => {
+        try {
+          const response = await fetch(`${API_URL}/api/admin/admins-list`);
+
+          if (response.ok) {
+            const admins = await response.json();
+
+            const currentAdmin = Array.isArray(admins)
+              ? admins.find(
+                  (admin) =>
+                    String(admin._id) === String(parsed.id) ||
+                    String(admin.username) === String(parsed.employeeCode),
+                )
+              : null;
+
+            if (currentAdmin) {
+              const updated = {
+                ...parsed,
+                name: currentAdmin.name || parsed.name,
+                employeeCode: currentAdmin.username || parsed.employeeCode,
+                email: currentAdmin.email || "",
+                role: currentAdmin.role || parsed.role,
+              };
+
+              setEmail(currentAdmin.email || "");
+              updateStoredAdminData(updated);
+              setAdminUser(updated);
+            }
+          }
+        } catch (err) {
+          console.error("خطأ في تحديث بيانات الأدمن من السيرفر", err);
+        }
+      };
+
+      fetchFreshAdminData();
     } else {
       navigate("/");
     }
@@ -113,6 +182,49 @@ const AdminProfile = () => {
   }, [passwords.new, passwordChecks]);
 
   const isStrongPassword = Object.values(passwordChecks).every(Boolean);
+
+  const handleUpdateEmail = async (e) => {
+    e.preventDefault();
+
+    if (!adminUser?.id) return;
+
+    setEmailLoading(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/update-admin/${adminUser.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: adminUser.name,
+            username: adminUser.employeeCode,
+            email,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "حدث خطأ أثناء تحديث البريد الإلكتروني");
+      } else {
+        toast.success(data.message || "تم تحديث البريد الإلكتروني بنجاح");
+
+        const updated = {
+          ...adminUser,
+          email,
+        };
+
+        updateStoredAdminData(updated);
+        setAdminUser(updated);
+      }
+    } catch (err) {
+      toast.error("حدث خطأ أثناء الاتصال بالسيرفر");
+    } finally {
+      setEmailLoading(false);
+    }
+  };
 
   const handleUpdatePassword = async (e) => {
     e.preventDefault();
@@ -180,14 +292,15 @@ const AdminProfile = () => {
 
   return (
     <AdminLayout>
-      <div className="p-4 md:p-8 max-w-5xl mx-auto">
+      <div className="p-4 md:p-8 max-w-5xl mx-auto" dir="rtl">
         <header className="mb-8">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <User className="text-navy-light" />
             إعدادات حسابي (الإدارة)
           </h2>
           <p className="text-gray-500 text-sm mt-1">
-            الاطلاع على بياناتك وإدارة كلمة المرور لمديري النظام
+            الاطلاع على بياناتك وإدارة كلمة المرور والبريد الإلكتروني لمديري
+            النظام
           </p>
         </header>
 
@@ -223,6 +336,19 @@ const AdminProfile = () => {
 
                 <div>
                   <label className="text-xs text-gray-400 font-bold flex items-center gap-1 mb-1">
+                    <Mail size={12} />
+                    البريد الإلكتروني
+                  </label>
+                  <p
+                    className="font-semibold text-gray-700 bg-gray-50 p-2 rounded-lg text-left"
+                    dir="ltr"
+                  >
+                    {adminUser.email || "لم يتم تسجيل بريد إلكتروني"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs text-gray-400 font-bold flex items-center gap-1 mb-1">
                     <Briefcase size={12} />
                     الصفة بالنظام
                   </label>
@@ -234,8 +360,51 @@ const AdminProfile = () => {
             </div>
           </div>
 
-          {/* العمود الثاني: فورم تغيير كلمة المرور */}
-          <div className="lg:col-span-2">
+          {/* العمود الثاني: النماذج */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* كارت الإيميل */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Mail className="text-navy-light" size={20} />
+                البريد الإلكتروني للإشعارات
+              </h3>
+
+              <form onSubmit={handleUpdateEmail} className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    البريد الإلكتروني
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@example.com"
+                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border outline-none focus:border-navy-light focus:ring-2 focus:ring-navy-light/20 transition text-left"
+                    dir="ltr"
+                    required
+                  />
+                  <p className="mt-2 text-xs text-gray-400 font-medium">
+                    سيتم إرسال إشعارات طلبات الإجازة الجديدة إلى هذا البريد
+                    الإلكتروني.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={emailLoading}
+                  className={`bg-navy-light text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 ${
+                    emailLoading
+                      ? "opacity-70 cursor-not-allowed"
+                      : "hover:bg-navy-dark shadow-md"
+                  }`}
+                >
+                  <Save size={18} />
+                  {emailLoading ? "جاري الحفظ..." : "حفظ البريد الإلكتروني"}
+                </button>
+              </form>
+            </div>
+
+            {/* كارت تغيير كلمة المرور */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <Lock className="text-navy-light" size={20} />
@@ -358,7 +527,7 @@ const AdminProfile = () => {
                   </div>
                 </div>
 
-                {/* تأكيد كلمة المرور الجديدة */}
+                {/* تأكيد كلمة المرور */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
                     تأكيد كلمة المرور الجديدة

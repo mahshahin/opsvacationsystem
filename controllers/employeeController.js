@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const LeaveRequest = require("../models/LeaveRequest");
 const Log = require("../models/Log");
+const Admin = require("../models/Admin");
+const sendEmail = require("../utils/sendEmail");
 
 /* =========================
    Helpers
@@ -8,6 +10,102 @@ const Log = require("../models/Log");
 
 const getUserByEmployeeCode = async (employeeCode) => {
   return await User.findOne({ employeeCode });
+};
+
+const translateLeaveType = (type) => {
+  switch (type) {
+    case "annual":
+      return "اعتيادي";
+    case "casual":
+      return "عارضة";
+    case "compensation":
+      return "بدل أعياد";
+    default:
+      return type;
+  }
+};
+
+// إرسال إشعار موحد لكل الأدمنز (بدون تكرار إيميل)
+const notifyAdminsByEmail = async (subject, message) => {
+  const admins = await Admin.find({
+    email: { $exists: true, $ne: "" },
+  }).select("email name");
+
+  const uniqueAdminEmails = [
+    ...new Set(
+      admins
+        .map((a) =>
+          String(a.email || "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter(Boolean),
+    ),
+  ];
+
+  if (uniqueAdminEmails.length === 0) return;
+
+  await Promise.allSettled(
+    uniqueAdminEmails.map((email) => sendEmail(email, subject, message)),
+  );
+};
+
+// إشعار الأدمن بطلب إجازة جديد
+const sendAdminLeaveRequestNotification = async ({
+  employeeName,
+  employeeCode,
+  leaveType,
+  startDate,
+  endDate,
+  duration,
+  reason,
+}) => {
+  const subject = `طلب إجازة جديد من ${employeeName}`;
+
+  const message = `
+تم تقديم طلب إجازة جديد ويحتاج إلى مراجعة الإدارة.
+
+اسم الموظف: ${employeeName}
+كود الموظف: ${employeeCode}
+نوع الإجازة: ${translateLeaveType(leaveType)}
+من: ${new Date(startDate).toLocaleDateString("ar-EG")}
+إلى: ${new Date(endDate).toLocaleDateString("ar-EG")}
+عدد الأيام: ${duration}
+السبب: ${reason || "لا يوجد"}
+
+يرجى مراجعة الطلب من لوحة الإدارة.
+`;
+
+  await notifyAdminsByEmail(subject, message);
+};
+
+// ✅ جديد: إشعار الأدمن بإلغاء الموظف للطلب
+const sendAdminLeaveCancelNotification = async ({
+  employeeName,
+  employeeCode,
+  leaveType,
+  startDate,
+  endDate,
+  duration,
+  reason,
+}) => {
+  const subject = `إلغاء طلب إجازة من ${employeeName}`;
+
+  const message = `
+قام الموظف بإلغاء طلب إجازة كان في حالة انتظار.
+
+اسم الموظف: ${employeeName}
+كود الموظف: ${employeeCode}
+نوع الإجازة: ${translateLeaveType(leaveType)}
+من: ${new Date(startDate).toLocaleDateString("ar-EG")}
+إلى: ${new Date(endDate).toLocaleDateString("ar-EG")}
+عدد الأيام: ${duration}
+السبب: ${reason || "لا يوجد"}
+
+تم إلغاء الطلب من قبل الموظف قبل مراجعته.
+`;
+
+  await notifyAdminsByEmail(subject, message);
 };
 
 /* =========================
@@ -58,12 +156,15 @@ exports.getMyRequests = async (req, res) => {
   }
 };
 
-// إلغاء طلب إجازة
+// ✅ تعديل: إلغاء طلب إجازة + إشعار الأدمن
 exports.cancelRequest = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const request = await LeaveRequest.findById(id);
+    const request = await LeaveRequest.findById(id).populate(
+      "employeeId",
+      "name employeeCode",
+    );
 
     if (!request) {
       return res.status(404).json({ message: "الطلب غير موجود!" });
@@ -75,7 +176,33 @@ exports.cancelRequest = async (req, res) => {
       });
     }
 
+    const employee = request.employeeId;
+
     await LeaveRequest.findByIdAndDelete(id);
+
+    const newLog = new Log({
+      action: "LEAVE_CANCELLED_BY_EMPLOYEE",
+      performedBy: employee?._id || null,
+      details: `قام ${employee?.name || "موظف"} بإلغاء طلب إجازة (${request.leaveType}) لمدة ${request.duration} أيام.`,
+      ipAddress: req.ip,
+    });
+
+    await newLog.save();
+
+    // إرسال إشعار للإدارة
+    try {
+      await sendAdminLeaveCancelNotification({
+        employeeName: employee?.name || "غير معروف",
+        employeeCode: employee?.employeeCode || "—",
+        leaveType: request.leaveType,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        duration: request.duration,
+        reason: request.reason,
+      });
+    } catch (emailError) {
+      console.error("خطأ في إرسال إشعار إلغاء الإجازة للإدارة:", emailError);
+    }
 
     res.status(200).json({ message: "تم إلغاء الطلب بنجاح." });
   } catch (error) {
@@ -202,6 +329,21 @@ exports.submitLeaveRequest = async (req, res) => {
     });
 
     await newLog.save();
+
+    // إرسال إشعار إيميل للإدارة بوجود طلب جديد
+    try {
+      await sendAdminLeaveRequestNotification({
+        employeeName: user.name,
+        employeeCode: user.employeeCode,
+        leaveType,
+        startDate: start,
+        endDate: end,
+        duration,
+        reason,
+      });
+    } catch (emailError) {
+      console.error("خطأ في إرسال إشعار الإيميل للإدارة:", emailError);
+    }
 
     res.status(201).json({
       message: "تم تقديم طلب الإجازة بنجاح.",

@@ -60,6 +60,7 @@ exports.addEmployee = async (req, res) => {
       }
 
       const parsedQuota = Number(annualLeaveQuota);
+
       annualQuota =
         !Number.isNaN(parsedQuota) && parsedQuota >= 0
           ? parsedQuota
@@ -288,7 +289,7 @@ exports.updateEmployee = async (req, res) => {
     } else {
       user.jobGrade = jobGrade || user.jobGrade;
       user.workType = workType || user.workType;
-      // ✅ لم نعد نغير leaveBalances.annual ولا annualLeaveQuota تلقائيًا حسب الدرجة
+      // لا نغير الرصيد أو الاستحقاق السنوي تلقائيًا
     }
 
     await user.save();
@@ -526,11 +527,11 @@ exports.deleteLeaveArchive = async (req, res) => {
 };
 
 /* =========================
-   إنشاء مدير
+   إنشاء مدير (الإيميل اختياري)
 ========================= */
 exports.createAdmin = async (req, res) => {
   try {
-    const { username, name, password } = req.body;
+    const { username, name, password, email } = req.body;
 
     if (!username || !name || !password) {
       return res.status(400).json({
@@ -550,6 +551,7 @@ exports.createAdmin = async (req, res) => {
     const newAdmin = new Admin({
       username,
       name,
+      email: email ? email.trim().toLowerCase() : "",
       password: hashedPassword,
       role: "admin",
     });
@@ -585,7 +587,7 @@ exports.getAdminsList = async (req, res) => {
 ========================= */
 exports.updateAdmin = async (req, res) => {
   try {
-    const { name, username } = req.body;
+    const { name, username, email } = req.body;
 
     const admin = await Admin.findById(req.params.id);
 
@@ -600,6 +602,7 @@ exports.updateAdmin = async (req, res) => {
     }
 
     admin.name = name || admin.name;
+    admin.email = email ? email.trim().toLowerCase() : admin.email;
 
     if (admin.username !== "admin") {
       admin.username = username || admin.username;
