@@ -145,18 +145,19 @@ const EmployeeDropdown = ({
   dayNum,
   getEmployeeAlert,
   getEmployeeDayUsage,
+  getRestConflict,
   currentShift,
   currentRole,
   currentMemberIndex,
   shiftTheme,
-  placeholder = "-",
+  placeholder = "—",
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const wrapperRef = useRef(null);
 
   const selectedEmp = employees.find(
-    (emp) => String(emp._id) === String(value)
+    (emp) => String(emp._id) === String(value),
   );
 
   const selectedAlert = value ? getEmployeeAlert(value, dayNum) : null;
@@ -166,8 +167,12 @@ const EmployeeDropdown = ({
         value,
         currentShift,
         currentRole,
-        currentMemberIndex
+        currentMemberIndex,
       )
+    : null;
+
+  const selectedRestConflict = value
+    ? getRestConflict(value, dayNum, currentShift)
     : null;
 
   const filteredEmployees = useMemo(() => {
@@ -214,6 +219,9 @@ const EmployeeDropdown = ({
   if (selectedUsage?.isUsedElsewhere) {
     buttonClass =
       "border-purple-300 bg-purple-50 text-purple-800 hover:border-purple-400 focus:ring-2 focus:ring-purple-100";
+  } else if (selectedRestConflict?.blocked) {
+    buttonClass =
+      "border-red-300 bg-red-50 text-red-700 hover:border-red-400 focus:ring-2 focus:ring-red-100";
   } else if (selectedAlert) {
     buttonClass = selectedAlert.buttonClass;
   }
@@ -229,11 +237,17 @@ const EmployeeDropdown = ({
           <div className="flex min-w-0 items-center gap-1.5">
             {selectedUsage?.isUsedElsewhere ? (
               <span className="text-xs">⚠️</span>
+            ) : selectedRestConflict?.blocked ? (
+              <span className="text-xs">🛌</span>
             ) : selectedAlert ? (
               <span className="text-xs">🌴</span>
             ) : null}
 
-            <span className="truncate">
+            <span
+              className={`truncate ${
+                selectedEmp ? "text-current" : "text-slate-400"
+              }`}
+            >
               {selectedEmp ? selectedEmp.name : placeholder}
             </span>
           </div>
@@ -268,6 +282,13 @@ const EmployeeDropdown = ({
             <div className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">
               <span>⚠️</span>
               <span>مكرر في نفس اليوم</span>
+            </div>
+          )}
+
+          {selectedRestConflict?.blocked && (
+            <div className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+              <span>🛌</span>
+              <span>راحة</span>
             </div>
           )}
         </div>
@@ -313,10 +334,17 @@ const EmployeeDropdown = ({
                     emp._id,
                     currentShift,
                     currentRole,
-                    currentMemberIndex
+                    currentMemberIndex,
                   );
+                  const restConflict = getRestConflict(
+                    emp._id,
+                    dayNum,
+                    currentShift,
+                  );
+
                   const isSelected = String(emp._id) === String(value);
-                  const disabled = usage?.isUsedElsewhere;
+                  const disabled =
+                    usage?.isUsedElsewhere || restConflict?.blocked;
 
                   return (
                     <button
@@ -333,8 +361,8 @@ const EmployeeDropdown = ({
                         disabled
                           ? "cursor-not-allowed border-slate-200 bg-slate-100 opacity-70"
                           : isSelected
-                          ? "border-blue-300 bg-blue-50"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
+                            ? "border-blue-300 bg-blue-50"
+                            : "border-slate-200 bg-white hover:bg-slate-50"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -345,9 +373,16 @@ const EmployeeDropdown = ({
                           <div className="mt-0.5 text-[10px] font-medium text-slate-500">
                             كود: {emp.employeeCode || "—"}
                           </div>
+
                           {usage?.isUsedElsewhere && (
                             <div className="mt-1 text-[10px] font-bold text-purple-700">
                               مستخدم في: {usage.label}
+                            </div>
+                          )}
+
+                          {restConflict?.blocked && (
+                            <div className="mt-1 text-[10px] font-bold text-red-700">
+                              {restConflict.reason}
                             </div>
                           )}
                         </div>
@@ -364,6 +399,12 @@ const EmployeeDropdown = ({
                           {usage?.isUsedElsewhere && (
                             <span className="rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 text-[9px] font-bold text-purple-700">
                               مكرر
+                            </span>
+                          )}
+
+                          {restConflict?.blocked && (
+                            <span className="rounded-full border border-red-200 bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-700">
+                              راحة
                             </span>
                           )}
 
@@ -433,7 +474,7 @@ const RosterManagement = () => {
 
       try {
         const response = await fetch(
-          `${API_URL}/api/roster/init?month=${month}&year=${year}`
+          `${API_URL}/api/roster/init?month=${month}&year=${year}`,
         );
         const data = await response.json();
         if (!isMounted) return;
@@ -447,17 +488,17 @@ const RosterManagement = () => {
                   if (codeA !== codeB) return codeA - codeB;
                   return String(a.name || "").localeCompare(
                     String(b.name || ""),
-                    "ar"
+                    "ar",
                   );
                 })
-              : []
+              : [],
           );
 
           setLeaves(Array.isArray(data.leaves) ? data.leaves : []);
 
           if (data.existingRoster) {
             setRosterData(
-              normalizeRosterData(data.existingRoster.details, month, year)
+              normalizeRosterData(data.existingRoster.details, month, year),
             );
             setRosterStatus(data.existingRoster.status || null);
           } else {
@@ -535,7 +576,9 @@ const RosterManagement = () => {
       const leaveEmpId = normalizeId(leave.employeeId);
       if (!leaveEmpId || leaveEmpId !== targetEmpId) return false;
 
-      const status = String(leave.status || "").trim().toLowerCase();
+      const status = String(leave.status || "")
+        .trim()
+        .toLowerCase();
       if (!["approved", "pending"].includes(status)) return false;
 
       const start = new Date(leave.startDate);
@@ -548,7 +591,9 @@ const RosterManagement = () => {
 
     if (!matchedLeave) return null;
 
-    const status = String(matchedLeave.status || "").trim().toLowerCase();
+    const status = String(matchedLeave.status || "")
+      .trim()
+      .toLowerCase();
     const isPending = status === "pending";
 
     return {
@@ -568,7 +613,7 @@ const RosterManagement = () => {
     empId,
     currentShift,
     currentRole,
-    currentMemberIndex = null
+    currentMemberIndex = null,
   ) => {
     const dayData = rosterData[dayNum];
     if (!dayData || !empId) return null;
@@ -577,7 +622,7 @@ const RosterManagement = () => {
     const currentKey = getSlotKey(
       currentShift,
       currentRole,
-      currentMemberIndex
+      currentMemberIndex,
     );
 
     const usedSlots = [];
@@ -613,6 +658,46 @@ const RosterManagement = () => {
     };
   };
 
+  // ✅ قاعدة الراحة: من كان في الثانية أو الثالثة أمس لا يعمل الأولى اليوم
+  const getRestConflict = (empId, dayNum, currentShift) => {
+    if (currentShift !== "shift1") return null;
+    if (dayNum <= 1) return null;
+
+    const previousDay = rosterData[dayNum - 1];
+    if (!previousDay) return null;
+
+    const targetId = normalizeId(empId);
+
+    const existsInShift = (shiftData) => {
+      if (!shiftData) return false;
+
+      const leaderMatch =
+        shiftData.leader && normalizeId(shiftData.leader) === targetId;
+
+      const memberMatch =
+        Array.isArray(shiftData.members) &&
+        shiftData.members.some((m) => m && normalizeId(m) === targetId);
+
+      return leaderMatch || memberMatch;
+    };
+
+    if (existsInShift(previousDay.shift3)) {
+      return {
+        blocked: true,
+        reason: "كان في الوردية الثالثة أمس",
+      };
+    }
+
+    if (existsInShift(previousDay.shift2)) {
+      return {
+        blocked: true,
+        reason: "كان في الوردية الثانية أمس",
+      };
+    }
+
+    return null;
+  };
+
   const validateRoster = () => {
     const errors = [];
 
@@ -624,7 +709,7 @@ const RosterManagement = () => {
         const shiftData = dayData[shiftKey] || {};
         const hasLeader = !!normalizeId(shiftData.leader);
         const membersCount = (shiftData.members || []).filter(
-          (m) => !!normalizeId(m)
+          (m) => !!normalizeId(m),
         ).length;
 
         const totalPeople = (hasLeader ? 1 : 0) + membersCount;
@@ -642,6 +727,31 @@ const RosterManagement = () => {
             dayName: day.dayName,
             shift: shiftLabels[shiftKey],
             problems: problems.join(" — "),
+          });
+        }
+      });
+
+      // ✅ فحص الراحة في الوردية الأولى لليوم الحالي
+      const currentShift1 = dayData.shift1 || {};
+      const idsToCheck = [];
+
+      if (currentShift1.leader) idsToCheck.push(currentShift1.leader);
+      (currentShift1.members || []).forEach((m) => {
+        if (m) idsToCheck.push(m);
+      });
+
+      idsToCheck.forEach((empId) => {
+        const restConflict = getRestConflict(empId, day.dayNumber, "shift1");
+        if (restConflict?.blocked) {
+          const emp = employees.find(
+            (e) => normalizeId(e._id) === normalizeId(empId),
+          );
+
+          errors.push({
+            day: day.dayNumber,
+            dayName: day.dayName,
+            shift: "الأولى",
+            problems: `${emp?.name || "موظف"} — ${restConflict.reason}`,
           });
         }
       });
@@ -667,7 +777,7 @@ const RosterManagement = () => {
         if (scheduledIds.has(id)) return false;
 
         const onLeaveAllMonth = daysInMonth.every(
-          (day) => !!getEmployeeAlert(emp._id, day.dayNumber)
+          (day) => !!getEmployeeAlert(emp._id, day.dayNumber),
         );
 
         return !onLeaveAllMonth;
@@ -733,11 +843,20 @@ const RosterManagement = () => {
       newValue,
       shift,
       role,
-      memberIndex
+      memberIndex,
     );
 
     if (usage?.isUsedElsewhere) {
       toast.error(`الموظف ده مضاف بالفعل في ${usage.label} لنفس اليوم`);
+      return;
+    }
+
+    const restConflict = getRestConflict(newValue, dayNum, shift);
+
+    if (restConflict?.blocked) {
+      toast.error(
+        `لا يمكن تسكين هذا الموظف في الوردية الأولى يوم ${dayNum} لأنه ${restConflict.reason}`,
+      );
       return;
     }
 
@@ -757,6 +876,7 @@ const RosterManagement = () => {
         dayNum={dayNum}
         getEmployeeAlert={getEmployeeAlert}
         getEmployeeDayUsage={getEmployeeDayUsage}
+        getRestConflict={getRestConflict}
         currentShift={shift}
         currentRole={role}
         currentMemberIndex={memberIndex}
@@ -839,7 +959,9 @@ const RosterManagement = () => {
       const empId = normalizeId(leave.employeeId);
       if (!summaryMap[empId]) return;
 
-      const status = String(leave.status || "").trim().toLowerCase();
+      const status = String(leave.status || "")
+        .trim()
+        .toLowerCase();
       if (status !== "approved") return;
 
       const daysInsideMonth = getApprovedLeaveDaysInsideMonth(leave);
@@ -854,17 +976,17 @@ const RosterManagement = () => {
   const employeeSummaryStats = useMemo(() => {
     const totalAssignments = employeeRosterSummary.reduce(
       (sum, emp) => sum + emp.total,
-      0
+      0,
     );
     const scheduledCount = employeeRosterSummary.filter(
-      (emp) => emp.total > 0
+      (emp) => emp.total > 0,
     ).length;
     const unscheduledCount = employeeRosterSummary.filter(
-      (emp) => emp.total === 0
+      (emp) => emp.total === 0,
     ).length;
     const totalApprovedLeaveDays = employeeRosterSummary.reduce(
       (sum, emp) => sum + emp.approvedLeaveDays,
-      0
+      0,
     );
 
     const averageAssignments =
@@ -934,7 +1056,7 @@ const RosterManagement = () => {
         break;
       case "code-asc":
         rows.sort(
-          (a, b) => Number(a.employeeCode || 0) - Number(b.employeeCode || 0)
+          (a, b) => Number(a.employeeCode || 0) - Number(b.employeeCode || 0),
         );
         break;
       case "leader-desc":
@@ -1004,6 +1126,7 @@ const RosterManagement = () => {
                 تنظيم الورديات الشهرية مع تنبيه الإجازات وطلبات الإجازة
               </p>
             </div>
+
             {loading && (
               <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 no-print">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-blue-600"></span>
@@ -1092,15 +1215,15 @@ const RosterManagement = () => {
                         rosterStatus === "published"
                           ? "bg-green-100 text-green-700"
                           : rosterStatus === "draft"
-                          ? "bg-orange-100 text-orange-700"
-                          : "bg-slate-200 text-slate-700"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-slate-200 text-slate-700"
                       }`}
                     >
                       {rosterStatus === "published"
                         ? "معتمد"
                         : rosterStatus === "draft"
-                        ? "مسودة"
-                        : "جديد"}
+                          ? "مسودة"
+                          : "جديد"}
                     </span>
                   </div>
                 </div>
@@ -1109,12 +1232,27 @@ const RosterManagement = () => {
           </div>
 
           <div className="mb-4 flex flex-wrap items-center gap-2 no-print">
-            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">الأولى</span>
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">الثانية</span>
-            <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700">الثالثة</span>
-            <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700">🌴 إجازة معتمدة</span>
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">🌴 طلب إجازة</span>
-            <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-bold text-purple-700">⚠️ مكرر في نفس اليوم</span>
+            <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">
+              الأولى
+            </span>
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+              الثانية
+            </span>
+            <span className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-bold text-violet-700">
+              الثالثة
+            </span>
+            <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700">
+              🌴 إجازة معتمدة
+            </span>
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+              🌴 طلب إجازة
+            </span>
+            <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[11px] font-bold text-purple-700">
+              ⚠️ مكرر في نفس اليوم
+            </span>
+            <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-700">
+              🛌 راحة
+            </span>
           </div>
 
           <div className="mb-4 rounded-xl border-2 border-black bg-[#ffe600] p-4 text-center shadow-sm print-banner">
@@ -1134,20 +1272,74 @@ const RosterManagement = () => {
             <table className="w-full table-fixed border-collapse text-[11px] leading-tight print-table">
               <thead>
                 <tr className="text-slate-900">
-                  <th rowSpan="2" className="sticky top-0 z-30 h-[72px] w-20 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm">اليوم</th>
-                  <th rowSpan="2" className="sticky top-0 z-30 h-[72px] w-14 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm">التاريخ</th>
-                  <th colSpan="2" className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift1.header}`}>الأولى</th>
-                  <th colSpan="2" className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift2.header}`}>الثانية</th>
-                  <th colSpan="2" className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift3.header}`}>الثالثة</th>
-                  <th rowSpan="2" className="sticky top-0 z-30 h-[72px] w-36 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm">ملاحظات</th>
+                  <th
+                    rowSpan="2"
+                    className="sticky top-0 z-30 h-[72px] w-20 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm"
+                  >
+                    اليوم
+                  </th>
+                  <th
+                    rowSpan="2"
+                    className="sticky top-0 z-30 h-[72px] w-14 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm"
+                  >
+                    التاريخ
+                  </th>
+                  <th
+                    colSpan="2"
+                    className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift1.header}`}
+                  >
+                    الأولى
+                  </th>
+                  <th
+                    colSpan="2"
+                    className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift2.header}`}
+                  >
+                    الثانية
+                  </th>
+                  <th
+                    colSpan="2"
+                    className={`sticky top-0 z-30 h-11 border-2 border-black px-1.5 py-2 shadow-sm ${shiftThemes.shift3.header}`}
+                  >
+                    الثالثة
+                  </th>
+                  <th
+                    rowSpan="2"
+                    className="sticky top-0 z-30 h-[72px] w-36 border-2 border-black bg-[#ffe600] px-1.5 py-2 shadow-sm"
+                  >
+                    ملاحظات
+                  </th>
                 </tr>
                 <tr className="text-slate-900">
-                  <th className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift1.subHeader}`}>رئيس النوبة</th>
-                  <th className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift1.subHeader}`}>أفراد النوبة</th>
-                  <th className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift2.subHeader}`}>رئيس النوبة</th>
-                  <th className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift2.subHeader}`}>أفراد النوبة</th>
-                  <th className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift3.subHeader}`}>رئيس النوبة</th>
-                  <th className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift3.subHeader}`}>أفراد النوبة</th>
+                  <th
+                    className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift1.subHeader}`}
+                  >
+                    رئيس النوبة
+                  </th>
+                  <th
+                    className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift1.subHeader}`}
+                  >
+                    أفراد النوبة
+                  </th>
+                  <th
+                    className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift2.subHeader}`}
+                  >
+                    رئيس النوبة
+                  </th>
+                  <th
+                    className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift2.subHeader}`}
+                  >
+                    أفراد النوبة
+                  </th>
+                  <th
+                    className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift3.subHeader}`}
+                  >
+                    رئيس النوبة
+                  </th>
+                  <th
+                    className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift3.subHeader}`}
+                  >
+                    أفراد النوبة
+                  </th>
                 </tr>
               </thead>
 
@@ -1173,39 +1365,108 @@ const RosterManagement = () => {
                       </span>
                     </td>
 
-                    <td className={`border-2 border-black p-1.5 ${shiftThemes.shift1.cell}`}>
-                      {renderEmployeeDropdown(day.dayNumber, "shift1", "leader")}
+                    <td
+                      className={`border-2 border-black p-1.5 ${shiftThemes.shift1.cell}`}
+                    >
+                      {renderEmployeeDropdown(
+                        day.dayNumber,
+                        "shift1",
+                        "leader",
+                      )}
                     </td>
 
-                    <td className={`border-2 border-black p-1.5 ${shiftThemes.shift1.cell}`}>
+                    <td
+                      className={`border-2 border-black p-1.5 ${shiftThemes.shift1.cell}`}
+                    >
                       <div className="flex flex-col gap-1">
-                        {renderEmployeeDropdown(day.dayNumber, "shift1", "members", 0)}
-                        {renderEmployeeDropdown(day.dayNumber, "shift1", "members", 1)}
-                        {renderEmployeeDropdown(day.dayNumber, "shift1", "members", 2)}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift1",
+                          "members",
+                          0,
+                        )}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift1",
+                          "members",
+                          1,
+                        )}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift1",
+                          "members",
+                          2,
+                        )}
                       </div>
                     </td>
 
-                    <td className={`border-2 border-black p-1.5 ${shiftThemes.shift2.cell}`}>
-                      {renderEmployeeDropdown(day.dayNumber, "shift2", "leader")}
+                    <td
+                      className={`border-2 border-black p-1.5 ${shiftThemes.shift2.cell}`}
+                    >
+                      {renderEmployeeDropdown(
+                        day.dayNumber,
+                        "shift2",
+                        "leader",
+                      )}
                     </td>
 
-                    <td className={`border-2 border-black p-1.5 ${shiftThemes.shift2.cell}`}>
+                    <td
+                      className={`border-2 border-black p-1.5 ${shiftThemes.shift2.cell}`}
+                    >
                       <div className="flex flex-col gap-1">
-                        {renderEmployeeDropdown(day.dayNumber, "shift2", "members", 0)}
-                        {renderEmployeeDropdown(day.dayNumber, "shift2", "members", 1)}
-                        {renderEmployeeDropdown(day.dayNumber, "shift2", "members", 2)}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift2",
+                          "members",
+                          0,
+                        )}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift2",
+                          "members",
+                          1,
+                        )}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift2",
+                          "members",
+                          2,
+                        )}
                       </div>
                     </td>
 
-                    <td className={`border-2 border-black p-1.5 ${shiftThemes.shift3.cell}`}>
-                      {renderEmployeeDropdown(day.dayNumber, "shift3", "leader")}
+                    <td
+                      className={`border-2 border-black p-1.5 ${shiftThemes.shift3.cell}`}
+                    >
+                      {renderEmployeeDropdown(
+                        day.dayNumber,
+                        "shift3",
+                        "leader",
+                      )}
                     </td>
 
-                    <td className={`border-2 border-black p-1.5 ${shiftThemes.shift3.cell}`}>
+                    <td
+                      className={`border-2 border-black p-1.5 ${shiftThemes.shift3.cell}`}
+                    >
                       <div className="flex flex-col gap-1">
-                        {renderEmployeeDropdown(day.dayNumber, "shift3", "members", 0)}
-                        {renderEmployeeDropdown(day.dayNumber, "shift3", "members", 1)}
-                        {renderEmployeeDropdown(day.dayNumber, "shift3", "members", 2)}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift3",
+                          "members",
+                          0,
+                        )}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift3",
+                          "members",
+                          1,
+                        )}
+                        {renderEmployeeDropdown(
+                          day.dayNumber,
+                          "shift3",
+                          "members",
+                          2,
+                        )}
                       </div>
                     </td>
 
@@ -1218,7 +1479,7 @@ const RosterManagement = () => {
                             null,
                             "notes",
                             null,
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         className="min-h-[58px] w-full resize-none rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 no-print"
@@ -1251,7 +1512,8 @@ const RosterManagement = () => {
                   </h3>
                 </div>
                 <p className="mt-1 text-xs font-medium text-slate-500">
-                  يوضح نصيب كل موظف من إجمالي الورديات وعدد أيام الإجازات المعتمدة خلال الشهر
+                  يوضح نصيب كل موظف من إجمالي الورديات وعدد أيام الإجازات
+                  المعتمدة خلال الشهر
                 </p>
               </div>
 
@@ -1339,10 +1601,18 @@ const RosterManagement = () => {
                         <option value="total-desc">ترتيب: الأكثر ورديات</option>
                         <option value="total-asc">ترتيب: الأقل ورديات</option>
                         <option value="code-asc">ترتيب: حسب الكود</option>
-                        <option value="leader-desc">ترتيب: الأكثر رؤساء نوبة</option>
-                        <option value="shift1-desc">ترتيب: الأكثر بالأولى</option>
-                        <option value="shift2-desc">ترتيب: الأكثر بالثانية</option>
-                        <option value="shift3-desc">ترتيب: الأكثر بالثالثة</option>
+                        <option value="leader-desc">
+                          ترتيب: الأكثر رؤساء نوبة
+                        </option>
+                        <option value="shift1-desc">
+                          ترتيب: الأكثر بالأولى
+                        </option>
+                        <option value="shift2-desc">
+                          ترتيب: الأكثر بالثانية
+                        </option>
+                        <option value="shift3-desc">
+                          ترتيب: الأكثر بالثالثة
+                        </option>
                       </select>
                     </div>
                   </div>
@@ -1354,14 +1624,30 @@ const RosterManagement = () => {
                       <tr>
                         <th className="p-3 whitespace-nowrap">الكود</th>
                         <th className="p-3 whitespace-nowrap">الاسم</th>
-                        <th className="p-3 text-center whitespace-nowrap">الإجمالي</th>
-                        <th className="p-3 text-center whitespace-nowrap">رئيس نوبة</th>
-                        <th className="p-3 text-center whitespace-nowrap">فرد نوبة</th>
-                        <th className="p-3 text-center whitespace-nowrap">الأولى</th>
-                        <th className="p-3 text-center whitespace-nowrap">الثانية</th>
-                        <th className="p-3 text-center whitespace-nowrap">الثالثة</th>
-                        <th className="p-3 text-center whitespace-nowrap">الإجازات المعتمدة</th>
-                        <th className="p-3 text-center whitespace-nowrap">الحالة</th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الإجمالي
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          رئيس نوبة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          فرد نوبة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الأولى
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الثانية
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الثالثة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الإجازات المعتمدة
+                        </th>
+                        <th className="p-3 text-center whitespace-nowrap">
+                          الحالة
+                        </th>
                       </tr>
                     </thead>
 
@@ -1370,7 +1656,10 @@ const RosterManagement = () => {
                         const status = getEmployeeLoadStatus(emp);
 
                         return (
-                          <tr key={emp._id} className="hover:bg-slate-50 transition">
+                          <tr
+                            key={emp._id}
+                            className="hover:bg-slate-50 transition"
+                          >
                             <td className="p-3 font-bold text-slate-600">
                               {emp.employeeCode}
                             </td>
@@ -1388,9 +1677,15 @@ const RosterManagement = () => {
                             <td className="p-3 text-center font-bold text-slate-700">
                               {emp.memberCount}
                             </td>
-                            <td className="p-3 text-center">{emp.shift1Count}</td>
-                            <td className="p-3 text-center">{emp.shift2Count}</td>
-                            <td className="p-3 text-center">{emp.shift3Count}</td>
+                            <td className="p-3 text-center">
+                              {emp.shift1Count}
+                            </td>
+                            <td className="p-3 text-center">
+                              {emp.shift2Count}
+                            </td>
+                            <td className="p-3 text-center">
+                              {emp.shift3Count}
+                            </td>
                             <td className="p-3 text-center">
                               <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
                                 {emp.approvedLeaveDays} يوم
@@ -1431,6 +1726,7 @@ const RosterManagement = () => {
             >
               طباعة PDF
             </button>
+
             {rosterStatus === "published" ? (
               <button
                 onClick={() => handleSaveRoster("published")}
@@ -1525,7 +1821,8 @@ const RosterManagement = () => {
                 {validationModal.unscheduled.length > 0 && (
                   <div>
                     <span className="mb-2 block text-sm font-bold text-amber-700">
-                      موظفون لم يُجدولوا هذا الشهر ({validationModal.unscheduled.length})
+                      موظفون لم يُجدولوا هذا الشهر (
+                      {validationModal.unscheduled.length})
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {validationModal.unscheduled.map((emp, i) => (
@@ -1554,6 +1851,7 @@ const RosterManagement = () => {
                 >
                   رجوع لتعديل الجدول
                 </button>
+
                 <button
                   onClick={() => {
                     setValidationModal({
@@ -1576,7 +1874,7 @@ const RosterManagement = () => {
               </div>
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </AdminLayout>
   );
