@@ -4,11 +4,10 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  CalendarDays,
   User,
   BadgeInfo,
-  FileText,
   AlertTriangle,
+  Save,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminLayout from "../components/AdminLayout";
@@ -22,6 +21,18 @@ const AdminDashboard = () => {
     requestId: null,
     action: null,
   });
+
+  const [monthlyLeaveLimit, setMonthlyLeaveLimit] = useState("");
+  const [currentMonthlyLeaveLimit, setCurrentMonthlyLeaveLimit] =
+    useState(null);
+  const [monthlyLimitLoading, setMonthlyLimitLoading] = useState(true);
+  const [savingMonthlyLimit, setSavingMonthlyLimit] = useState(false);
+
+  const extractMonthlyLimit = (data) => {
+    const value = data?.monthlyLeaveLimit ?? data?.value ?? 0;
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
 
   const fetchPendingRequests = async () => {
     try {
@@ -40,8 +51,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchMonthlyLeaveLimit = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/leave-rules/monthly-limit`,
+      );
+      const data = await response.json();
+
+      if (response.ok) {
+        const limit = extractMonthlyLimit(data);
+        setMonthlyLeaveLimit(String(limit));
+        setCurrentMonthlyLeaveLimit(limit);
+      } else {
+        toast.error(data.message || "فشل تحميل الحد الشهري للإجازات");
+      }
+    } catch (err) {
+      toast.error("حدث خطأ أثناء تحميل إعدادات الإجازات");
+    } finally {
+      setMonthlyLimitLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPendingRequests();
+    fetchMonthlyLeaveLimit();
 
     const interval = setInterval(() => {
       fetchPendingRequests();
@@ -49,6 +82,51 @@ const AdminDashboard = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const handleSaveMonthlyLeaveLimit = async () => {
+    const parsedLimit = Number(monthlyLeaveLimit);
+
+    if (
+      monthlyLeaveLimit === "" ||
+      Number.isNaN(parsedLimit) ||
+      !Number.isInteger(parsedLimit) ||
+      parsedLimit < 1
+    ) {
+      toast.error("من فضلك أدخل عدد أيام صحيح أكبر من أو يساوي 1");
+      return;
+    }
+
+    try {
+      setSavingMonthlyLimit(true);
+
+      const response = await fetch(
+        `${API_URL}/api/admin/leave-rules/monthly-limit`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ monthlyLeaveLimit: parsedLimit }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "فشل حفظ الحد الشهري");
+        return;
+      }
+
+      const savedLimit = extractMonthlyLimit(data) || parsedLimit;
+
+      setMonthlyLeaveLimit(String(savedLimit));
+      setCurrentMonthlyLeaveLimit(savedLimit);
+
+      toast.success(data.message || "تم تحديث الحد الشهري للإجازات بنجاح");
+    } catch (err) {
+      toast.error("حدث خطأ أثناء حفظ الحد الشهري");
+    } finally {
+      setSavingMonthlyLimit(false);
+    }
+  };
 
   const handleAction = async (requestId, action) => {
     try {
@@ -136,7 +214,6 @@ const AdminDashboard = () => {
   return (
     <AdminLayout>
       <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
-        {/* Header */}
         <header className="mb-6 md:mb-8 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 md:p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-gray-800">
@@ -152,7 +229,68 @@ const AdminDashboard = () => {
           </div>
         </header>
 
-        {/* Stats */}
+        <div className="mb-6 rounded-2xl border border-violet-100 bg-white p-4 md:p-6 shadow-sm">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex-1">
+              <div className="flex items-start gap-3">
+                <div className="rounded-2xl bg-violet-100 p-3 text-violet-600">
+                  <BadgeInfo size={20} />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-gray-800">
+                    الحد الشهري للإجازات
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    أي طلب إجازة يتجاوز هذا العدد أو يجعل مجموع إجازات الموظف
+                    خلال نفس الشهر يتعدى هذا الحد سيتم رفضه تلقائيًا.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-violet-50 px-3 py-2 text-sm font-bold text-violet-700">
+                <BadgeInfo size={16} />
+                {monthlyLimitLoading
+                  ? "جاري تحميل الحد الحالي..."
+                  : `الحد الحالي المطبق: ${currentMonthlyLeaveLimit ?? 0} يوم`}
+              </div>
+
+              <p className="mt-3 text-xs text-gray-500">
+                مثال: لو القيمة 5، أي طلب أكبر من 5 أيام أو أي مجموع إجازات في
+                نفس الشهر يتعدى 5 سيتم رفضه.
+              </p>
+            </div>
+
+            <div className="w-full xl:w-auto">
+              <div className="grid gap-3 md:grid-cols-[240px_160px]">
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-gray-700">
+                    عدد الأيام المسموح بها شهريًا
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={monthlyLeaveLimit}
+                    onChange={(e) => setMonthlyLeaveLimit(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base font-bold text-gray-800 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                    placeholder="مثال: 5"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSaveMonthlyLeaveLimit}
+                  disabled={savingMonthlyLimit || monthlyLimitLoading}
+                  className="mt-0 md:mt-7 inline-flex h-[50px] items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save size={16} />
+                  {savingMonthlyLimit ? "جاري الحفظ..." : "حفظ"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
           <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
             <div className="text-xs font-bold text-blue-700">
@@ -185,7 +323,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Mobile Cards */}
         <div className="space-y-4 md:hidden">
           {loading ? (
             <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-400 shadow-sm">
@@ -209,7 +346,7 @@ const AdminDashboard = () => {
                           <User size={16} />
                         </div>
                         <div className="min-w-0">
-                          <div className="font-black text-gray-800 break-words">
+                          <div className="break-words font-black text-gray-800">
                             {req.employeeId?.name || "غير معروف"}
                           </div>
                           <div className="mt-1 text-xs text-gray-400">
@@ -260,7 +397,7 @@ const AdminDashboard = () => {
 
                   <div className="mb-3 grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-gray-50 p-3">
-                      <div className="text-xs font-bold text-gray-500 mb-1">
+                      <div className="mb-1 text-xs font-bold text-gray-500">
                         من
                       </div>
                       <div className="text-sm font-bold text-gray-800">
@@ -269,7 +406,7 @@ const AdminDashboard = () => {
                     </div>
 
                     <div className="rounded-xl bg-gray-50 p-3">
-                      <div className="text-xs font-bold text-gray-500 mb-1">
+                      <div className="mb-1 text-xs font-bold text-gray-500">
                         إلى
                       </div>
                       <div className="text-sm font-bold text-gray-800">
@@ -279,7 +416,7 @@ const AdminDashboard = () => {
                   </div>
 
                   <div className="mb-4 rounded-xl bg-gray-50 p-3">
-                    <div className="text-xs font-bold text-gray-500 mb-1">
+                    <div className="mb-1 text-xs font-bold text-gray-500">
                       تاريخ التقديم
                     </div>
                     <div className="text-sm font-bold text-gray-800">
@@ -328,11 +465,10 @@ const AdminDashboard = () => {
           )}
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+        <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
           <div className="overflow-x-auto">
             <table className="w-full text-right">
-              <thead className="bg-gray-50 text-gray-500 text-sm">
+              <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
                   <th className="p-4">اسم الموظف</th>
                   <th className="p-4">الدرجة</th>
@@ -358,16 +494,16 @@ const AdminDashboard = () => {
                     const isLoading = actionLoading.requestId === req._id;
 
                     return (
-                      <tr key={req._id} className="hover:bg-gray-50 transition">
+                      <tr key={req._id} className="transition hover:bg-gray-50">
                         <td className="p-4 font-bold text-gray-800">
                           {req.employeeId?.name || "غير معروف"}
-                          <div className="text-xs text-gray-400 font-normal mt-1">
-                            كود: {req.employeeId?.employeeCode}
+                          <div className="mt-1 text-xs font-normal text-gray-400">
+                            كود: {req.employeeId?.employeeCode || "---"}
                           </div>
                         </td>
 
                         <td className="p-4 text-sm text-gray-600">
-                          {req.employeeId?.jobGrade}
+                          {req.employeeId?.jobGrade || "---"}
                         </td>
 
                         <td className="p-4">
@@ -376,7 +512,7 @@ const AdminDashboard = () => {
                           </div>
 
                           <div className="mt-1.5">
-                            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-[11px] font-bold border border-gray-200">
+                            <span className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">
                               الرصيد المتبقي:
                               <span
                                 className={
@@ -400,17 +536,17 @@ const AdminDashboard = () => {
                           {formatDate(req.endDate)}
                         </td>
 
-                        <td className="p-4 text-sm font-bold text-center">
+                        <td className="p-4 text-center text-sm font-bold">
                           {req.duration} يوم
                         </td>
 
                         <td className="p-4 text-center">
                           <div className="flex flex-col items-center justify-center">
-                            <span className="text-gray-700 font-medium">
+                            <span className="font-medium text-gray-700">
                               {formatDate(req.createdAt)}
                             </span>
                             <span
-                              className="text-xs text-gray-400 mt-1 flex items-center gap-1"
+                              className="mt-1 flex items-center gap-1 text-xs text-gray-400"
                               dir="ltr"
                             >
                               <Clock size={12} />
@@ -424,7 +560,7 @@ const AdminDashboard = () => {
                             <button
                               onClick={() => handleAction(req._id, "approve")}
                               disabled={isLoading}
-                              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                              className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               <CheckCircle size={16} />
                               {isLoading && actionLoading.action === "approve"
@@ -435,7 +571,7 @@ const AdminDashboard = () => {
                             <button
                               onClick={() => handleAction(req._id, "reject")}
                               disabled={isLoading}
-                              className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-bold transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                              className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               <XCircle size={16} />
                               {isLoading && actionLoading.action === "reject"
@@ -451,7 +587,7 @@ const AdminDashboard = () => {
                   <tr>
                     <td
                       colSpan="7"
-                      className="p-12 text-center text-gray-400 text-lg"
+                      className="p-12 text-center text-lg text-gray-400"
                     >
                       <ShieldCheck
                         size={48}

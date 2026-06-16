@@ -1,3 +1,4 @@
+const SystemSettings = require("../models/SystemSettings");
 const bcrypt = require("bcryptjs");
 
 const User = require("../models/User");
@@ -602,7 +603,10 @@ exports.updateAdmin = async (req, res) => {
     }
 
     admin.name = name || admin.name;
-    admin.email = email ? email.trim().toLowerCase() : admin.email;
+
+    if (typeof email === "string") {
+      admin.email = email.trim().toLowerCase();
+    }
 
     if (admin.username !== "admin") {
       admin.username = username || admin.username;
@@ -642,6 +646,61 @@ exports.deleteAdmin = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "خطأ أثناء المسح",
+      error: error.message,
+    });
+  }
+};
+/* =========================
+   إعدادات الحد الأقصى الشهري للإجازات
+========================= */
+
+exports.getMonthlyLeaveLimit = async (req, res) => {
+  try {
+    const setting = await SystemSettings.findOne({
+      key: "monthlyLeaveLimit",
+    });
+
+    return res.status(200).json({
+      success: true,
+      monthlyLeaveLimit: setting ? Number(setting.value) : 3,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء جلب الحد الشهري",
+      error: error.message,
+    });
+  }
+};
+
+exports.updateMonthlyLeaveLimit = async (req, res) => {
+  try {
+    const { monthlyLeaveLimit } = req.body;
+
+    const parsedLimit = Number(monthlyLeaveLimit);
+
+    if (Number.isNaN(parsedLimit) || parsedLimit < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "برجاء إدخال رقم صحيح أكبر من صفر",
+      });
+    }
+
+    await SystemSettings.findOneAndUpdate(
+      { key: "monthlyLeaveLimit" },
+      { value: parsedLimit },
+      { upsert: true, new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "تم تحديث الحد الشهري بنجاح",
+      monthlyLeaveLimit: parsedLimit,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء تحديث الحد الشهري",
       error: error.message,
     });
   }

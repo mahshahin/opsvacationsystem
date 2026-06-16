@@ -2,6 +2,7 @@ const User = require("../models/User");
 const LeaveRequest = require("../models/LeaveRequest");
 const Log = require("../models/Log");
 const Admin = require("../models/Admin");
+const SystemSettings = require("../models/SystemSettings");
 const sendEmail = require("../utils/sendEmail");
 
 /* =========================
@@ -23,6 +24,63 @@ const translateLeaveType = (type) => {
     default:
       return type;
   }
+};
+
+// جلب الحد الأقصى الشهري من الإعدادات
+const getMonthlyLeaveLimit = async () => {
+  const setting = await SystemSettings.findOne({ key: "monthlyLeaveLimit" });
+  return setting ? Number(setting.value) : 3;
+};
+
+// حساب عدد الأيام المشتركة بين فترة إجازة وفترة شهر
+const getOverlapDays = (rangeStart, rangeEnd, periodStart, periodEnd) => {
+  const start = rangeStart > periodStart ? rangeStart : periodStart;
+  const end = rangeEnd < periodEnd ? rangeEnd : periodEnd;
+
+  if (start > end) return 0;
+
+  return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+};
+
+// تقسيم الفترة على الشهور المتداخلة معها
+const getMonthChunksBetween = (startDate, endDate) => {
+  const chunks = [];
+
+  let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+
+  while (cursor <= endDate) {
+    const chunkStart = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+    const chunkEnd = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+
+    chunks.push({
+      start: chunkStart,
+      end: chunkEnd,
+      label: chunkStart.toLocaleDateString("ar-EG", {
+        month: "long",
+        year: "numeric",
+      }),
+    });
+
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  }
+
+  return chunks;
 };
 
 // إرسال إشعار موحد لكل الأدمنز (بدون تكرار إيميل)
@@ -79,7 +137,7 @@ const sendAdminLeaveRequestNotification = async ({
   await notifyAdminsByEmail(subject, message);
 };
 
-// ✅ جديد: إشعار الأدمن بإلغاء الموظف للطلب
+// إشعار الأدمن بإلغاء الموظف للطلب
 const sendAdminLeaveCancelNotification = async ({
   employeeName,
   employeeCode,
@@ -156,7 +214,7 @@ exports.getMyRequests = async (req, res) => {
   }
 };
 
-// ✅ تعديل: إلغاء طلب إجازة + إشعار الأدمن
+// إلغاء طلب إجازة + إشعار الأدمن
 exports.cancelRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -272,6 +330,47 @@ exports.submitLeaveRequest = async (req, res) => {
 
     const diffTime = Math.abs(end - start);
     const duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    // ✅ التحقق من الحد الأقصى الشهري (Dynamic)
+    const monthlyLeaveLimit = await getMonthlyLeaveLimit();
+    const monthChunks = getMonthChunksBetween(start, end);
+
+    for (const chunk of monthChunks) {
+      const requestedDaysInThisMonth = getOverlapDays(
+        start,
+        end,
+        chunk.start,
+        chunk.end,
+      );
+
+      if (requestedDaysInThisMonth > monthlyLeaveLimit) {
+        return res.status(400).json({
+          message: `الحد الأقصى المسموح به للإجازات خلال شهر ${chunk.label} هو ${monthlyLeaveLimit} أيام فقط.`,
+        });
+      }
+
+      const monthRequests = await LeaveRequest.find({
+        employeeId: user._id,
+        status: { $ne: "rejected" },
+        startDate: { $lte: chunk.end },
+        endDate: { $gte: chunk.start },
+      });
+
+      const usedDaysInThisMonth = monthRequests.reduce((total, req) => {
+        const reqStart = new Date(req.startDate);
+        const reqEnd = new Date(req.endDate);
+        reqStart.setHours(0, 0, 0, 0);
+        reqEnd.setHours(23, 59, 59, 999);
+
+        return total + getOverlapDays(reqStart, reqEnd, chunk.start, chunk.end);
+      }, 0);
+
+      if (usedDaysInThisMonth + requestedDaysInThisMonth > monthlyLeaveLimit) {
+        return res.status(400).json({
+          message: `لا يمكن تقديم هذا الطلب لأن الحد الأقصى للإجازات خلال شهر ${chunk.label} هو ${monthlyLeaveLimit} أيام، وقد تم استهلاك ${usedDaysInThisMonth} يوم بالفعل.`,
+        });
+      }
+    }
 
     if (leaveType === "casual") {
       if (duration > 2) {
