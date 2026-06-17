@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import AdminLayout from "../components/AdminLayout";
 import toast from "react-hot-toast";
 import "../../print.css";
-import { ChevronDown, Users } from "lucide-react";
+import { ChevronDown, Users, Eye, X } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -38,6 +38,12 @@ const shiftLabels = {
   shift3: "الثالثة",
 };
 
+const leaveTypeLabels = {
+  annual: "اعتيادي",
+  casual: "عارضة",
+  compensation: "بدل أعياد",
+};
+
 const shiftThemes = {
   shift1: {
     header: "bg-sky-600 text-white",
@@ -66,6 +72,8 @@ const today = new Date();
 const currentYear = today.getFullYear();
 const currentMonth = today.getMonth() + 1;
 const yearOptions = [currentYear, currentYear - 1];
+
+const translateLeaveType = (type) => leaveTypeLabels[type] || type || "—";
 
 const createEmptyRoster = (selectedMonth, selectedYear) => {
   const daysCount = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -161,6 +169,7 @@ const EmployeeDropdown = ({
   );
 
   const selectedAlert = value ? getEmployeeAlert(value, dayNum) : null;
+
   const selectedUsage = value
     ? getEmployeeDayUsage(
         dayNum,
@@ -336,6 +345,7 @@ const EmployeeDropdown = ({
                     currentRole,
                     currentMemberIndex,
                   );
+
                   const restConflict = getRestConflict(
                     emp._id,
                     dayNum,
@@ -370,6 +380,7 @@ const EmployeeDropdown = ({
                           <div className="truncate text-[11px] font-bold text-slate-800">
                             {emp.name}
                           </div>
+
                           <div className="mt-0.5 text-[10px] font-medium text-slate-500">
                             كود: {emp.employeeCode || "—"}
                           </div>
@@ -450,6 +461,10 @@ const RosterManagement = () => {
   const [summarySort, setSummarySort] = useState("total-desc");
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewEmployeeId, setPreviewEmployeeId] = useState("");
+  const [previewSearch, setPreviewSearch] = useState("");
+
   const handlePrint = () => {
     window.print();
   };
@@ -477,6 +492,7 @@ const RosterManagement = () => {
           `${API_URL}/api/roster/init?month=${month}&year=${year}`,
         );
         const data = await response.json();
+
         if (!isMounted) return;
 
         if (data.success) {
@@ -486,6 +502,7 @@ const RosterManagement = () => {
                   const codeA = Number(a.employeeCode || 0);
                   const codeB = Number(b.employeeCode || 0);
                   if (codeA !== codeB) return codeA - codeB;
+
                   return String(a.name || "").localeCompare(
                     String(b.name || ""),
                     "ar",
@@ -514,6 +531,7 @@ const RosterManagement = () => {
         }
       } catch (error) {
         console.error("Error fetching roster init data:", error);
+
         if (isMounted) {
           toast.error("حدث خطأ أثناء تحميل البيانات");
           setEmployees([]);
@@ -567,36 +585,56 @@ const RosterManagement = () => {
     });
   };
 
-  const getEmployeeAlert = (empId, dayNum) => {
+  const getEmployeeLeaveInfo = (empId, dayNum) => {
     const targetEmpId = normalizeId(empId);
+    if (!targetEmpId) return null;
+
     const currentDate = new Date(year, month - 1, dayNum);
     currentDate.setHours(12, 0, 0, 0);
 
-    const matchedLeave = leaves.find((leave) => {
-      const leaveEmpId = normalizeId(leave.employeeId);
-      if (!leaveEmpId || leaveEmpId !== targetEmpId) return false;
+    const matchedLeave = leaves
+      .filter((leave) => {
+        const leaveEmpId = normalizeId(leave.employeeId);
+        if (!leaveEmpId || leaveEmpId !== targetEmpId) return false;
 
-      const status = String(leave.status || "")
-        .trim()
-        .toLowerCase();
-      if (!["approved", "pending"].includes(status)) return false;
+        const status = String(leave.status || "")
+          .trim()
+          .toLowerCase();
 
-      const start = new Date(leave.startDate);
-      const end = new Date(leave.endDate);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
+        if (!["approved", "pending"].includes(status)) return false;
 
-      return currentDate >= start && currentDate <= end;
-    });
+        const start = new Date(leave.startDate);
+        const end = new Date(leave.endDate);
+
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+
+        return currentDate >= start && currentDate <= end;
+      })
+      .sort((a, b) => {
+        const statusA = String(a.status || "")
+          .trim()
+          .toLowerCase();
+        const statusB = String(b.status || "")
+          .trim()
+          .toLowerCase();
+
+        if (statusA === statusB) return 0;
+        if (statusA === "approved") return -1;
+        if (statusB === "approved") return 1;
+        return 0;
+      })[0];
 
     if (!matchedLeave) return null;
 
     const status = String(matchedLeave.status || "")
       .trim()
       .toLowerCase();
+
     const isPending = status === "pending";
 
     return {
+      status,
       type: isPending ? "طلب إجازة" : "إجازة",
       badgeText: isPending ? "طلب إجازة" : "إجازة",
       badgeClass: isPending
@@ -605,7 +643,13 @@ const RosterManagement = () => {
       buttonClass: isPending
         ? "border-amber-300 bg-amber-50 text-amber-800"
         : "border-red-300 bg-red-50 text-red-700",
+      leaveType: matchedLeave.leaveType,
+      leaveTypeLabel: translateLeaveType(matchedLeave.leaveType),
     };
+  };
+
+  const getEmployeeAlert = (empId, dayNum) => {
+    return getEmployeeLeaveInfo(empId, dayNum);
   };
 
   const getEmployeeDayUsage = (
@@ -624,7 +668,6 @@ const RosterManagement = () => {
       currentRole,
       currentMemberIndex,
     );
-
     const usedSlots = [];
 
     ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
@@ -649,6 +692,7 @@ const RosterManagement = () => {
     });
 
     const usedElsewhere = usedSlots.filter((slot) => slot.key !== currentKey);
+
     if (usedElsewhere.length === 0) return null;
 
     return {
@@ -658,7 +702,7 @@ const RosterManagement = () => {
     };
   };
 
-  // ✅ قاعدة الراحة: من كان في الثانية أو الثالثة أمس لا يعمل الأولى اليوم
+  // قاعدة الراحة: من كان في الثانية أو الثالثة أمس لا يعمل الأولى اليوم
   const getRestConflict = (empId, dayNum, currentShift) => {
     if (currentShift !== "shift1") return null;
     if (dayNum <= 1) return null;
@@ -708,6 +752,7 @@ const RosterManagement = () => {
       ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
         const shiftData = dayData[shiftKey] || {};
         const hasLeader = !!normalizeId(shiftData.leader);
+
         const membersCount = (shiftData.members || []).filter(
           (m) => !!normalizeId(m),
         ).length;
@@ -715,11 +760,21 @@ const RosterManagement = () => {
         const totalPeople = (hasLeader ? 1 : 0) + membersCount;
         const problems = [];
 
-        if (!hasLeader && membersCount > 0) problems.push("بدون رئيس نوبة");
-        if (membersCount < 3 && totalPeople > 0)
+        if (!hasLeader && membersCount > 0) {
+          problems.push("بدون رئيس نوبة");
+        }
+
+        if (membersCount < 3 && totalPeople > 0) {
           problems.push(`يوجد ${3 - membersCount} خانات أفراد فارغة`);
-        if (totalPeople === 1) problems.push("الشيفت به موظف واحد فقط!");
-        if (totalPeople === 0) problems.push("الشيفت فارغ تماماً");
+        }
+
+        if (totalPeople === 1) {
+          problems.push("الشيفت به موظف واحد فقط!");
+        }
+
+        if (totalPeople === 0) {
+          problems.push("الشيفت فارغ تماماً");
+        }
 
         if (problems.length > 0) {
           errors.push({
@@ -731,17 +786,18 @@ const RosterManagement = () => {
         }
       });
 
-      // ✅ فحص الراحة في الوردية الأولى لليوم الحالي
       const currentShift1 = dayData.shift1 || {};
       const idsToCheck = [];
 
       if (currentShift1.leader) idsToCheck.push(currentShift1.leader);
+
       (currentShift1.members || []).forEach((m) => {
         if (m) idsToCheck.push(m);
       });
 
       idsToCheck.forEach((empId) => {
         const restConflict = getRestConflict(empId, day.dayNumber, "shift1");
+
         if (restConflict?.blocked) {
           const emp = employees.find(
             (e) => normalizeId(e._id) === normalizeId(empId),
@@ -764,7 +820,9 @@ const RosterManagement = () => {
 
       ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
         const s = dayData[shiftKey] || {};
+
         if (s.leader) scheduledIds.add(normalizeId(s.leader));
+
         (s.members || []).forEach((m) => {
           if (m) scheduledIds.add(normalizeId(m));
         });
@@ -790,26 +848,13 @@ const RosterManagement = () => {
     return { errors, unscheduled };
   };
 
-  const handleSaveRoster = async (status) => {
-    if (status === "published") {
-      const { errors, unscheduled } = validateRoster();
-
-      if (errors.length > 0) {
-        setValidationModal({ isOpen: true, errors, unscheduled });
-        return;
-      }
-
-      if (unscheduled.length > 0) {
-        setValidationModal({ isOpen: true, errors: [], unscheduled });
-        return;
-      }
-    }
-
-    await saveRosterToServer(status);
-  };
-
   const saveRosterToServer = async (status) => {
-    const payload = { month, year, status, rosterDetails: rosterData };
+    const payload = {
+      month,
+      year,
+      status,
+      rosterDetails: rosterData,
+    };
 
     try {
       const response = await fetch(`${API_URL}/api/roster/save`, {
@@ -830,6 +875,24 @@ const RosterManagement = () => {
       console.error("Error saving roster:", error);
       toast.error("حدث خطأ في الاتصال بالسيرفر");
     }
+  };
+
+  const handleSaveRoster = async (status) => {
+    if (status === "published") {
+      const { errors, unscheduled } = validateRoster();
+
+      if (errors.length > 0) {
+        setValidationModal({ isOpen: true, errors, unscheduled });
+        return;
+      }
+
+      if (unscheduled.length > 0) {
+        setValidationModal({ isOpen: true, errors: [], unscheduled });
+        return;
+      }
+    }
+
+    await saveRosterToServer(status);
   };
 
   const handleEmployeeSelect = (dayNum, shift, role, memberIndex, newValue) => {
@@ -888,7 +951,6 @@ const RosterManagement = () => {
     );
   };
 
-  /* ======= حساب أيام الإجازات المعتمدة فقط داخل الشهر ======= */
   const getApprovedLeaveDaysInsideMonth = (leave) => {
     const monthStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
     const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
@@ -907,7 +969,6 @@ const RosterManagement = () => {
     return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
   };
 
-  /* ======= ملخص توزيع الورديات + الإجازات المعتمدة ======= */
   const employeeRosterSummary = useMemo(() => {
     const summaryMap = {};
 
@@ -937,6 +998,7 @@ const RosterManagement = () => {
 
         if (shift.leader) {
           const leaderId = normalizeId(shift.leader);
+
           if (summaryMap[leaderId]) {
             summaryMap[leaderId].total += 1;
             summaryMap[leaderId].leaderCount += 1;
@@ -946,6 +1008,7 @@ const RosterManagement = () => {
 
         (shift.members || []).forEach((member) => {
           const memberId = normalizeId(member);
+
           if (summaryMap[memberId]) {
             summaryMap[memberId].total += 1;
             summaryMap[memberId].memberCount += 1;
@@ -962,6 +1025,7 @@ const RosterManagement = () => {
       const status = String(leave.status || "")
         .trim()
         .toLowerCase();
+
       if (status !== "approved") return;
 
       const daysInsideMonth = getApprovedLeaveDaysInsideMonth(leave);
@@ -978,12 +1042,15 @@ const RosterManagement = () => {
       (sum, emp) => sum + emp.total,
       0,
     );
+
     const scheduledCount = employeeRosterSummary.filter(
       (emp) => emp.total > 0,
     ).length;
+
     const unscheduledCount = employeeRosterSummary.filter(
       (emp) => emp.total === 0,
     ).length;
+
     const totalApprovedLeaveDays = employeeRosterSummary.reduce(
       (sum, emp) => sum + emp.approvedLeaveDays,
       0,
@@ -1040,8 +1107,8 @@ const RosterManagement = () => {
 
   const visibleEmployeeRosterSummary = useMemo(() => {
     let rows = [...employeeRosterSummary];
-
     const q = summarySearch.trim().toLowerCase();
+
     if (q) {
       rows = rows.filter((emp) => {
         const name = String(emp.name || "").toLowerCase();
@@ -1078,30 +1145,168 @@ const RosterManagement = () => {
     return rows;
   }, [employeeRosterSummary, summarySearch, summarySort]);
 
+  const openPreviewModal = (employeeId = "") => {
+    if (!employees.length) {
+      toast.error("لا يوجد موظفون لعرض جدولهم");
+      return;
+    }
+
+    const nextId =
+      normalizeId(employeeId) ||
+      normalizeId(previewEmployeeId) ||
+      normalizeId(employees[0]?._id);
+
+    setPreviewEmployeeId(nextId);
+    setPreviewSearch("");
+    setIsPreviewOpen(true);
+  };
+
+  const closePreviewModal = () => {
+    setIsPreviewOpen(false);
+    setPreviewSearch("");
+  };
+
+  const previewEmployeeOptions = useMemo(() => {
+    const q = previewSearch.trim().toLowerCase();
+    if (!q) return employees;
+
+    const filtered = employees.filter((emp) => {
+      const name = String(emp.name || "").toLowerCase();
+      const code = String(emp.employeeCode || "").toLowerCase();
+      return name.includes(q) || code.includes(q);
+    });
+
+    if (
+      previewEmployeeId &&
+      !filtered.some(
+        (emp) => normalizeId(emp._id) === normalizeId(previewEmployeeId),
+      )
+    ) {
+      const selected = employees.find(
+        (emp) => normalizeId(emp._id) === normalizeId(previewEmployeeId),
+      );
+
+      return selected ? [selected, ...filtered] : filtered;
+    }
+
+    return filtered;
+  }, [employees, previewSearch, previewEmployeeId]);
+
+  const selectedPreviewEmployee = useMemo(() => {
+    return employees.find(
+      (emp) => normalizeId(emp._id) === normalizeId(previewEmployeeId),
+    );
+  }, [employees, previewEmployeeId]);
+
+  const getEmployeeAssignmentsForDay = (empId, dayData) => {
+    const targetId = normalizeId(empId);
+    if (!targetId || !dayData) return [];
+
+    const assignments = [];
+
+    ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+      const shift = dayData[shiftKey];
+      if (!shift) return;
+
+      if (shift.leader && normalizeId(shift.leader) === targetId) {
+        assignments.push({
+          shiftKey,
+          role: "leader",
+          label: `${shiftLabels[shiftKey]} - رئيس النوبة`,
+        });
+      }
+
+      (shift.members || []).forEach((member, index) => {
+        if (member && normalizeId(member) === targetId) {
+          assignments.push({
+            shiftKey,
+            role: "member",
+            label: `${shiftLabels[shiftKey]} - فرد ${index + 1}`,
+          });
+        }
+      });
+    });
+
+    return assignments;
+  };
+
+  const previewSchedule = useMemo(() => {
+    if (!previewEmployeeId) return [];
+
+    return daysInMonth.map((day) => {
+      const dayData = rosterData[day.dayNumber] || {};
+      const assignments = getEmployeeAssignmentsForDay(
+        previewEmployeeId,
+        dayData,
+      );
+      const leaveInfo = getEmployeeLeaveInfo(previewEmployeeId, day.dayNumber);
+
+      return {
+        dayNumber: day.dayNumber,
+        dayName: day.dayName,
+        assignments,
+        leaveInfo,
+        notes: dayData.notes || "",
+      };
+    });
+  }, [previewEmployeeId, daysInMonth, rosterData, leaves, month, year]);
+
+  const previewStats = useMemo(() => {
+    const totalAssignments = previewSchedule.reduce(
+      (sum, day) => sum + day.assignments.length,
+      0,
+    );
+
+    const workedDays = previewSchedule.filter(
+      (day) => day.assignments.length > 0,
+    ).length;
+
+    const approvedLeaveDays = previewSchedule.filter(
+      (day) => day.leaveInfo?.status === "approved",
+    ).length;
+
+    const pendingLeaveDays = previewSchedule.filter(
+      (day) => day.leaveInfo?.status === "pending",
+    ).length;
+
+    const freeDays = previewSchedule.filter(
+      (day) => day.assignments.length === 0 && !day.leaveInfo,
+    ).length;
+
+    return {
+      totalAssignments,
+      workedDays,
+      approvedLeaveDays,
+      pendingLeaveDays,
+      freeDays,
+    };
+  }, [previewSchedule]);
+
   return (
     <AdminLayout>
       {/* رسالة الموبايل */}
       <div
-        className="block lg:hidden no-print print:hidden min-h-screen bg-slate-50 p-4 md:p-6"
+        className="block min-h-screen bg-slate-50 p-4 md:p-6 lg:hidden no-print print:hidden"
         dir="rtl"
       >
         <div className="mx-auto max-w-2xl">
           <div className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 text-2xl">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-2xl text-amber-700">
                 💻
               </div>
               <div>
-                <h1 className="text-xl md:text-2xl font-black text-slate-800">
+                <h1 className="text-xl font-black text-slate-800 md:text-2xl">
                   إدارة الروستر
                 </h1>
-                <p className="text-sm font-medium text-slate-500 mt-1">
+                <p className="mt-1 text-sm font-medium text-slate-500">
                   هذه الصفحة مخصّصة للاستخدام من خلال جهاز كمبيوتر أو لابتوب
                 </p>
               </div>
             </div>
+
             <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-              <p className="text-sm md:text-base font-bold text-amber-800 leading-7">
+              <p className="text-sm font-bold leading-7 text-amber-800 md:text-base">
                 يُفضّل التوجّه إلى جهاز كمبيوتر لإدارة الجدول الشهري، وذلك لضمان
                 سهولة التعديل، مراجعة الشيفتات، واستخدام جميع أدوات الروستر بشكل
                 صحيح.
@@ -1113,7 +1318,7 @@ const RosterManagement = () => {
 
       {/* الصفحة الأصلية */}
       <div
-        className="hidden lg:block print:block min-h-screen bg-slate-50 p-2 md:p-4"
+        className="hidden min-h-screen bg-slate-50 p-2 md:p-4 lg:block print:block"
         dir="rtl"
       >
         <div className="mx-auto w-full">
@@ -1153,6 +1358,7 @@ const RosterManagement = () => {
                       </option>
                     ))}
                   </select>
+
                   <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-slate-400">
                     <svg
                       className="h-4 w-4"
@@ -1185,6 +1391,7 @@ const RosterManagement = () => {
                       </option>
                     ))}
                   </select>
+
                   <div className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-slate-400">
                     <svg
                       className="h-4 w-4"
@@ -1206,10 +1413,12 @@ const RosterManagement = () => {
                   <div className="text-[11px] font-bold text-slate-500">
                     حالة الجدول
                   </div>
+
                   <div className="mt-1 flex items-center justify-between gap-2">
                     <span className="text-sm font-black text-slate-800">
                       {monthNames[month - 1]} {year}
                     </span>
+
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                         rosterStatus === "published"
@@ -1268,8 +1477,8 @@ const RosterManagement = () => {
             </p>
           </div>
 
-          <div className="max-h-[78vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm print:overflow-visible print:w-full">
-            <table className="w-full table-fixed border-collapse text-[11px] leading-tight print-table">
+          <div className="max-h-[78vh] overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm print:w-full print:overflow-visible">
+            <table className="print-table w-full table-fixed border-collapse text-[11px] leading-tight">
               <thead>
                 <tr className="text-slate-900">
                   <th
@@ -1309,6 +1518,7 @@ const RosterManagement = () => {
                     ملاحظات
                   </th>
                 </tr>
+
                 <tr className="text-slate-900">
                   <th
                     className={`sticky top-11 z-20 h-8 border-2 border-black px-1 py-1.5 shadow-sm ${shiftThemes.shift1.subHeader}`}
@@ -1351,7 +1561,7 @@ const RosterManagement = () => {
                       index % 2 === 0 ? "bg-white" : "bg-slate-50/70"
                     } hover:bg-blue-50/40`}
                   >
-                    <td className="border-2 border-black p-1.5 font-bold bg-slate-50">
+                    <td className="border-2 border-black bg-slate-50 p-1.5 font-bold">
                       <div className="flex flex-col items-center gap-1">
                         <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-white">
                           {day.dayName}
@@ -1359,7 +1569,7 @@ const RosterManagement = () => {
                       </div>
                     </td>
 
-                    <td className="border-2 border-black p-1.5 font-bold bg-slate-50">
+                    <td className="border-2 border-black bg-slate-50 p-1.5 font-bold">
                       <span className="inline-flex min-w-[28px] items-center justify-center rounded-md bg-white px-2 py-1 text-[11px] shadow-sm">
                         {day.dayNumber}
                       </span>
@@ -1498,11 +1708,11 @@ const RosterManagement = () => {
           </div>
 
           {/* ملخص توزيع الورديات - قابل للطي */}
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm no-print overflow-hidden">
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm no-print">
             <button
               type="button"
               onClick={() => setIsSummaryOpen((prev) => !prev)}
-              className="w-full px-4 py-4 md:px-5 flex items-center justify-between gap-3 bg-white hover:bg-slate-50 transition text-right"
+              className="flex w-full items-center justify-between gap-3 bg-white px-4 py-4 text-right transition hover:bg-slate-50 md:px-5"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -1511,16 +1721,18 @@ const RosterManagement = () => {
                     ملخص توزيع الورديات على الموظفين
                   </h3>
                 </div>
+
                 <p className="mt-1 text-xs font-medium text-slate-500">
                   يوضح نصيب كل موظف من إجمالي الورديات وعدد أيام الإجازات
                   المعتمدة خلال الشهر
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex shrink-0 items-center gap-3">
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700">
                   {visibleEmployeeRosterSummary.length} موظف
                 </span>
+
                 <ChevronDown
                   size={20}
                   className={`text-slate-500 transition-transform duration-300 ${
@@ -1531,14 +1743,14 @@ const RosterManagement = () => {
             </button>
 
             <div
-              className={`transition-all duration-500 ease-in-out ${
+              className={`overflow-hidden transition-all duration-500 ease-in-out ${
                 isSummaryOpen
                   ? "max-h-[2000px] opacity-100"
                   : "max-h-0 opacity-0"
-              } overflow-hidden`}
+              }`}
             >
               <div className="border-t border-slate-100">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-4 md:p-5 border-b border-slate-100 bg-slate-50/60">
+                <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50/60 p-4 md:p-5 lg:grid-cols-4">
                   <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
                     <div className="text-[11px] font-bold text-blue-700">
                       إجمالي التكليفات
@@ -1584,7 +1796,7 @@ const RosterManagement = () => {
                       </h4>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <input
                         type="text"
                         value={summarySearch}
@@ -1622,30 +1834,30 @@ const RosterManagement = () => {
                   <table className="w-full min-w-[980px] text-right text-sm">
                     <thead className="bg-slate-50 text-slate-600">
                       <tr>
-                        <th className="p-3 whitespace-nowrap">الكود</th>
-                        <th className="p-3 whitespace-nowrap">الاسم</th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3">الكود</th>
+                        <th className="whitespace-nowrap p-3">الاسم</th>
+                        <th className="whitespace-nowrap p-3 text-center">
                           الإجمالي
                         </th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3 text-center">
                           رئيس نوبة
                         </th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3 text-center">
                           فرد نوبة
                         </th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3 text-center">
                           الأولى
                         </th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3 text-center">
                           الثانية
                         </th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3 text-center">
                           الثالثة
                         </th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3 text-center">
                           الإجازات المعتمدة
                         </th>
-                        <th className="p-3 text-center whitespace-nowrap">
+                        <th className="whitespace-nowrap p-3 text-center">
                           الحالة
                         </th>
                       </tr>
@@ -1658,25 +1870,41 @@ const RosterManagement = () => {
                         return (
                           <tr
                             key={emp._id}
-                            className="hover:bg-slate-50 transition"
+                            className="transition hover:bg-slate-50"
                           >
                             <td className="p-3 font-bold text-slate-600">
                               {emp.employeeCode}
                             </td>
+
                             <td className="p-3 font-bold text-slate-800">
-                              {emp.name}
+                              <div>{emp.name}</div>
+
+                              <div className="mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openPreviewModal(emp._id)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 transition hover:bg-blue-100"
+                                >
+                                  <Eye size={13} />
+                                  معاينة الجدول
+                                </button>
+                              </div>
                             </td>
+
                             <td className="p-3 text-center">
                               <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black text-blue-700">
                                 {emp.total}
                               </span>
                             </td>
+
                             <td className="p-3 text-center font-bold text-indigo-700">
                               {emp.leaderCount}
                             </td>
+
                             <td className="p-3 text-center font-bold text-slate-700">
                               {emp.memberCount}
                             </td>
+
                             <td className="p-3 text-center">
                               {emp.shift1Count}
                             </td>
@@ -1686,11 +1914,13 @@ const RosterManagement = () => {
                             <td className="p-3 text-center">
                               {emp.shift3Count}
                             </td>
+
                             <td className="p-3 text-center">
                               <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
                                 {emp.approvedLeaveDays} يوم
                               </span>
                             </td>
+
                             <td className="p-3 text-center">
                               <span
                                 className={`rounded-full px-2.5 py-1 text-xs font-bold ${status.cls}`}
@@ -1721,6 +1951,14 @@ const RosterManagement = () => {
 
           <div className="mt-4 flex flex-wrap justify-end gap-2 no-print">
             <button
+              onClick={() => openPreviewModal()}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <Eye size={16} />
+              معاينة جدول موظف
+            </button>
+
+            <button
               onClick={handlePrint}
               className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
             >
@@ -1742,6 +1980,7 @@ const RosterManagement = () => {
                 >
                   حفظ كمسودة
                 </button>
+
                 <button
                   onClick={() => handleSaveRoster("published")}
                   className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
@@ -1754,6 +1993,7 @@ const RosterManagement = () => {
         </div>
       </div>
 
+      {/* Modal: التحقق قبل الاعتماد */}
       {validationModal.isOpen &&
         createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 no-print">
@@ -1761,8 +2001,8 @@ const RosterManagement = () => {
               <div
                 className={`px-6 py-4 ${
                   validationModal.errors.length > 0
-                    ? "bg-red-50 border-b border-red-100"
-                    : "bg-amber-50 border-b border-amber-100"
+                    ? "border-b border-red-100 bg-red-50"
+                    : "border-b border-amber-100 bg-amber-50"
                 }`}
               >
                 <h3
@@ -1778,6 +2018,7 @@ const RosterManagement = () => {
                     <>⚠️ تنبيه قبل الاعتماد</>
                   )}
                 </h3>
+
                 <p className="mt-1 text-xs font-medium text-slate-600">
                   {validationModal.errors.length > 0
                     ? "يجب استكمال النواقص التالية قبل الاعتماد:"
@@ -1785,7 +2026,7 @@ const RosterManagement = () => {
                 </p>
               </div>
 
-              <div className="max-h-[55vh] overflow-y-auto px-6 py-4 space-y-4">
+              <div className="max-h-[55vh] space-y-4 overflow-y-auto px-6 py-4">
                 {validationModal.errors.length > 0 && (
                   <div>
                     <div className="mb-2 flex items-center justify-between">
@@ -1803,6 +2044,7 @@ const RosterManagement = () => {
                           <span className="font-bold text-slate-800">
                             يوم {err.day} ({err.dayName}) — النوبة {err.shift}
                           </span>
+
                           <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 font-bold text-red-700">
                             {err.problems}
                           </span>
@@ -1824,6 +2066,7 @@ const RosterManagement = () => {
                       موظفون لم يُجدولوا هذا الشهر (
                       {validationModal.unscheduled.length})
                     </span>
+
                     <div className="flex flex-wrap gap-1.5">
                       {validationModal.unscheduled.map((emp, i) => (
                         <span
@@ -1870,6 +2113,256 @@ const RosterManagement = () => {
                   {validationModal.errors.length > 0
                     ? "تجاهل التحذيرات واعتماد الجدول"
                     : "متابعة الاعتماد"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Modal: معاينة جدول موظف */}
+      {isPreviewOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 no-print">
+            <div className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+              <div className="border-b border-slate-100 bg-slate-50 px-5 py-4 md:px-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Eye className="text-blue-600" size={20} />
+                      <h3 className="text-xl font-black text-slate-800">
+                        معاينة جدول موظف من المسودة الحالية
+                      </h3>
+                    </div>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      يعرض آخر التعديلات الموجودة الآن على الشاشة، حتى لو لم يتم
+                      نشر الجدول بعد.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closePreviewModal}
+                    className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[260px_1fr]">
+                  <div>
+                    <label className="mb-2 block text-xs font-bold text-slate-700">
+                      ابحث عن الموظف
+                    </label>
+                    <input
+                      type="text"
+                      value={previewSearch}
+                      onChange={(e) => setPreviewSearch(e.target.value)}
+                      placeholder="ابحث بالاسم أو الكود..."
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-bold text-slate-700">
+                      اختر الموظف
+                    </label>
+                    <select
+                      value={previewEmployeeId}
+                      onChange={(e) => setPreviewEmployeeId(e.target.value)}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                    >
+                      {previewEmployeeOptions.map((emp) => (
+                        <option key={emp._id} value={emp._id}>
+                          {emp.name} - {emp.employeeCode || "—"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {selectedPreviewEmployee && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                      الاسم: {selectedPreviewEmployee.name}
+                    </span>
+
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                      الكود: {selectedPreviewEmployee.employeeCode || "—"}
+                    </span>
+
+                    <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700">
+                      الدرجة: {selectedPreviewEmployee.jobGrade || "—"}
+                    </span>
+
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                      {monthNames[month - 1]} {year}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-b border-slate-100 bg-white px-5 py-4 md:px-6">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3">
+                    <div className="text-[11px] font-bold text-blue-700">
+                      إجمالي التكليفات
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-blue-800">
+                      {previewStats.totalAssignments}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-3">
+                    <div className="text-[11px] font-bold text-indigo-700">
+                      أيام العمل
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-indigo-800">
+                      {previewStats.workedDays}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-green-100 bg-green-50 p-3">
+                    <div className="text-[11px] font-bold text-green-700">
+                      إجازات معتمدة
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-green-800">
+                      {previewStats.approvedLeaveDays}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50 p-3">
+                    <div className="text-[11px] font-bold text-amber-700">
+                      طلبات إجازة
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-amber-800">
+                      {previewStats.pendingLeaveDays}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="text-[11px] font-bold text-slate-700">
+                      أيام بدون تكليف
+                    </div>
+                    <div className="mt-1 text-2xl font-black text-slate-800">
+                      {previewStats.freeDays}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto bg-white px-5 py-4 md:px-6">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full min-w-[900px] text-right text-sm">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="p-3">اليوم</th>
+                        <th className="p-3">التاريخ</th>
+                        <th className="p-3">التكليف</th>
+                        <th className="p-3">الإجازة</th>
+                        <th className="p-3">ملاحظات اليوم</th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100">
+                      {previewSchedule.map((day, index) => (
+                        <tr
+                          key={day.dayNumber}
+                          className={`align-top ${
+                            index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                          }`}
+                        >
+                          <td className="p-3 font-bold text-slate-800">
+                            {day.dayName}
+                          </td>
+
+                          <td className="p-3 font-bold text-slate-700">
+                            {day.dayNumber}
+                          </td>
+
+                          <td className="p-3">
+                            {day.assignments.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {day.assignments.map((assignment, idx) => {
+                                  const badgeClass =
+                                    assignment.shiftKey === "shift1"
+                                      ? "border-sky-200 bg-sky-50 text-sky-700"
+                                      : assignment.shiftKey === "shift2"
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                        : "border-violet-200 bg-violet-50 text-violet-700";
+
+                                  return (
+                                    <span
+                                      key={`${day.dayNumber}-${idx}`}
+                                      className={`rounded-full border px-2.5 py-1 text-xs font-bold ${badgeClass}`}
+                                    >
+                                      {assignment.label}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                غير مجدول
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="p-3">
+                            {day.leaveInfo ? (
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${day.leaveInfo.badgeClass}`}
+                              >
+                                <span>🌴</span>
+                                <span>
+                                  {day.leaveInfo.badgeText} -{" "}
+                                  {day.leaveInfo.leaveTypeLabel}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-xs font-medium text-slate-400">
+                                —
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="p-3 text-sm text-slate-700">
+                            {day.notes ? (
+                              <div className="rounded-xl bg-slate-50 px-3 py-2 leading-6">
+                                {day.notes}
+                              </div>
+                            ) : (
+                              <span className="text-xs font-medium text-slate-400">
+                                لا توجد ملاحظات
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+
+                      {previewSchedule.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan="5"
+                            className="p-8 text-center text-sm font-medium text-slate-400"
+                          >
+                            لا توجد بيانات لعرضها
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 md:px-6">
+                <button
+                  type="button"
+                  onClick={closePreviewModal}
+                  className="rounded-xl bg-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-300"
+                >
+                  إغلاق
                 </button>
               </div>
             </div>

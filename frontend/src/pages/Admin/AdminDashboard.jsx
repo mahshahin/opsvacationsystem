@@ -14,6 +14,15 @@ import AdminLayout from "../components/AdminLayout";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+const initialConfirmModal = {
+  isOpen: false,
+  requestId: null,
+  action: null,
+  employeeName: "",
+  leaveTypeLabel: "",
+  duration: 0,
+};
+
 const AdminDashboard = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +36,8 @@ const AdminDashboard = () => {
     useState(null);
   const [monthlyLimitLoading, setMonthlyLimitLoading] = useState(true);
   const [savingMonthlyLimit, setSavingMonthlyLimit] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState(initialConfirmModal);
 
   const extractMonthlyLimit = (data) => {
     const value = data?.monthlyLeaveLimit ?? data?.value ?? 0;
@@ -128,33 +139,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleAction = async (requestId, action) => {
-    try {
-      setActionLoading({ requestId, action });
-
-      const response = await fetch(`${API_URL}/api/admin/handle-request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId, action }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        toast.error(data.message || "فشل معالجة الطلب");
-      } else {
-        toast.success(
-          `تم ${action === "approve" ? "قبول" : "رفض"} الطلب بنجاح!`,
-        );
-        fetchPendingRequests();
-      }
-    } catch (err) {
-      toast.error("حدث خطأ أثناء معالجة الطلب");
-    } finally {
-      setActionLoading({ requestId: null, action: null });
-    }
-  };
-
   const translateLeaveType = (type) => {
     switch (type) {
       case "annual":
@@ -211,12 +195,66 @@ const AdminDashboard = () => {
     };
   }, [pendingRequests]);
 
+  const openConfirmModal = (req, action) => {
+    setConfirmModal({
+      isOpen: true,
+      requestId: req._id,
+      action,
+      employeeName: req.employeeId?.name || "غير معروف",
+      leaveTypeLabel: translateLeaveType(req.leaveType),
+      duration: req.duration || 0,
+    });
+  };
+
+  const closeConfirmModal = () => {
+    if (actionLoading.requestId) return;
+    setConfirmModal(initialConfirmModal);
+  };
+
+  const executeAction = async (requestId, action) => {
+    try {
+      setActionLoading({ requestId, action });
+
+      const response = await fetch(`${API_URL}/api/admin/handle-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, action }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "فشل معالجة الطلب");
+      } else {
+        toast.success(
+          `تم ${action === "approve" ? "قبول" : "رفض"} الطلب بنجاح!`,
+        );
+        setConfirmModal(initialConfirmModal);
+        fetchPendingRequests();
+      }
+    } catch (err) {
+      toast.error("حدث خطأ أثناء معالجة الطلب");
+    } finally {
+      setActionLoading({ requestId: null, action: null });
+    }
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmModal.requestId || !confirmModal.action) return;
+    await executeAction(confirmModal.requestId, confirmModal.action);
+  };
+
+  const isConfirmLoading =
+    confirmModal.requestId &&
+    actionLoading.requestId === confirmModal.requestId &&
+    actionLoading.action === confirmModal.action;
+
   return (
     <AdminLayout>
       <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
-        <header className="mb-6 md:mb-8 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 md:p-6 shadow-sm md:flex-row md:items-center md:justify-between">
+        <header className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:mb-8 md:flex-row md:items-center md:justify-between md:p-6">
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-800">
+            <h2 className="text-xl font-bold text-gray-800 md:text-2xl">
               مراجعة طلبات الإجازة
             </h2>
             <p className="mt-1 text-sm text-gray-500">
@@ -229,7 +267,7 @@ const AdminDashboard = () => {
           </div>
         </header>
 
-        <div className="mb-6 rounded-2xl border border-violet-100 bg-white p-4 md:p-6 shadow-sm">
+        <div className="mb-6 rounded-2xl border border-violet-100 bg-white p-4 shadow-sm md:p-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="flex-1">
               <div className="flex items-start gap-3">
@@ -281,7 +319,7 @@ const AdminDashboard = () => {
                 <button
                   onClick={handleSaveMonthlyLeaveLimit}
                   disabled={savingMonthlyLimit || monthlyLimitLoading}
-                  className="mt-0 md:mt-7 inline-flex h-[50px] items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-0 inline-flex h-[50px] items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60 md:mt-7"
                 >
                   <Save size={16} />
                   {savingMonthlyLimit ? "جاري الحفظ..." : "حفظ"}
@@ -433,7 +471,7 @@ const AdminDashboard = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => handleAction(req._id, "approve")}
+                      onClick={() => openConfirmModal(req, "approve")}
                       disabled={isLoading}
                       className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-500 px-3 py-3 text-sm font-bold text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -444,7 +482,7 @@ const AdminDashboard = () => {
                     </button>
 
                     <button
-                      onClick={() => handleAction(req._id, "reject")}
+                      onClick={() => openConfirmModal(req, "reject")}
                       disabled={isLoading}
                       className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-500 px-3 py-3 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -558,7 +596,7 @@ const AdminDashboard = () => {
                         <td className="p-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => handleAction(req._id, "approve")}
+                              onClick={() => openConfirmModal(req, "approve")}
                               disabled={isLoading}
                               className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -569,7 +607,7 @@ const AdminDashboard = () => {
                             </button>
 
                             <button
-                              onClick={() => handleAction(req._id, "reject")}
+                              onClick={() => openConfirmModal(req, "reject")}
                               disabled={isLoading}
                               className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -601,6 +639,81 @@ const AdminDashboard = () => {
             </table>
           </div>
         </div>
+
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div
+                className={`px-6 py-5 ${
+                  confirmModal.action === "approve"
+                    ? "bg-green-50 border-b border-green-100"
+                    : "bg-red-50 border-b border-red-100"
+                }`}
+              >
+                <h3
+                  className={`text-lg font-black ${
+                    confirmModal.action === "approve"
+                      ? "text-green-700"
+                      : "text-red-700"
+                  }`}
+                >
+                  {confirmModal.action === "approve"
+                    ? "تأكيد قبول الطلب"
+                    : "تأكيد رفض الطلب"}
+                </h3>
+
+                <p className="mt-2 text-sm leading-7 text-gray-600">
+                  هل أنت متأكد أنك تريد{" "}
+                  <span className="font-black text-gray-800">
+                    {confirmModal.action === "approve" ? "قبول" : "رفض"}
+                  </span>{" "}
+                  طلب الإجازة الخاص بالموظف{" "}
+                  <span className="font-black text-gray-800">
+                    {confirmModal.employeeName}
+                  </span>
+                  ؟
+                </p>
+
+                <div className="mt-4 space-y-2 rounded-xl bg-white/70 p-4">
+                  <div className="text-sm text-gray-700">
+                    <span className="font-bold">نوع الإجازة:</span>{" "}
+                    {confirmModal.leaveTypeLabel}
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-bold">المدة:</span>{" "}
+                    {confirmModal.duration} يوم
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 px-6 py-4">
+                <button
+                  onClick={closeConfirmModal}
+                  disabled={isConfirmLoading}
+                  className="flex-1 rounded-xl bg-gray-100 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  إلغاء
+                </button>
+
+                <button
+                  onClick={handleConfirmAction}
+                  disabled={isConfirmLoading}
+                  className={`flex-1 rounded-xl py-3 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                    confirmModal.action === "approve"
+                      ? "bg-green-600 hover:bg-green-700"
+                      : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  {isConfirmLoading
+                    ? "جاري التنفيذ..."
+                    : confirmModal.action === "approve"
+                      ? "نعم، قبول الطلب"
+                      : "نعم، رفض الطلب"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
