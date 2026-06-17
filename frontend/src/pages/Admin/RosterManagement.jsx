@@ -702,9 +702,10 @@ const RosterManagement = () => {
     };
   };
 
-  // قاعدة الراحة: من كان في الثانية أو الثالثة أمس لا يعمل الأولى اليوم
+  // ✅ قاعدة الراحة الجديدة:
+  // - بعد الوردية الثالثة: لا يعمل الأولى ولا الثانية في اليوم التالي
+  // - بعد الوردية الثانية: لا يعمل الأولى في اليوم التالي فقط
   const getRestConflict = (empId, dayNum, currentShift) => {
-    if (currentShift !== "shift1") return null;
     if (dayNum <= 1) return null;
 
     const previousDay = rosterData[dayNum - 1];
@@ -725,17 +726,30 @@ const RosterManagement = () => {
       return leaderMatch || memberMatch;
     };
 
-    if (existsInShift(previousDay.shift3)) {
+    const wasInShift2Yesterday = existsInShift(previousDay.shift2);
+    const wasInShift3Yesterday = existsInShift(previousDay.shift3);
+
+    if (wasInShift3Yesterday && currentShift === "shift1") {
       return {
         blocked: true,
-        reason: "كان في الوردية الثالثة أمس",
+        reason:
+          "كان في الوردية الثالثة أمس ولا يمكنه العمل في الوردية الأولى اليوم",
       };
     }
 
-    if (existsInShift(previousDay.shift2)) {
+    if (wasInShift3Yesterday && currentShift === "shift2") {
       return {
         blocked: true,
-        reason: "كان في الوردية الثانية أمس",
+        reason:
+          "كان في الوردية الثالثة أمس ولا يمكنه العمل في الوردية الثانية اليوم",
+      };
+    }
+
+    if (wasInShift2Yesterday && currentShift === "shift1") {
+      return {
+        blocked: true,
+        reason:
+          "كان في الوردية الثانية أمس ولا يمكنه العمل في الوردية الأولى اليوم",
       };
     }
 
@@ -786,30 +800,33 @@ const RosterManagement = () => {
         }
       });
 
-      const currentShift1 = dayData.shift1 || {};
-      const idsToCheck = [];
+      // ✅ فحص قاعدة الراحة في الوردية الأولى والثانية
+      ["shift1", "shift2"].forEach((shiftKey) => {
+        const currentShiftData = dayData[shiftKey] || {};
+        const idsToCheck = [];
 
-      if (currentShift1.leader) idsToCheck.push(currentShift1.leader);
+        if (currentShiftData.leader) idsToCheck.push(currentShiftData.leader);
 
-      (currentShift1.members || []).forEach((m) => {
-        if (m) idsToCheck.push(m);
-      });
+        (currentShiftData.members || []).forEach((m) => {
+          if (m) idsToCheck.push(m);
+        });
 
-      idsToCheck.forEach((empId) => {
-        const restConflict = getRestConflict(empId, day.dayNumber, "shift1");
+        idsToCheck.forEach((empId) => {
+          const restConflict = getRestConflict(empId, day.dayNumber, shiftKey);
 
-        if (restConflict?.blocked) {
-          const emp = employees.find(
-            (e) => normalizeId(e._id) === normalizeId(empId),
-          );
+          if (restConflict?.blocked) {
+            const emp = employees.find(
+              (e) => normalizeId(e._id) === normalizeId(empId),
+            );
 
-          errors.push({
-            day: day.dayNumber,
-            dayName: day.dayName,
-            shift: "الأولى",
-            problems: `${emp?.name || "موظف"} — ${restConflict.reason}`,
-          });
-        }
+            errors.push({
+              day: day.dayNumber,
+              dayName: day.dayName,
+              shift: shiftLabels[shiftKey],
+              problems: `${emp?.name || "موظف"} — ${restConflict.reason}`,
+            });
+          }
+        });
       });
     });
 
@@ -918,7 +935,7 @@ const RosterManagement = () => {
 
     if (restConflict?.blocked) {
       toast.error(
-        `لا يمكن تسكين هذا الموظف في الوردية الأولى يوم ${dayNum} لأنه ${restConflict.reason}`,
+        `لا يمكن تسكين هذا الموظف في النوبة ${shiftLabels[shift]} يوم ${dayNum} لأنه ${restConflict.reason}`,
       );
       return;
     }
@@ -1284,7 +1301,6 @@ const RosterManagement = () => {
 
   return (
     <AdminLayout>
-      {/* رسالة الموبايل */}
       <div
         className="block min-h-screen bg-slate-50 p-4 md:p-6 lg:hidden no-print print:hidden"
         dir="rtl"
@@ -1316,7 +1332,6 @@ const RosterManagement = () => {
         </div>
       </div>
 
-      {/* الصفحة الأصلية */}
       <div
         className="hidden min-h-screen bg-slate-50 p-2 md:p-4 lg:block print:block"
         dir="rtl"
@@ -1707,7 +1722,6 @@ const RosterManagement = () => {
             </table>
           </div>
 
-          {/* ملخص توزيع الورديات - قابل للطي */}
           <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm no-print">
             <button
               type="button"
@@ -1993,7 +2007,6 @@ const RosterManagement = () => {
         </div>
       </div>
 
-      {/* Modal: التحقق قبل الاعتماد */}
       {validationModal.isOpen &&
         createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 no-print">
@@ -2120,7 +2133,6 @@ const RosterManagement = () => {
           document.body,
         )}
 
-      {/* Modal: معاينة جدول موظف */}
       {isPreviewOpen &&
         createPortal(
           <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 no-print">
