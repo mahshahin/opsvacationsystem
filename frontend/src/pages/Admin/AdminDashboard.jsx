@@ -8,6 +8,7 @@ import {
   BadgeInfo,
   AlertTriangle,
   Save,
+  Printer,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminLayout from "../components/AdminLayout";
@@ -38,6 +39,10 @@ const AdminDashboard = () => {
   const [savingMonthlyLimit, setSavingMonthlyLimit] = useState(false);
 
   const [confirmModal, setConfirmModal] = useState(initialConfirmModal);
+
+  const printedAt = useMemo(() => {
+    return new Date().toLocaleString("ar-EG");
+  }, []);
 
   const extractMonthlyLimit = (data) => {
     const value = data?.monthlyLeaveLimit ?? data?.value ?? 0;
@@ -93,6 +98,10 @@ const AdminDashboard = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const handleSaveMonthlyLeaveLimit = async () => {
     const parsedLimit = Number(monthlyLeaveLimit);
@@ -251,23 +260,39 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
-        <header className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:mb-8 md:flex-row md:items-center md:justify-between md:p-6">
+      <div
+        className="min-h-screen bg-gray-50 p-4 md:p-8 print:bg-white print:p-0"
+        dir="rtl"
+      >
+        <header className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:mb-8 md:flex-row md:items-center md:justify-between md:p-6 print:mb-4 print:rounded-none print:border print:shadow-none">
           <div>
             <h2 className="text-xl font-bold text-gray-800 md:text-2xl">
               مراجعة طلبات الإجازة
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 print:hidden">
               الطلبات المعلقة التي تنتظر قرار الإدارة
+            </p>
+            <p className="mt-1 hidden text-sm text-gray-600 print:block">
+              تاريخ الطباعة: {printedAt}
             </p>
           </div>
 
-          <div className="w-fit rounded-xl bg-yellow-100 px-4 py-2 text-sm font-bold text-yellow-800">
-            صلاحيات مدير النظام
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700"
+            >
+              <Printer size={16} />
+              طباعة الطلبات
+            </button>
+
+            <div className="w-fit rounded-xl bg-yellow-100 px-4 py-2 text-sm font-bold text-yellow-800">
+              صلاحيات مدير النظام
+            </div>
           </div>
         </header>
 
-        <div className="mb-6 rounded-2xl border border-violet-100 bg-white p-4 shadow-sm md:p-6">
+        <div className="mb-6 rounded-2xl border border-violet-100 bg-white p-4 shadow-sm md:p-6 print:hidden">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="flex-1">
               <div className="flex items-start gap-3">
@@ -329,7 +354,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 print:hidden">
           <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
             <div className="text-xs font-bold text-blue-700">
               إجمالي الطلبات
@@ -361,7 +386,7 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="space-y-4 md:hidden">
+        <div className="space-y-4 md:hidden print:hidden">
           {loading ? (
             <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-400 shadow-sm">
               جاري تحميل الطلبات...
@@ -503,18 +528,24 @@ const AdminDashboard = () => {
           )}
         </div>
 
-        <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
-          <div className="overflow-x-auto">
+        <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block print:block print:rounded-none print:border print:shadow-none">
+          <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-right">
               <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
-                  <th className="p-4">اسم الموظف</th>
-                  <th className="p-4">الدرجة</th>
-                  <th className="p-4">نوع الإجازة</th>
-                  <th className="p-4">من - إلى</th>
-                  <th className="p-4 text-center">المدة</th>
-                  <th className="p-4 text-center">تاريخ التقديم</th>
-                  <th className="p-4 text-center">الإجراء</th>
+                  <th className="p-4 border-b border-gray-200">اسم الموظف</th>
+                  <th className="p-4 border-b border-gray-200">الدرجة</th>
+                  <th className="p-4 border-b border-gray-200">نوع الإجازة</th>
+                  <th className="p-4 border-b border-gray-200">من - إلى</th>
+                  <th className="p-4 border-b border-gray-200 text-center">
+                    المدة
+                  </th>
+                  <th className="p-4 border-b border-gray-200 text-center">
+                    تاريخ التقديم
+                  </th>
+                  <th className="p-4 border-b border-gray-200 text-center print:hidden">
+                    الإجراء
+                  </th>
                 </tr>
               </thead>
 
@@ -593,7 +624,7 @@ const AdminDashboard = () => {
                           </div>
                         </td>
 
-                        <td className="p-4 text-center">
+                        <td className="p-4 text-center print:hidden">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => openConfirmModal(req, "approve")}
@@ -641,13 +672,13 @@ const AdminDashboard = () => {
         </div>
 
         {confirmModal.isOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 print:hidden">
             <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div
                 className={`px-6 py-5 ${
                   confirmModal.action === "approve"
-                    ? "bg-green-50 border-b border-green-100"
-                    : "bg-red-50 border-b border-red-100"
+                    ? "border-b border-green-100 bg-green-50"
+                    : "border-b border-red-100 bg-red-50"
                 }`}
               >
                 <h3
