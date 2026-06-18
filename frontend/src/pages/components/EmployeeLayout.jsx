@@ -35,6 +35,19 @@ const EmployeeLayout = ({ children }) => {
       className="flex h-[100dvh] w-full overflow-hidden bg-gray-50 font-sans md:h-screen"
       dir="rtl"
     >
+      <style>{`
+        @media (max-width: 767px) {
+          .employee-mobile-header {
+            padding-top: max(16px, env(safe-area-inset-top));
+            min-height: calc(84px + env(safe-area-inset-top));
+          }
+
+          .employee-mobile-content-offset {
+            padding-top: calc(108px + env(safe-area-inset-top)) !important;
+          }
+        }
+      `}</style>
+
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 transition-opacity md:hidden"
@@ -148,10 +161,7 @@ const EmployeeLayout = ({ children }) => {
       </aside>
 
       <main className="relative flex h-full min-w-0 flex-1 flex-col">
-        <header
-          className="fixed top-0 right-0 left-0 z-30 flex items-center justify-between bg-navy-light px-4 pb-4 text-white shadow-md md:hidden"
-          style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}
-        >
+        <header className="employee-mobile-header fixed top-0 right-0 left-0 z-30 flex items-center justify-between bg-navy-light px-4 pb-4 text-white shadow-md md:hidden">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
@@ -166,12 +176,9 @@ const EmployeeLayout = ({ children }) => {
         </header>
 
         <div className="flex flex-1 flex-col overflow-y-auto">
-          <div
-            className="md:hidden"
-            style={{ height: "calc(96px + env(safe-area-inset-top))" }}
-          ></div>
-
-          <div className="flex-1 px-4 pb-4 pt-2 md:p-8">{children}</div>
+          <div className="employee-mobile-content-offset flex-1 p-4 md:p-8">
+            {children}
+          </div>
 
           <footer className="w-full shrink-0 border-t border-gray-200 px-4 py-4 text-left text-xs text-gray-500 md:px-8">
             Developed by{" "}
