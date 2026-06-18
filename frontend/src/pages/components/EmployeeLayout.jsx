@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Home,
@@ -18,6 +18,25 @@ const EmployeeLayout = ({ children }) => {
   const location = useLocation();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const currentPageTitle = useMemo(() => {
+    switch (location.pathname) {
+      case "/dashboard":
+        return "الرئيسية";
+      case "/my-shifts":
+        return "جدول وردياتي";
+      case "/employee/full-roster":
+        return "جدول الشهر الكامل";
+      case "/my-leaves":
+        return "سجل الإجازات";
+      case "/my-reports":
+        return "التقارير";
+      case "/profile":
+        return "حسابي";
+      default:
+        return "بوابة الموظف";
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("employeeData");
@@ -169,7 +188,7 @@ const EmployeeLayout = ({ children }) => {
             >
               <Menu size={32} />
             </button>
-            <h1 className="text-xl font-bold">بوابة الموظف</h1>
+            <h1 className="text-xl font-bold">{currentPageTitle}</h1>
           </div>
 
           <Briefcase className="text-blue-300" size={26} />
