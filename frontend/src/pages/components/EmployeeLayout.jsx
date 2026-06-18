@@ -168,10 +168,10 @@ const EmployeeLayout = ({ children }) => {
         <div className="flex flex-1 flex-col overflow-y-auto">
           <div
             className="md:hidden"
-            style={{ height: "calc(76px + env(safe-area-inset-top))" }}
+            style={{ height: "calc(96px + env(safe-area-inset-top))" }}
           ></div>
 
-          <div className="flex-1 p-4 md:p-8">{children}</div>
+          <div className="flex-1 px-4 pb-4 pt-2 md:p-8">{children}</div>
 
           <footer className="w-full shrink-0 border-t border-gray-200 px-4 py-4 text-left text-xs text-gray-500 md:px-8">
             Developed by{" "}
