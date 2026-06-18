@@ -32,40 +32,40 @@ const EmployeeLayout = ({ children }) => {
 
   return (
     <div
-      className="flex h-screen w-full bg-gray-50 font-sans overflow-hidden"
+      className="flex h-[100dvh] w-full overflow-hidden bg-gray-50 font-sans md:h-screen"
       dir="rtl"
     >
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/50 transition-opacity md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         ></div>
       )}
 
       <aside
-        className={`fixed top-0 right-0 h-full w-64 bg-navy-dark text-white z-50 transform transition-transform duration-300 ease-in-out flex flex-col shadow-xl shrink-0 md:relative md:translate-x-0 ${
+        className={`fixed top-0 right-0 z-50 flex h-full w-64 shrink-0 transform flex-col bg-navy-dark text-white shadow-xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
           isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="p-6 text-center border-b border-blue-400/30 relative">
+        <div className="relative border-b border-blue-400/30 p-6 text-center">
           <div className="flex flex-col items-center">
-            <Briefcase className="text-blue-300 mb-2" size={32} />
+            <Briefcase className="mb-2 text-blue-300" size={32} />
             <h1 className="text-2xl font-bold">السيطرة المركزية</h1>
-            <p className="text-sm text-blue-200 mt-1">النظام الذكي</p>
+            <p className="mt-1 text-sm text-blue-200">النظام الذكي</p>
           </div>
 
           <button
-            className="md:hidden absolute top-4 left-4 text-gray-400 hover:text-white"
+            className="absolute top-4 left-4 text-gray-400 hover:text-white md:hidden"
             onClick={() => setIsMobileMenuOpen(false)}
           >
             <X size={24} />
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
           <button
             onClick={() => handleNavigation("/dashboard")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 font-medium transition ${
               location.pathname === "/dashboard"
                 ? "bg-white/10 text-white"
                 : "text-blue-100 hover:bg-white/10"
@@ -77,7 +77,7 @@ const EmployeeLayout = ({ children }) => {
 
           <button
             onClick={() => handleNavigation("/my-shifts")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 font-medium transition ${
               location.pathname === "/my-shifts"
                 ? "bg-white/10 text-white"
                 : "text-blue-100 hover:bg-white/10"
@@ -89,7 +89,7 @@ const EmployeeLayout = ({ children }) => {
 
           <button
             onClick={() => handleNavigation("/employee/full-roster")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 font-medium transition ${
               location.pathname === "/employee/full-roster"
                 ? "bg-white/10 text-white"
                 : "text-blue-100 hover:bg-white/10"
@@ -101,7 +101,7 @@ const EmployeeLayout = ({ children }) => {
 
           <button
             onClick={() => handleNavigation("/my-leaves")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 font-medium transition ${
               location.pathname === "/my-leaves"
                 ? "bg-white/10 text-white"
                 : "text-blue-100 hover:bg-white/10"
@@ -113,7 +113,7 @@ const EmployeeLayout = ({ children }) => {
 
           <button
             onClick={() => handleNavigation("/my-reports")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 font-medium transition ${
               location.pathname === "/my-reports"
                 ? "bg-white/10 text-white"
                 : "text-blue-100 hover:bg-white/10"
@@ -125,7 +125,7 @@ const EmployeeLayout = ({ children }) => {
 
           <button
             onClick={() => handleNavigation("/profile")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition ${
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 font-medium transition ${
               location.pathname === "/profile"
                 ? "bg-white/10 text-white"
                 : "text-blue-100 hover:bg-white/10"
@@ -136,10 +136,10 @@ const EmployeeLayout = ({ children }) => {
           </button>
         </nav>
 
-        <div className="p-4 border-t border-blue-400/30 shrink-0">
+        <div className="shrink-0 border-t border-blue-400/30 p-4">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 hover:bg-red-500/80 rounded-lg text-blue-100 hover:text-white transition"
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-blue-100 transition hover:bg-red-500/80 hover:text-white"
           >
             <LogOut size={20} />
             تسجيل خروج
@@ -147,8 +147,11 @@ const EmployeeLayout = ({ children }) => {
         </div>
       </aside>
 
-      <main className="flex-1 h-full flex flex-col min-w-0 relative">
-        <header className="bg-navy-light text-white px-4 py-5 shadow-md md:hidden flex items-center justify-between z-10 shrink-0">
+      <main className="relative flex h-full min-w-0 flex-1 flex-col">
+        <header
+          className="fixed top-0 right-0 left-0 z-30 flex items-center justify-between bg-navy-light px-4 pb-4 text-white shadow-md md:hidden"
+          style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}
+        >
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
@@ -156,16 +159,21 @@ const EmployeeLayout = ({ children }) => {
             >
               <Menu size={32} />
             </button>
-            <h1 className="font-bold text-xl">بوابة الموظف</h1>
+            <h1 className="text-xl font-bold">بوابة الموظف</h1>
           </div>
 
           <Briefcase className="text-blue-300" size={26} />
         </header>
 
-        <div className="flex-1 overflow-y-auto flex flex-col">
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          <div
+            className="md:hidden"
+            style={{ height: "calc(76px + env(safe-area-inset-top))" }}
+          ></div>
+
           <div className="flex-1 p-4 md:p-8">{children}</div>
 
-          <footer className="w-full text-left px-4 md:px-8 py-4 text-xs text-gray-500 border-t border-gray-200 shrink-0">
+          <footer className="w-full shrink-0 border-t border-gray-200 px-4 py-4 text-left text-xs text-gray-500 md:px-8">
             Developed by{" "}
             <span className="font-bold text-gray-700">Mahmoud Shahin</span>{" "}
             &copy; 2026
@@ -177,4 +185,3 @@ const EmployeeLayout = ({ children }) => {
 };
 
 export default EmployeeLayout;
-  
