@@ -58,6 +58,7 @@ const getMonthChunksBetween = (startDate, endDate) => {
       0,
       0,
     );
+
     const chunkEnd = new Date(
       cursor.getFullYear(),
       cursor.getMonth() + 1,
@@ -256,7 +257,7 @@ exports.cancelRequest = async (req, res) => {
         startDate: request.startDate,
         endDate: request.endDate,
         duration: request.duration,
-        reason: request.reason,
+        reason: String(request.reason || "").trim(),
       });
     } catch (emailError) {
       console.error("خطأ في إرسال إشعار إلغاء الإجازة للإدارة:", emailError);
@@ -274,7 +275,13 @@ exports.cancelRequest = async (req, res) => {
 // تقديم طلب إجازة
 exports.submitLeaveRequest = async (req, res) => {
   try {
-    const { employeeCode, leaveType, startDate, endDate, reason } = req.body;
+    const {
+      employeeCode,
+      leaveType,
+      startDate,
+      endDate,
+      reason = "",
+    } = req.body;
 
     if (!employeeCode || !leaveType || !startDate || !endDate) {
       return res.status(400).json({
@@ -293,6 +300,8 @@ exports.submitLeaveRequest = async (req, res) => {
         message: "غير مسموح لمدير النظام بتقديم طلبات إجازة.",
       });
     }
+
+    const cleanReason = String(reason || "").trim();
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
@@ -415,7 +424,7 @@ exports.submitLeaveRequest = async (req, res) => {
       startDate: start,
       endDate: end,
       duration,
-      reason,
+      reason: cleanReason,
     });
 
     await newLeaveReq.save();
@@ -438,7 +447,7 @@ exports.submitLeaveRequest = async (req, res) => {
         startDate: start,
         endDate: end,
         duration,
-        reason,
+        reason: cleanReason,
       });
     } catch (emailError) {
       console.error("خطأ في إرسال إشعار الإيميل للإدارة:", emailError);

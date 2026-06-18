@@ -1,37 +1,42 @@
-  const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-  const leaveRequestSchema = new mongoose.Schema({
+const leaveRequestSchema = new mongoose.Schema(
+  {
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // مربوط بجدول الموظفين
-      required: true
+      ref: "User",
+      required: true,
     },
     leaveType: {
       type: String,
-      enum: ['annual', 'casual', 'compensation'], // اعتيادي، عارضة، بدل
-      required: true
+      enum: ["annual", "casual", "compensation"],
+      required: true,
     },
     startDate: {
       type: Date,
-      required: true
+      required: true,
     },
     endDate: {
       type: Date,
-      required: true
+      required: true,
     },
     duration: {
       type: Number,
-      required: true
+      required: true,
     },
     reason: {
       type: String,
-      default: ''
+      default: "",
+      trim: true,
+      maxlength: 200,
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'], // حالة الطلب (قيد الانتظار، مقبول، مرفوض)
-      default: 'pending' // أي طلب جديد بيكون قيد الانتظار تلقائياً
-    }
-  }, { timestamps: true }); // لتسجيل وقت تقديم الطلب
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+  },
+  { timestamps: true },
+);
 
-  module.exports = mongoose.model('LeaveRequest', leaveRequestSchema);
+module.exports = mongoose.model("LeaveRequest", leaveRequestSchema);

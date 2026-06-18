@@ -95,10 +95,12 @@ const Dashboard = () => {
   });
 
   const [isLeaveMenuOpen, setIsLeaveMenuOpen] = useState(false);
+  const [showReasonField, setShowReasonField] = useState(false);
 
   const [leaveType, setLeaveType] = useState("annual");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   /* الساعة الحية */
@@ -181,7 +183,7 @@ const Dashboard = () => {
   const fetchMyRequests = async (code) => {
     try {
       const response = await fetch(
-        `${API_URL}/api/employee/my-requests/${code}`,
+        `${API_URL}/api/employee/my-requests/${code}`
       );
       const data = await response.json();
 
@@ -206,7 +208,7 @@ const Dashboard = () => {
           leaveType,
           startDate,
           endDate,
-          reason: "",
+          reason: reason.trim(),
         }),
       });
 
@@ -218,6 +220,8 @@ const Dashboard = () => {
         toast.success("تم إرسال الطلب بنجاح!");
         setStartDate("");
         setEndDate("");
+        setReason("");
+        setShowReasonField(false);
         fetchMyRequests(employee.employeeCode);
       }
     } catch (err) {
@@ -231,7 +235,7 @@ const Dashboard = () => {
     try {
       const response = await fetch(
         `${API_URL}/api/employee/cancel-request/${cancelModal.requestId}`,
-        { method: "DELETE" },
+        { method: "DELETE" }
       );
 
       const data = await response.json();
@@ -510,6 +514,52 @@ const Dashboard = () => {
                   </span>
                 )}
               </button>
+            </div>
+
+            {/* زر/حقل الملاحظات */}
+            <div className="sm:col-span-2 lg:col-span-4">
+              {!showReasonField ? (
+                <button
+                  type="button"
+                  onClick={() => setShowReasonField(true)}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 transition hover:text-blue-600"
+                >
+                  <FileText size={16} />
+                  إضافة ملاحظة (اختياري)
+                </button>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <label className="text-sm font-bold text-slate-700">
+                      ملاحظات إضافية للأدمن
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReasonField(false);
+                        setReason("");
+                      }}
+                      className="text-xs font-bold text-slate-400 transition hover:text-red-500"
+                    >
+                      إلغاء الملاحظة
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    maxLength={200}
+                    rows={3}
+                    placeholder="مثال: الإجازة ضرورية جدًا - ظروف سفر - موعد طبي - ظرف عائلي"
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                  />
+
+                  <div className="mt-2 text-left text-xs font-medium text-slate-400">
+                    {reason.length}/200
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </div>

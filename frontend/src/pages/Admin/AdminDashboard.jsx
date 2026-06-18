@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Save,
   Printer,
+  FileText,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminLayout from "../components/AdminLayout";
@@ -22,6 +23,13 @@ const initialConfirmModal = {
   employeeName: "",
   leaveTypeLabel: "",
   duration: 0,
+};
+
+const initialReasonModal = {
+  isOpen: false,
+  employeeName: "",
+  leaveTypeLabel: "",
+  reason: "",
 };
 
 const AdminDashboard = () => {
@@ -39,6 +47,7 @@ const AdminDashboard = () => {
   const [savingMonthlyLimit, setSavingMonthlyLimit] = useState(false);
 
   const [confirmModal, setConfirmModal] = useState(initialConfirmModal);
+  const [reasonModal, setReasonModal] = useState(initialReasonModal);
 
   const printedAt = useMemo(() => {
     return new Date().toLocaleString("ar-EG");
@@ -195,6 +204,8 @@ const AdminDashboard = () => {
     return getRemainingBalance(req) < req.duration;
   };
 
+  const hasReason = (req) => Boolean(String(req?.reason || "").trim());
+
   const stats = useMemo(() => {
     return {
       total: pendingRequests.length,
@@ -203,6 +214,19 @@ const AdminDashboard = () => {
       alerts: pendingRequests.filter((r) => hasInsufficientBalance(r)).length,
     };
   }, [pendingRequests]);
+
+  const openReasonModal = (req) => {
+    setReasonModal({
+      isOpen: true,
+      employeeName: req.employeeId?.name || "غير معروف",
+      leaveTypeLabel: translateLeaveType(req.leaveType),
+      reason: String(req.reason || "").trim(),
+    });
+  };
+
+  const closeReasonModal = () => {
+    setReasonModal(initialReasonModal);
+  };
 
   const openConfirmModal = (req, action) => {
     setConfirmModal({
@@ -494,6 +518,19 @@ const AdminDashboard = () => {
                     </div>
                   </div>
 
+                  {hasReason(req) && (
+                    <div className="mb-4">
+                      <button
+                        type="button"
+                        onClick={() => openReasonModal(req)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
+                      >
+                        <FileText size={14} />
+                        عرض الملاحظة
+                      </button>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => openConfirmModal(req, "approve")}
@@ -533,17 +570,17 @@ const AdminDashboard = () => {
             <table className="w-full text-right">
               <thead className="bg-gray-50 text-sm text-gray-500">
                 <tr>
-                  <th className="p-4 border-b border-gray-200">اسم الموظف</th>
-                  <th className="p-4 border-b border-gray-200">الدرجة</th>
-                  <th className="p-4 border-b border-gray-200">نوع الإجازة</th>
-                  <th className="p-4 border-b border-gray-200">من - إلى</th>
-                  <th className="p-4 border-b border-gray-200 text-center">
+                  <th className="border-b border-gray-200 p-4">اسم الموظف</th>
+                  <th className="border-b border-gray-200 p-4">الدرجة</th>
+                  <th className="border-b border-gray-200 p-4">نوع الإجازة</th>
+                  <th className="border-b border-gray-200 p-4">من - إلى</th>
+                  <th className="border-b border-gray-200 p-4 text-center">
                     المدة
                   </th>
-                  <th className="p-4 border-b border-gray-200 text-center">
+                  <th className="border-b border-gray-200 p-4 text-center">
                     تاريخ التقديم
                   </th>
-                  <th className="p-4 border-b border-gray-200 text-center print:hidden">
+                  <th className="border-b border-gray-200 p-4 text-center print:hidden">
                     الإجراء
                   </th>
                 </tr>
@@ -579,6 +616,17 @@ const AdminDashboard = () => {
                           <div className="font-medium text-blue-600">
                             {translateLeaveType(req.leaveType)}
                           </div>
+
+                          {hasReason(req) && (
+                            <button
+                              type="button"
+                              onClick={() => openReasonModal(req)}
+                              className="mt-2 inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition hover:bg-slate-200 print:hidden"
+                            >
+                              <FileText size={12} />
+                              عرض الملاحظة
+                            </button>
+                          )}
 
                           <div className="mt-1.5">
                             <span className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">
@@ -670,6 +718,45 @@ const AdminDashboard = () => {
             </table>
           </div>
         </div>
+
+        {reasonModal.isOpen && (
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4 print:hidden">
+            <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
+                <div className="flex items-center gap-2 text-slate-800">
+                  <FileText size={18} className="text-blue-600" />
+                  <h3 className="text-lg font-black">ملاحظة الموظف</h3>
+                </div>
+
+                <div className="mt-3 space-y-1 text-sm text-slate-600">
+                  <div>
+                    <span className="font-bold">الموظف:</span>{" "}
+                    {reasonModal.employeeName}
+                  </div>
+                  <div>
+                    <span className="font-bold">نوع الإجازة:</span>{" "}
+                    {reasonModal.leaveTypeLabel}
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-5">
+                <div className="whitespace-pre-wrap rounded-xl bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-700">
+                  {reasonModal.reason}
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 px-6 py-4">
+                <button
+                  onClick={closeReasonModal}
+                  className="w-full rounded-xl bg-slate-100 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {confirmModal.isOpen && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 print:hidden">
