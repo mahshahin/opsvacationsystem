@@ -5,7 +5,7 @@ const User = require("../models/User");
 const Log = require("../models/Log");
 const LeaveRequest = require("../models/LeaveRequest");
 const Admin = require("../models/Admin");
-const sendLeaveEmail = require("../utils/sendEmail");
+const sendEmail = require("../utils/sendEmail");
 
 /* =========================
    Helpers
@@ -14,6 +14,164 @@ const sendLeaveEmail = require("../utils/sendEmail");
 // قيمة افتراضية فقط لو الأدمن لم يحدد الاستحقاق السنوي يدويًا
 const getDefaultAnnualQuota = (jobGrade) => {
   return jobGrade === "كبير" || jobGrade === "درجة اولى" ? 30 : 21;
+};
+
+const translateLeaveType = (type) => {
+  switch (type) {
+    case "annual":
+      return "اعتيادي";
+    case "casual":
+      return "عارضة";
+    case "compensation":
+      return "بدل أعياد";
+    default:
+      return type;
+  }
+};
+
+const normalizeEmail = (email) =>
+  String(email || "")
+    .trim()
+    .toLowerCase();
+
+const buildEmployeeMessageBody = (message) => {
+  return `${String(message || "").trim()}
+
+---
+هذه الرسالة مرسلة من إدارة النظام.`;
+};
+
+// جلب الحد الأقصى الشهري من الإعدادات
+const getMonthlyLeaveLimit = async () => {
+  const setting = await SystemSettings.findOne({ key: "monthlyLeaveLimit" });
+  return setting ? Number(setting.value) : 3;
+};
+
+// حساب عدد الأيام المشتركة بين فترة إجازة وفترة شهر
+const getOverlapDays = (rangeStart, rangeEnd, periodStart, periodEnd) => {
+  const start = rangeStart > periodStart ? rangeStart : periodStart;
+  const end = rangeEnd < periodEnd ? rangeEnd : periodEnd;
+
+  if (start > end) return 0;
+
+  return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+};
+
+// تقسيم الفترة على الشهور المتداخلة معها
+const getMonthChunksBetween = (startDate, endDate) => {
+  const chunks = [];
+
+  let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+
+  while (cursor <= endDate) {
+    const chunkStart = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth(),
+      1,
+      0,
+      0,
+      0,
+      0,
+    );
+
+    const chunkEnd = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+
+    chunks.push({
+      start: chunkStart,
+      end: chunkEnd,
+      label: chunkStart.toLocaleDateString("ar-EG", {
+        month: "long",
+        year: "numeric",
+      }),
+    });
+
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  }
+
+  return chunks;
+};
+
+// إرسال إشعار موحد لكل الأدمنز (بدون تكرار إيميل)
+const notifyAdminsByEmail = async (subject, message) => {
+  const admins = await Admin.find({
+    email: { $exists: true, $ne: "" },
+  }).select("email name");
+
+  const uniqueAdminEmails = [
+    ...new Set(admins.map((a) => normalizeEmail(a.email)).filter(Boolean)),
+  ];
+
+  if (uniqueAdminEmails.length === 0) return;
+
+  await Promise.allSettled(
+    uniqueAdminEmails.map((email) => sendEmail(email, subject, message)),
+  );
+};
+
+// إشعار الأدمن بطلب إجازة جديد
+const sendAdminLeaveRequestNotification = async ({
+  employeeName,
+  employeeCode,
+  leaveType,
+  startDate,
+  endDate,
+  duration,
+  reason,
+}) => {
+  const subject = `طلب إجازة جديد من ${employeeName}`;
+
+  const message = `
+تم تقديم طلب إجازة جديد ويحتاج إلى مراجعة الإدارة.
+
+اسم الموظف: ${employeeName}
+كود الموظف: ${employeeCode}
+نوع الإجازة: ${translateLeaveType(leaveType)}
+من: ${new Date(startDate).toLocaleDateString("ar-EG")}
+إلى: ${new Date(endDate).toLocaleDateString("ar-EG")}
+عدد الأيام: ${duration}
+السبب: ${reason || "لا يوجد"}
+
+يرجى مراجعة الطلب من لوحة الإدارة.
+`;
+
+  await notifyAdminsByEmail(subject, message);
+};
+
+// إشعار الأدمن بإلغاء الموظف للطلب
+const sendAdminLeaveCancelNotification = async ({
+  employeeName,
+  employeeCode,
+  leaveType,
+  startDate,
+  endDate,
+  duration,
+  reason,
+}) => {
+  const subject = `إلغاء طلب إجازة من ${employeeName}`;
+
+  const message = `
+قام الموظف بإلغاء طلب إجازة كان في حالة انتظار.
+
+اسم الموظف: ${employeeName}
+كود الموظف: ${employeeCode}
+نوع الإجازة: ${translateLeaveType(leaveType)}
+من: ${new Date(startDate).toLocaleDateString("ar-EG")}
+إلى: ${new Date(endDate).toLocaleDateString("ar-EG")}
+عدد الأيام: ${duration}
+السبب: ${reason || "لا يوجد"}
+
+تم إلغاء الطلب من قبل الموظف قبل مراجعته.
+`;
+
+  await notifyAdminsByEmail(subject, message);
 };
 
 /* =========================
@@ -80,7 +238,7 @@ exports.addEmployee = async (req, res) => {
       leaveBalances: {
         annual: annualBalance,
         casual: role === "admin" ? 0 : 7,
-        compensation: compensationBalance || 0,
+        compensation: Number(compensationBalance) || 0,
       },
     });
 
@@ -211,7 +369,7 @@ exports.handleRequest = async (req, res) => {
     await request.save();
 
     if (user && user.email) {
-      sendLeaveEmail(
+      sendEmail(
         user.email,
         user.name,
         request.status,
@@ -258,6 +416,205 @@ exports.getEmployees = async (req, res) => {
 };
 
 /* =========================
+   قائمة الموظفين لإرسال الرسائل
+========================= */
+exports.getMessageEmployees = async (req, res) => {
+  try {
+    const employees = await User.find({ role: { $ne: "admin" } })
+      .select("name employeeCode email jobGrade workType role")
+      .sort({ employeeCode: 1 });
+
+    res.status(200).json({
+      success: true,
+      employees,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء جلب الموظفين",
+      error: error.message,
+    });
+  }
+};
+
+/* =========================
+   إرسال رسائل للموظفين
+========================= */
+exports.sendEmployeeMessage = async (req, res) => {
+  try {
+    const { sendMode, employeeIds, subject, message } = req.body;
+
+    const normalizedMode = String(sendMode || "")
+      .trim()
+      .toLowerCase();
+    const cleanSubject = String(subject || "").trim();
+    const cleanMessage = String(message || "").trim();
+
+    const normalizedEmployeeIds = Array.isArray(employeeIds)
+      ? employeeIds.filter(Boolean)
+      : employeeIds
+        ? [employeeIds]
+        : [];
+
+    if (!["single", "multiple", "all"].includes(normalizedMode)) {
+      return res.status(400).json({
+        success: false,
+        message: "نوع الإرسال غير صحيح",
+      });
+    }
+
+    if (!cleanSubject) {
+      return res.status(400).json({
+        success: false,
+        message: "برجاء إدخال عنوان الرسالة",
+      });
+    }
+
+    if (!cleanMessage) {
+      return res.status(400).json({
+        success: false,
+        message: "برجاء إدخال محتوى الرسالة",
+      });
+    }
+
+    if (normalizedMode === "single" && normalizedEmployeeIds.length !== 1) {
+      return res.status(400).json({
+        success: false,
+        message: "برجاء اختيار موظف واحد فقط",
+      });
+    }
+
+    if (normalizedMode === "multiple" && normalizedEmployeeIds.length < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "برجاء اختيار موظف واحد على الأقل",
+      });
+    }
+
+    let targetEmployees = [];
+
+    if (normalizedMode === "all") {
+      targetEmployees = await User.find({ role: { $ne: "admin" } }).select(
+        "name employeeCode email",
+      );
+    } else {
+      targetEmployees = await User.find({
+        _id: { $in: normalizedEmployeeIds },
+        role: { $ne: "admin" },
+      }).select("name employeeCode email");
+    }
+
+    if (!targetEmployees.length) {
+      return res.status(404).json({
+        success: false,
+        message: "لا يوجد موظفون مطابقون للإرسال",
+      });
+    }
+
+    const employeesWithoutEmail = [];
+    const emailMap = new Map();
+    let duplicateEmailEmployeesCount = 0;
+
+    targetEmployees.forEach((emp) => {
+      const normalizedEmail = normalizeEmail(emp.email);
+
+      if (!normalizedEmail) {
+        employeesWithoutEmail.push({
+          _id: emp._id,
+          name: emp.name,
+          employeeCode: emp.employeeCode || "—",
+        });
+        return;
+      }
+
+      if (emailMap.has(normalizedEmail)) {
+        duplicateEmailEmployeesCount += 1;
+        return;
+      }
+
+      emailMap.set(normalizedEmail, {
+        email: normalizedEmail,
+        name: emp.name,
+        employeeCode: emp.employeeCode || "—",
+      });
+    });
+
+    const finalRecipients = Array.from(emailMap.values());
+
+    if (!finalRecipients.length) {
+      return res.status(400).json({
+        success: false,
+        message: "لا يوجد موظفون لديهم بريد إلكتروني صالح للإرسال",
+        employeesWithoutEmail,
+      });
+    }
+
+    const emailBody = buildEmployeeMessageBody(cleanMessage);
+
+    const emailResults = await Promise.allSettled(
+      finalRecipients.map((recipient) =>
+        sendEmail(recipient.email, cleanSubject, emailBody),
+      ),
+    );
+
+    const failedRecipients = [];
+    let sentCount = 0;
+
+    emailResults.forEach((result, index) => {
+      const recipient = finalRecipients[index];
+
+      if (result.status === "fulfilled") {
+        sentCount += 1;
+      } else {
+        failedRecipients.push({
+          email: recipient.email,
+          name: recipient.name,
+          employeeCode: recipient.employeeCode,
+        });
+      }
+    });
+
+    const newLog = new Log({
+      action: "EMPLOYEE_MESSAGE_SENT",
+      details: `تم إرسال رسالة بعنوان (${cleanSubject}) بنمط (${normalizedMode}) إلى ${sentCount} بريد إلكتروني، مع تخطي ${employeesWithoutEmail.length} موظف بدون بريد إلكتروني، وفشل ${failedRecipients.length} حالة.`,
+      ipAddress: req.ip,
+    });
+
+    await newLog.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `تم إرسال الرسالة إلى ${sentCount} بريد إلكتروني بنجاح${
+        employeesWithoutEmail.length
+          ? `، وتم تخطي ${employeesWithoutEmail.length} موظف لعدم وجود بريد إلكتروني`
+          : ""
+      }${
+        failedRecipients.length
+          ? `، وفشل الإرسال إلى ${failedRecipients.length} بريد`
+          : ""
+      }.`,
+      summary: {
+        sendMode: normalizedMode,
+        totalMatchedEmployees: targetEmployees.length,
+        totalUniqueEmails: finalRecipients.length,
+        sentCount,
+        failedCount: failedRecipients.length,
+        skippedNoEmailCount: employeesWithoutEmail.length,
+        duplicateEmailEmployeesCount,
+      },
+      employeesWithoutEmail,
+      failedRecipients,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء إرسال الرسائل",
+      error: error.message,
+    });
+  }
+};
+
+/* =========================
    تعديل موظف
 ========================= */
 exports.updateEmployee = async (req, res) => {
@@ -290,7 +647,6 @@ exports.updateEmployee = async (req, res) => {
     } else {
       user.jobGrade = jobGrade || user.jobGrade;
       user.workType = workType || user.workType;
-      // لا نغير الرصيد أو الاستحقاق السنوي تلقائيًا
     }
 
     await user.save();
@@ -650,10 +1006,10 @@ exports.deleteAdmin = async (req, res) => {
     });
   }
 };
+
 /* =========================
    إعدادات الحد الأقصى الشهري للإجازات
 ========================= */
-
 exports.getMonthlyLeaveLimit = async (req, res) => {
   try {
     const setting = await SystemSettings.findOne({
@@ -689,7 +1045,7 @@ exports.updateMonthlyLeaveLimit = async (req, res) => {
     await SystemSettings.findOneAndUpdate(
       { key: "monthlyLeaveLimit" },
       { value: parsedLimit },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
 
     return res.status(200).json({

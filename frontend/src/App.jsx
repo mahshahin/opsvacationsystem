@@ -1,155 +1,207 @@
-import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import ProtectedRoute from './pages/components/ProtectedRoute';
-import EmployeeFullRoster from "./pages/Employee/EmployeeFullRoster";
+import React, { Suspense } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+
+import ProtectedRoute from "./pages/components/ProtectedRoute";
 
 // استدعاءات عامة
-const Login = React.lazy(() => import('./pages/Login/Login'));// استدعاء شاشة تسجيل الدخول
-const Register = React.lazy(() => import("./pages/Login/Register"));// استدعاء شاشة التسجيل (لو عندك واحدة)
+const Login = React.lazy(() => import("./pages/Login/Login"));
+const Register = React.lazy(() => import("./pages/Login/Register"));
 
-//استدعاءات الخاصة بالموظف
-const Dashboard = React.lazy(() => import("./pages/Employee/Dashboard"));// استدعاء شاشة لوحة تحكم الموظف
-const MyShifts = React.lazy(() => import("./pages/Employee/MyShifts")); // استدعاء شاشة ورديات الموظف 
-const EmployeeHistory = React.lazy(() => import("./pages/Employee/EmployeeHistory"),);// استدعاء شاشة تاريخ الإجازات للموظف
-const EmployeeReports = React.lazy(() => import("./pages/Employee/EmployeeReports"),);// استدعاء شاشة تقارير الموظف
-const EmployeeProfile = React.lazy(() => import("./pages/Employee/EmployeeProfile"),);// استدعاء شاشة الملف الشخصي للموظف
+// استدعاءات الموظف
+const Dashboard = React.lazy(() => import("./pages/Employee/Dashboard"));
+const MyShifts = React.lazy(() => import("./pages/Employee/MyShifts"));
+const EmployeeHistory = React.lazy(
+  () => import("./pages/Employee/EmployeeHistory"),
+);
+const EmployeeReports = React.lazy(
+  () => import("./pages/Employee/EmployeeReports"),
+);
+const EmployeeProfile = React.lazy(
+  () => import("./pages/Employee/EmployeeProfile"),
+);
+const EmployeeFullRoster = React.lazy(
+  () => import("./pages/Employee/EmployeeFullRoster"),
+);
 
-
-// استدعاءات خاصة بالإدارة
-const AdminDashboard = React.lazy(() => import('./pages/Admin/AdminDashboard'));// استدعاء شاشة لوحة تحكم الإدارة
-const EmployeeManagement = React.lazy(() => import('./pages/Admin/EmployeeManagement'));// استدعاء شاشة إدارة الموظفين 
-const BalanceManagement = React.lazy(() => import('./pages/Admin/BalanceManagement'));// استدعاء شاشة إدارة أرصدة الإجازات
-const LeaveHistory = React.lazy(() => import('./pages/Admin/LeaveHistory'));// استدعاء شاشة تاريخ الإجازات للإدارة
-const AdminProfile = React.lazy(() => import('./pages/Admin/AdminProfile'));// استدعاء شاشة الملف الشخصي للإدارة
-const SystemLogs = React.lazy(() => import('./pages/Admin/SystemLogs'));// استدعاء شاشة سجلات النظام
-const RosterManagement = React.lazy(() => import('./pages/Admin/RosterManagement'));// استدعاء شاشة إدارة الجداول
-
+// استدعاءات الإدارة
+const AdminDashboard = React.lazy(() => import("./pages/Admin/AdminDashboard"));
+const EmployeeManagement = React.lazy(
+  () => import("./pages/Admin/EmployeeManagement"),
+);
+const EmployeeMessages = React.lazy(
+  () => import("./pages/Admin/EmployeeMessages"),
+);
+const BalanceManagement = React.lazy(
+  () => import("./pages/Admin/BalanceManagement"),
+);
+const LeaveHistory = React.lazy(() => import("./pages/Admin/LeaveHistory"));
+const AdminProfile = React.lazy(() => import("./pages/Admin/AdminProfile"));
+const SystemLogs = React.lazy(() => import("./pages/Admin/SystemLogs"));
+const RosterManagement = React.lazy(
+  () => import("./pages/Admin/RosterManagement"),
+);
 
 function App() {
   return (
     <Router>
       <div>
-        {/* التنبيهات بره الـ Suspense عشان تفضل شغالة ومتاحة دايماً */}
-        <Toaster 
-          position="top-center" 
+        <Toaster
+          position="top-center"
           toastOptions={{
             duration: 4000,
             style: {
-              fontFamily: 'inherit',
-              fontSize: '15px',
-              fontWeight: 'bold',
+              fontFamily: "inherit",
+              fontSize: "15px",
+              fontWeight: "bold",
             },
-          }} 
+          }}
         />
-        
-        {/* تغليف المسارات بالـ Suspense لعرض شاشة تحميل أنيقة وقت التنقل */}
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span className="text-gray-600 font-medium text-lg">جاري التحميل...</span>
+
+        <Suspense
+          fallback={
+            <div className="flex min-h-screen items-center justify-center bg-gray-50">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+                <span className="text-lg font-medium text-gray-600">
+                  جاري التحميل...
+                </span>
+              </div>
             </div>
-          </div>
-        }>
+          }
+        >
           <Routes>
-            {/* === مسارات عامة (غير محمية) === */}
+            {/* === مسارات عامة === */}
             <Route path="/" element={<Login />} />
-            
-            {/* مسار التسجيل */}
-            <Route path="/register" element={<Register />} /> 
+            <Route path="/register" element={<Register />} />
 
-            {/* === مسارات الموظف (محمية) === */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
+            {/* === مسارات الموظف === */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* إضافة مسارات الموظف المحمية */}
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <EmployeeProfile />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <EmployeeProfile />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الموظف المحمية الأخرى */}
-            <Route path="/my-leaves" element={
-              <ProtectedRoute>
-                <EmployeeHistory />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/my-leaves"
+              element={
+                <ProtectedRoute>
+                  <EmployeeHistory />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الموظف المحمية الأخرى */}
-            <Route path="/my-reports" element={
-              <ProtectedRoute>
-                <EmployeeReports />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/my-reports"
+              element={
+                <ProtectedRoute>
+                  <EmployeeReports />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الموظف المحمية الأخرى */}
-            <Route path="/my-shifts" element={
-              <ProtectedRoute>
-                <MyShifts />
-              </ProtectedRoute>
-            } />  
+            <Route
+              path="/my-shifts"
+              element={
+                <ProtectedRoute>
+                  <MyShifts />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الموظف المحمية الأخرى */}
-            <Route path="/Employee/full-roster" element={
-              <ProtectedRoute>
-                <EmployeeFullRoster />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/employee/full-roster"
+              element={
+                <ProtectedRoute>
+                  <EmployeeFullRoster />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* === مسارات الإدارة (محمية وصلاحية أدمن فقط) === */}
-            <Route path="/admin" element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
+            {/* === مسارات الإدارة === */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* إضافة مسارات الإدارة المحمية */}
-            <Route path="/admin/employees" element={
-              <ProtectedRoute requiredRole="admin">
-                <EmployeeManagement />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/admin/employees"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <EmployeeManagement />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الإدارة المحمية الأخرى */}
-            <Route path="/admin/balances" element={
-              <ProtectedRoute requiredRole="admin">
-                <BalanceManagement />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/admin/employee-messages"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <EmployeeMessages />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الإدارة المحمية الأخرى */}
-            <Route path="/admin/history" element={
-              <ProtectedRoute requiredRole="admin">
-                <LeaveHistory />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/admin/balances"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <BalanceManagement />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الإدارة المحمية الأخرى */}
-            <Route path="/admin/profile" element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminProfile />
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/admin/history"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <LeaveHistory />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الإدارة المحمية الأخرى */}
-            <Route path="/admin/logs" element={
-              <ProtectedRoute requiredRole="admin">
-                <SystemLogs />
-              </ProtectedRoute>
-            } /> 
+            <Route
+              path="/admin/profile"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminProfile />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* مسارات الإدارة المحمية الأخرى */} 
-            <Route path="/admin/roster" element={
-              <ProtectedRoute requiredRole="admin">
-                <RosterManagement />
-              </ProtectedRoute>
-            } />
-            
+            <Route
+              path="/admin/logs"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <SystemLogs />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/roster"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <RosterManagement />
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </Suspense>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Clock,
@@ -12,22 +12,25 @@ import {
   X,
   Shield,
   Calendar,
+  Mail,
 } from "lucide-react";
+
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 const AdminLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const [pendingCount, setPendingCount] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchPendingCount = async () => {
       try {
-        const response = await fetch(
-          "https://opsvacationsystem.onrender.com/api/admin/pending-requests",
-        );
+        const response = await fetch(`${API_URL}/api/admin/pending-requests`);
         if (response.ok) {
           const data = await response.json();
-          setPendingCount(data.length);
+          setPendingCount(Array.isArray(data) ? data.length : 0);
         }
       } catch (err) {
         console.error("خطأ في تحديث الإشعارات:", err);
@@ -41,184 +44,194 @@ const AdminLayout = ({ children }) => {
 
   const handleLogout = () => {
     localStorage.removeItem("employeeData");
+    sessionStorage.removeItem("employeeData");
     navigate("/");
   };
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const handleNavigate = (path) => {
+    navigate(path);
+    setIsMobileMenuOpen(false);
+  };
 
-  // كلاس موحّد لأزرار القائمة (نشط / غير نشط)
-  const navBtnClass = (path) =>
-    `w-full flex items-center justify-between px-4 py-3 rounded-lg font-medium transition ${
-      location.pathname === path
-        ? "bg-blue-600 text-white"
-        : "text-gray-300 hover:bg-white/10 hover:text-white"
-    }`;
+  const navItems = useMemo(
+    () => [
+      {
+        path: "/admin",
+        label: "الطلبات المعلقة",
+        icon: Clock,
+        badge: pendingCount > 0 ? pendingCount : null,
+      },
+      {
+        path: "/admin/roster",
+        label: "إدارة الروستر",
+        icon: Calendar,
+      },
+      {
+        path: "/admin/employees",
+        label: "إدارة الموظفين",
+        icon: Users,
+      },
+      {
+        path: "/admin/employee-messages",
+        label: "رسائل الموظفين",
+        icon: Mail,
+      },
+      {
+        path: "/admin/balances",
+        label: "إدارة الأرصدة",
+        icon: Wallet,
+      },
+      {
+        path: "/admin/history",
+        label: "أرشيف الإجازات",
+        icon: Archive,
+      },
+      {
+        path: "/admin/logs",
+        label: "سجلات النظام",
+        icon: Activity,
+      },
+      {
+        path: "/admin/profile",
+        label: "حسابي",
+        icon: User,
+      },
+    ],
+    [pendingCount],
+  );
+
+  const isActivePath = (path) => location.pathname === path;
 
   return (
-    // ملاحظة: print:h-auto و print:overflow-visible تمنع قص المحتوى عند الطباعة
     <div
-      className="flex h-screen w-full bg-gray-50 font-sans overflow-hidden print:block print:h-auto print:overflow-visible"
+      className="flex h-screen w-full overflow-hidden bg-gray-50 font-sans print:block print:h-auto print:overflow-visible"
       dir="rtl"
     >
-      {/* --- طبقة الشفافية للموبايل --- */}
+      <style>{`
+        .admin-sidebar-scrollbar::-webkit-scrollbar {
+          width: 0px;
+          height: 0px;
+        }
+        .admin-sidebar-scrollbar {
+          scrollbar-width: none;
+        }
+      `}</style>
+
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity print:hidden"
+          className="fixed inset-0 z-40 bg-black/55 transition-opacity md:hidden print:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         ></div>
       )}
 
-      {/* --- القائمة الجانبية (Sidebar): تختفي تماماً عند الطباعة --- */}
       <aside
-        className={`fixed top-0 right-0 h-full w-64 bg-[#0f172a] text-white z-50 transform transition-transform duration-300 ease-in-out flex flex-col shadow-xl shrink-0 md:relative md:translate-x-0 print:hidden ${
+        className={`fixed top-0 right-0 z-50 flex h-full w-[260px] shrink-0 transform flex-col bg-[#0f172a] text-white shadow-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0 print:hidden ${
           isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="p-6 relative border-b border-gray-800">
-          <div className="flex flex-col items-center">
-            <Shield className="text-yellow-500 mb-3" size={48} />
-            <h2 className="text-xl font-bold">لوحة الإدارة</h2>
-            <p className="text-sm text-gray-400 mt-1">السيطرة المركزية</p>
+        {/* Header */}
+        <div className="relative border-b border-white/10 px-5 py-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600/15 ring-1 ring-white/10">
+              <Shield className="text-yellow-400" size={22} />
+            </div>
+
+            <div className="min-w-0">
+              <h2 className="truncate text-[17px] font-black text-white">
+                لوحة الإدارة
+              </h2>
+              <p className="mt-0.5 text-xs font-medium text-slate-400">
+                السيطرة المركزية
+              </p>
+            </div>
           </div>
 
           <button
-            className="md:hidden absolute top-4 left-4 text-gray-400 hover:text-white"
+            className="absolute left-4 top-4 text-gray-400 transition hover:text-white md:hidden"
             onClick={() => setIsMobileMenuOpen(false)}
           >
-            <X size={28} />
+            <X size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-          {/* الطلبات المعلقة */}
-          <button
-            onClick={() => {
-              navigate("/admin");
-              setIsMobileMenuOpen(false);
-            }}
-            className={navBtnClass("/admin")}
-          >
-            <div className="flex items-center gap-3">
-              <Clock size={20} /> الطلبات المعلقة
-            </div>
-            {pendingCount > 0 && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-          {/* إدارة الروستر */}
-          <button
-            onClick={() => {
-              navigate("/admin/roster");
-              setIsMobileMenuOpen(false);
-            }}
-            className={navBtnClass("/admin/roster")}
-          >
-            <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5" /> إدارة الروستر
-            </div>
-          </button>
-          {/* إدارة الموظفين */}
-          <button
-            onClick={() => {
-              navigate("/admin/employees");
-              setIsMobileMenuOpen(false);
-            }}
-            className={navBtnClass("/admin/employees")}
-          >
-            <div className="flex items-center gap-3">
-              <Users size={20} /> إدارة الموظفين
-            </div>
-          </button>
+        {/* Nav */}
+        <nav className="admin-sidebar-scrollbar flex-1 overflow-y-auto px-3 py-3">
+          <div className="space-y-1.5">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = isActivePath(item.path);
 
-          {/* إدارة الأرصدة */}
-          <button
-            onClick={() => {
-              navigate("/admin/balances");
-              setIsMobileMenuOpen(false);
-            }}
-            className={navBtnClass("/admin/balances")}
-          >
-            <div className="flex items-center gap-3">
-              <Wallet size={20} /> إدارة الأرصدة
-            </div>
-          </button>
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => handleNavigate(item.path)}
+                  className={`group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-900/20"
+                      : "text-slate-300 hover:bg-white/8 hover:text-white"
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${
+                        isActive
+                          ? "bg-white/12 text-white"
+                          : "bg-white/[0.04] text-slate-300 group-hover:bg-white/[0.08] group-hover:text-white"
+                      }`}
+                    >
+                      <Icon size={16} />
+                    </div>
 
-          {/* أرشيف الإجازات */}
-          <button
-            onClick={() => {
-              navigate("/admin/history");
-              setIsMobileMenuOpen(false);
-            }}
-            className={navBtnClass("/admin/history")}
-          >
-            <div className="flex items-center gap-3">
-              <Archive size={20} /> أرشيف الإجازات
-            </div>
-          </button>
+                    <span className="truncate">{item.label}</span>
+                  </div>
 
-          {/* سجلات النظام */}
-          <button
-            onClick={() => {
-              navigate("/admin/logs");
-              setIsMobileMenuOpen(false);
-            }}
-            className={navBtnClass("/admin/logs")}
-          >
-            <div className="flex items-center gap-3">
-              <Activity size={20} /> سجلات النظام
-            </div>
-          </button>
-
-          {/* حسابي */}
-          <button
-            onClick={() => {
-              navigate("/admin/profile");
-              setIsMobileMenuOpen(false);
-            }}
-            className={navBtnClass("/admin/profile")}
-          >
-            <div className="flex items-center gap-3">
-              <User size={20} /> حسابي
-            </div>
-          </button>
+                  {item.badge ? (
+                    <span className="shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white shadow-sm">
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
-        {/* زر الخروج */}
-        <div className="p-4 border-t border-gray-700 shrink-0">
+        {/* Logout */}
+        <div className="border-t border-white/10 p-3">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 hover:bg-red-500/80 rounded-lg text-gray-300 hover:text-white transition"
+            className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-red-500/15 hover:text-white"
           >
-            <LogOut size={20} /> خروج من الإدارة
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04] transition group-hover:bg-red-500/20">
+              <LogOut size={16} />
+            </div>
+            <span>خروج من الإدارة</span>
           </button>
         </div>
       </aside>
 
-      {/* --- الجزء الرئيسي: print:h-auto و print:overflow-visible يمنعان القص --- */}
-      <main className="flex-1 h-full flex flex-col min-w-0 relative print:h-auto print:overflow-visible print:block">
-        {/* هيدر الموبايل: يختفي عند الطباعة */}
-        <header className="bg-[#0f172a] text-white p-4 shadow-md md:hidden flex items-center justify-between z-10 shrink-0 print:hidden">
+      <main className="relative flex h-full min-w-0 flex-1 flex-col print:block print:h-auto print:overflow-visible">
+        {/* Mobile Header */}
+        <header className="z-10 flex shrink-0 items-center justify-between bg-[#0f172a] px-4 py-3 text-white shadow-md md:hidden print:hidden">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
-              className="text-gray-300 hover:text-white focus:outline-none"
+              className="text-slate-300 transition hover:text-white focus:outline-none"
             >
-              <Menu size={28} />
+              <Menu size={22} />
             </button>
-            <h1 className="font-bold text-lg">لوحة الإدارة</h1>
+            <h1 className="text-base font-bold">لوحة الإدارة</h1>
           </div>
-          <Shield className="text-yellow-500" size={24} />
+
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5">
+            <Shield className="text-yellow-400" size={18} />
+          </div>
         </header>
 
-        {/* مساحة العمل: السكرول للشاشة فقط، ويُلغى عند الطباعة */}
-        <div className="flex-1 overflow-y-auto flex flex-col print:overflow-visible print:h-auto print:block">
-          {/* المحتوى */}
+        <div className="flex flex-1 flex-col overflow-y-auto print:block print:h-auto print:overflow-visible">
           <div className="flex-1 p-4 md:p-8 print:p-0">{children}</div>
 
-          {/* الفوتر: يختفي عند الطباعة */}
-          <footer className="w-full text-left px-4 md:px-8 py-4 text-xs text-gray-500 border-t border-gray-200 shrink-0 print:hidden">
+          <footer className="w-full shrink-0 border-t border-gray-200 px-4 py-4 text-left text-xs text-gray-500 print:hidden md:px-8">
             Developed by{" "}
             <span className="font-bold text-gray-700">Mahmoud Shahin</span>{" "}
             &copy; 2026

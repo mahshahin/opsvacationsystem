@@ -17,6 +17,10 @@ router.put("/update-employee/:id", adminController.updateEmployee);
 router.delete("/delete-employee/:id", adminController.deleteEmployee);
 router.put("/update-balances/:id", adminController.updateBalances);
 
+// ✅ رسائل الموظفين
+router.get("/message-employees", adminController.getMessageEmployees);
+router.post("/send-employee-message", adminController.sendEmployeeMessage);
+
 // السجلات
 router.get("/logs", adminController.getLogs);
 
@@ -30,7 +34,7 @@ router.get("/admins-list", adminController.getAdminsList);
 router.put("/update-admin/:id", adminController.updateAdmin);
 router.delete("/delete-admin/:id", adminController.deleteAdmin);
 
-// ✅ جديد: إعداد الحد الأقصى الشهري للإجازات
+// إعداد الحد الأقصى الشهري للإجازات
 router.get("/leave-rules/monthly-limit", adminController.getMonthlyLeaveLimit);
 router.put(
   "/leave-rules/monthly-limit",
