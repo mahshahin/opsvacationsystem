@@ -6,6 +6,7 @@ const Log = require("../models/Log");
 const LeaveRequest = require("../models/LeaveRequest");
 const Admin = require("../models/Admin");
 const sendEmail = require("../utils/sendEmail");
+const sendPushNotification = require("../utils/sendPushNotification");
 
 /* =========================
    Helpers
@@ -339,8 +340,13 @@ exports.handleRequest = async (req, res) => {
       return res.status(400).json({ message: "بيانات ناقصة!" });
     }
 
-    const request =
-      await LeaveRequest.findById(requestId).populate("employeeId");
+    if (!["approve", "reject"].includes(action)) {
+      return res.status(400).json({ message: "إجراء غير صحيح!" });
+    }
+
+    const request = await LeaveRequest.findById(requestId).populate(
+      "employeeId"
+    );
 
     if (!request) {
       return res.status(404).json({ message: "الطلب غير موجود!" });
@@ -351,6 +357,10 @@ exports.handleRequest = async (req, res) => {
     }
 
     const user = request.employeeId;
+
+    if (!user) {
+      return res.status(404).json({ message: "الموظف غير موجود!" });
+    }
 
     if (action === "approve") {
       if (user.leaveBalances[request.leaveType] < request.duration) {
@@ -368,6 +378,7 @@ exports.handleRequest = async (req, res) => {
 
     await request.save();
 
+    // إرسال إيميل للموظف إذا كان عنده بريد إلكتروني
     if (user && user.email) {
       sendEmail(
         user.email,
@@ -375,10 +386,40 @@ exports.handleRequest = async (req, res) => {
         request.status,
         request.leaveType,
         request.startDate,
-        request.endDate,
+        request.endDate
       ).catch((err) =>
-        console.error("خطأ في إرسال البريد الإلكتروني الإشعاري:", err),
+        console.error("خطأ في إرسال البريد الإلكتروني الإشعاري:", err)
       );
+    }
+
+    // إرسال Push Notification للموظف على الموبايل
+    try {
+      const isApproved = action === "approve";
+
+      const title = isApproved
+        ? "تم قبول طلب الإجازة"
+        : "تم رفض طلب الإجازة";
+
+      const fromDate = new Date(request.startDate).toLocaleDateString("ar-EG");
+      const toDate = new Date(request.endDate).toLocaleDateString("ar-EG");
+
+      const body = isApproved
+        ? `تم قبول طلب إجازتك من ${fromDate} إلى ${toDate}.`
+        : `تم رفض طلب إجازتك من ${fromDate} إلى ${toDate}.`;
+
+      await sendPushNotification({
+        to: user.expoPushTokens || [],
+        title,
+        body,
+        data: {
+          type: isApproved ? "leave_approved" : "leave_rejected",
+          screen: "EmployeeHistory",
+          requestId: String(request._id),
+          status: request.status,
+        },
+      });
+    } catch (pushError) {
+      console.error("خطأ في إرسال Push Notification:", pushError);
     }
 
     const newLog = new Log({

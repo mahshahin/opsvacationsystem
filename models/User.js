@@ -49,6 +49,10 @@ const userSchema = new mongoose.Schema(
       casual: { type: Number, default: 7 },
       compensation: { type: Number, default: 0 },
     },
+	expoPushTokens: {
+	type: [String],
+	default: [],
+	},
   },
   { timestamps: true },
 );

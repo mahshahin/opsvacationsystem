@@ -548,3 +548,45 @@ exports.updateEmail = async (req, res) => {
     });
   }
 };
+
+// حفظ Expo Push Token للموظف
+exports.savePushToken = async (req, res) => {
+  try {
+    const { employeeCode, expoPushToken } = req.body;
+
+    if (!employeeCode || !expoPushToken) {
+      return res.status(400).json({
+        message: "employeeCode and expoPushToken are required",
+      });
+    }
+
+    const user = await User.findOne({ employeeCode });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "الموظف غير موجود",
+      });
+    }
+
+    if (!user.expoPushTokens) {
+      user.expoPushTokens = [];
+    }
+
+    if (!user.expoPushTokens.includes(expoPushToken)) {
+      user.expoPushTokens.push(expoPushToken);
+      await user.save();
+    }
+
+    return res.status(200).json({
+      message: "تم حفظ توكن الإشعارات بنجاح",
+      expoPushTokens: user.expoPushTokens,
+    });
+  } catch (error) {
+    console.error("Save push token error:", error);
+
+    return res.status(500).json({
+      message: "حدث خطأ أثناء حفظ توكن الإشعارات",
+      error: error.message,
+    });
+  }
+};
