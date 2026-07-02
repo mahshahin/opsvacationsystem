@@ -332,6 +332,10 @@ exports.getPendingRequests = async (req, res) => {
 /* =========================
    معالجة الطلبات
 ========================= */
+/* =========================
+   معالجة الطلبات (الموافقة والرفض) المعدلة لإرسال البادج 
+   ودعم الأسماء المختلفة للتوكنز في الـ Schema (expoPushToken أو expoPushTokens)
+========================= */
 exports.handleRequest = async (req, res) => {
   try {
     const { requestId, action } = req.body;
@@ -357,7 +361,6 @@ exports.handleRequest = async (req, res) => {
     }
 
     const user = request.employeeId;
-
     if (!user) {
       return res.status(404).json({ message: "الموظف غير موجود!" });
     }
@@ -366,11 +369,9 @@ exports.handleRequest = async (req, res) => {
       if (user.leaveBalances[request.leaveType] < request.duration) {
         return res.status(400).json({ message: "رصيد الموظف لا يكفي!" });
       }
-
       user.leaveBalances[request.leaveType] -= request.duration;
       user.markModified("leaveBalances");
       await user.save();
-
       request.status = "approved";
     } else {
       request.status = "rejected";
@@ -392,32 +393,39 @@ exports.handleRequest = async (req, res) => {
       );
     }
 
-    // إرسال Push Notification للموظف على الموبايل
+    // إرسال Push Notification للموظف وتحديث البادج على أيقونة التطبيق لـ 1
     try {
       const isApproved = action === "approve";
-
       const title = isApproved
         ? "تم قبول طلب الإجازة"
         : "تم رفض طلب الإجازة";
 
       const fromDate = new Date(request.startDate).toLocaleDateString("ar-EG");
       const toDate = new Date(request.endDate).toLocaleDateString("ar-EG");
-
       const body = isApproved
         ? `تم قبول طلب إجازتك من ${fromDate} إلى ${toDate}.`
         : `تم رفض طلب إجازتك من ${fromDate} إلى ${toDate}.`;
 
-      await sendPushNotification({
-        to: user.expoPushTokens || [],
-        title,
-        body,
-        data: {
-          type: isApproved ? "leave_approved" : "leave_rejected",
-          screen: "EmployeeHistory",
-          requestId: String(request._id),
-          status: request.status,
-        },
-      });
+      // ⚠️ فحص ذكي لدعم كلا الحقلين في قاعدة البيانات الخاصة بك (مفرد أو جمع)
+      const employeeTokens = user.expoPushToken || user.expoPushTokens;
+
+      if (employeeTokens) {
+        await sendPushNotification({
+          to: employeeTokens, // يدعم كونه String مفرد أو Array جمع تلقائياً
+          title,
+          body,
+          badge: 1, // 👈 هنا قمنا بإضافة البادج ليظهر الرقم 1 على أيقونة التطبيق!
+          data: {
+            type: isApproved ? "leave_approved" : "leave_rejected",
+            screen: "EmployeeHistory",
+            requestId: String(request._id),
+            status: request.status,
+          },
+        });
+        console.log("تم إرسال الإشعار والـ Badge بنجاح للموظف:", user.employeeCode);
+      } else {
+        console.log("لم يتم إرسال إشعار لعدم وجود توكن إشعارات مسجل لجهاز الموظف:", user.employeeCode);
+      }
     } catch (pushError) {
       console.error("خطأ في إرسال Push Notification:", pushError);
     }
@@ -427,12 +435,12 @@ exports.handleRequest = async (req, res) => {
       details: `تم ${action === "approve" ? "قبول" : "رفض"} إجازة ${user.name}.`,
       ipAddress: req.ip,
     });
-
     await newLog.save();
 
     res.status(200).json({
       message: `تم ${action === "approve" ? "قبول" : "رفض"} الطلب!`,
     });
+
   } catch (error) {
     res.status(500).json({
       message: "خطأ في المعالجة",

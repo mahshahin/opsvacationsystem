@@ -8,7 +8,6 @@ const sendEmail = require("../utils/sendEmail");
 /* =========================
    Helpers
 ========================= */
-
 const getUserByEmployeeCode = async (employeeCode) => {
   return await User.findOne({ employeeCode });
 };
@@ -36,18 +35,14 @@ const getMonthlyLeaveLimit = async () => {
 const getOverlapDays = (rangeStart, rangeEnd, periodStart, periodEnd) => {
   const start = rangeStart > periodStart ? rangeStart : periodStart;
   const end = rangeEnd < periodEnd ? rangeEnd : periodEnd;
-
   if (start > end) return 0;
-
   return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
 };
 
 // تقسيم الفترة على الشهور المتداخلة معها
 const getMonthChunksBetween = (startDate, endDate) => {
   const chunks = [];
-
   let cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-
   while (cursor <= endDate) {
     const chunkStart = new Date(
       cursor.getFullYear(),
@@ -58,7 +53,6 @@ const getMonthChunksBetween = (startDate, endDate) => {
       0,
       0,
     );
-
     const chunkEnd = new Date(
       cursor.getFullYear(),
       cursor.getMonth() + 1,
@@ -68,7 +62,6 @@ const getMonthChunksBetween = (startDate, endDate) => {
       59,
       999,
     );
-
     chunks.push({
       start: chunkStart,
       end: chunkEnd,
@@ -77,10 +70,8 @@ const getMonthChunksBetween = (startDate, endDate) => {
         year: "numeric",
       }),
     });
-
     cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
   }
-
   return chunks;
 };
 
@@ -89,7 +80,6 @@ const notifyAdminsByEmail = async (subject, message) => {
   const admins = await Admin.find({
     email: { $exists: true, $ne: "" },
   }).select("email name");
-
   const uniqueAdminEmails = [
     ...new Set(
       admins
@@ -101,9 +91,7 @@ const notifyAdminsByEmail = async (subject, message) => {
         .filter(Boolean),
     ),
   ];
-
   if (uniqueAdminEmails.length === 0) return;
-
   await Promise.allSettled(
     uniqueAdminEmails.map((email) => sendEmail(email, subject, message)),
   );
@@ -120,10 +108,8 @@ const sendAdminLeaveRequestNotification = async ({
   reason,
 }) => {
   const subject = `طلب إجازة جديد من ${employeeName}`;
-
   const message = `
 تم تقديم طلب إجازة جديد ويحتاج إلى مراجعة الإدارة.
-
 اسم الموظف: ${employeeName}
 كود الموظف: ${employeeCode}
 نوع الإجازة: ${translateLeaveType(leaveType)}
@@ -131,10 +117,8 @@ const sendAdminLeaveRequestNotification = async ({
 إلى: ${new Date(endDate).toLocaleDateString("ar-EG")}
 عدد الأيام: ${duration}
 السبب: ${reason || "لا يوجد"}
-
 يرجى مراجعة الطلب من لوحة الإدارة.
 `;
-
   await notifyAdminsByEmail(subject, message);
 };
 
@@ -149,10 +133,8 @@ const sendAdminLeaveCancelNotification = async ({
   reason,
 }) => {
   const subject = `إلغاء طلب إجازة من ${employeeName}`;
-
   const message = `
 قام الموظف بإلغاء طلب إجازة كان في حالة انتظار.
-
 اسم الموظف: ${employeeName}
 كود الموظف: ${employeeCode}
 نوع الإجازة: ${translateLeaveType(leaveType)}
@@ -160,10 +142,8 @@ const sendAdminLeaveCancelNotification = async ({
 إلى: ${new Date(endDate).toLocaleDateString("ar-EG")}
 عدد الأيام: ${duration}
 السبب: ${reason || "لا يوجد"}
-
 تم إلغاء الطلب من قبل الموظف قبل مراجعته.
 `;
-
   await notifyAdminsByEmail(subject, message);
 };
 
@@ -175,13 +155,10 @@ const sendAdminLeaveCancelNotification = async ({
 exports.getEmployeeProfile = async (req, res) => {
   try {
     const { code } = req.params;
-
     const user = await User.findOne({ employeeCode: code }).select("-password");
-
     if (!user) {
       return res.status(404).json({ message: "الموظف غير موجود!" });
     }
-
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({
@@ -195,17 +172,13 @@ exports.getEmployeeProfile = async (req, res) => {
 exports.getMyRequests = async (req, res) => {
   try {
     const { employeeCode } = req.params;
-
     const user = await getUserByEmployeeCode(employeeCode);
-
     if (!user) {
       return res.status(404).json({ message: "الموظف غير موجود" });
     }
-
     const requests = await LeaveRequest.find({ employeeId: user._id }).sort({
       createdAt: -1,
     });
-
     res.status(200).json(requests);
   } catch (error) {
     res.status(500).json({
@@ -219,33 +192,26 @@ exports.getMyRequests = async (req, res) => {
 exports.cancelRequest = async (req, res) => {
   try {
     const { id } = req.params;
-
     const request = await LeaveRequest.findById(id).populate(
       "employeeId",
       "name employeeCode",
     );
-
     if (!request) {
       return res.status(404).json({ message: "الطلب غير موجود!" });
     }
-
     if (request.status !== "pending") {
       return res.status(400).json({
         message: "لا يمكن إلغاء طلب تمت معالجته بالفعل!",
       });
     }
-
     const employee = request.employeeId;
-
     await LeaveRequest.findByIdAndDelete(id);
-
     const newLog = new Log({
       action: "LEAVE_CANCELLED_BY_EMPLOYEE",
       performedBy: employee?._id || null,
       details: `قام ${employee?.name || "موظف"} بإلغاء طلب إجازة (${request.leaveType}) لمدة ${request.duration} أيام.`,
       ipAddress: req.ip,
     });
-
     await newLog.save();
 
     // إرسال إشعار للإدارة
@@ -262,7 +228,6 @@ exports.cancelRequest = async (req, res) => {
     } catch (emailError) {
       console.error("خطأ في إرسال إشعار إلغاء الإجازة للإدارة:", emailError);
     }
-
     res.status(200).json({ message: "تم إلغاء الطلب بنجاح." });
   } catch (error) {
     res.status(500).json({
@@ -290,7 +255,6 @@ exports.submitLeaveRequest = async (req, res) => {
     }
 
     const user = await getUserByEmployeeCode(employeeCode);
-
     if (!user) {
       return res.status(404).json({ message: "الموظف غير موجود!" });
     }
@@ -302,13 +266,10 @@ exports.submitLeaveRequest = async (req, res) => {
     }
 
     const cleanReason = String(reason || "").trim();
-
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
-
     const end = new Date(endDate);
     end.setHours(0, 0, 0, 0);
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -370,7 +331,6 @@ exports.submitLeaveRequest = async (req, res) => {
         const reqEnd = new Date(req.endDate);
         reqStart.setHours(0, 0, 0, 0);
         reqEnd.setHours(23, 59, 59, 999);
-
         return total + getOverlapDays(reqStart, reqEnd, chunk.start, chunk.end);
       }, 0);
 
@@ -435,7 +395,6 @@ exports.submitLeaveRequest = async (req, res) => {
       details: `قدم ${user.name} طلب إجازة (${leaveType}) لمدة ${duration} أيام.`,
       ipAddress: req.ip,
     });
-
     await newLog.save();
 
     // إرسال إشعار إيميل للإدارة بوجود طلب جديد
@@ -470,20 +429,17 @@ exports.submitLeaveRequest = async (req, res) => {
 exports.leaveReport = async (req, res) => {
   try {
     const { employeeCode, startDate, endDate } = req.body;
-
     if (!employeeCode || !startDate || !endDate) {
       return res.status(400).json({ message: "بيانات التقرير ناقصة!" });
     }
 
     const user = await getUserByEmployeeCode(employeeCode);
-
     if (!user) {
       return res.status(404).json({ message: "الموظف غير موجود!" });
     }
 
     const fromDate = new Date(startDate);
     fromDate.setHours(0, 0, 0, 0);
-
     const toDate = new Date(endDate);
     toDate.setHours(23, 59, 59, 999);
 
@@ -495,7 +451,6 @@ exports.leaveReport = async (req, res) => {
     }).sort({ startDate: 1 });
 
     const summary = { annual: 0, casual: 0, compensation: 0 };
-
     leaves.forEach((leave) => {
       if (summary[leave.leaveType] !== undefined) {
         summary[leave.leaveType] += leave.duration;
@@ -522,7 +477,6 @@ exports.updateEmail = async (req, res) => {
   try {
     const { code } = req.params;
     const { email } = req.body;
-
     if (!email) {
       return res.status(400).json({ message: "برجاء إدخال البريد الإلكتروني" });
     }
@@ -549,11 +503,10 @@ exports.updateEmail = async (req, res) => {
   }
 };
 
-// حفظ Expo Push Token للموظف
+// حفظ Expo Push Token للموظف عند تسجيل الدخول أو تشغيل التطبيق
 exports.savePushToken = async (req, res) => {
   try {
     const { employeeCode, expoPushToken } = req.body;
-
     if (!employeeCode || !expoPushToken) {
       return res.status(400).json({
         message: "employeeCode and expoPushToken are required",
@@ -561,7 +514,6 @@ exports.savePushToken = async (req, res) => {
     }
 
     const user = await User.findOne({ employeeCode });
-
     if (!user) {
       return res.status(404).json({
         message: "الموظف غير موجود",
@@ -572,6 +524,7 @@ exports.savePushToken = async (req, res) => {
       user.expoPushTokens = [];
     }
 
+    // إضافة التوكن فقط إذا لم يكن مسجلاً مسبقاً (لمنع التكرار)
     if (!user.expoPushTokens.includes(expoPushToken)) {
       user.expoPushTokens.push(expoPushToken);
       await user.save();
@@ -583,9 +536,41 @@ exports.savePushToken = async (req, res) => {
     });
   } catch (error) {
     console.error("Save push token error:", error);
-
     return res.status(500).json({
       message: "حدث خطأ أثناء حفظ توكن الإشعارات",
+      error: error.message,
+    });
+  }
+};
+
+// ✅ جديد: حذف توكن الإشعارات عند تسجيل الخروج
+exports.removePushToken = async (req, res) => {
+  try {
+    const { employeeCode } = req.body;
+    if (!employeeCode) {
+      return res.status(400).json({
+        message: "employeeCode is required",
+      });
+    }
+
+    const user = await User.findOne({ employeeCode });
+    if (!user) {
+      return res.status(404).json({
+        message: "الموظف غير موجود",
+      });
+    }
+
+    // تصفير مصفوفة الإشعارات عند خروج المستخدم لمنع وصول الإشعارات للجهاز بعد تسجيل الخروج
+    user.expoPushTokens = [];
+    await user.save();
+
+    return res.status(200).json({
+      message: "تم حذف توكن الإشعارات بنجاح",
+    });
+  } catch (error) {
+    console.error("Remove push token error:", error);
+    return res.status(500).json({
+      message: "حدث خطأ أثناء إزالة توكن الإشعارات",
       error: error.message,
     });
   }
