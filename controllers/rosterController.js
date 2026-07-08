@@ -265,17 +265,32 @@ exports.getMyShifts = async (req, res) => {
       userNames[u._id.toString()] = u.name;
     });
 
-    const formattedShifts = myShifts.map((shift) => ({
-      day: shift.day,
-      shiftName: shift.shiftName,
-      role: shift.role,
-      leaderName: shift.leaderId
-        ? userNames[shift.leaderId.toString()] || "غير محدد"
-        : "غير محدد",
-      teamNames: (shift.memberIds || [])
-        .map((id) => (id ? userNames[id.toString()] || null : null))
-        .filter(Boolean),
-    }));
+    const formattedShifts = myShifts.map((shift) => {
+      const allMemberIds = shift.memberIds || [];
+      const allUserIds = [shift.leaderId, ...allMemberIds].filter(Boolean);
+
+      const members = allUserIds.map((id) => {
+        const idStr = id.toString();
+        const isLeader = shift.leaderId && shift.leaderId.toString() === idStr;
+        return {
+          name: userNames[idStr] || "غير محدد",
+          role: isLeader ? "رئيس نوبة" : "فرد نوبة",
+        };
+      });
+
+      return {
+        day: shift.day,
+        shiftName: shift.shiftName,
+        role: shift.role,
+        leaderName: shift.leaderId
+          ? userNames[shift.leaderId.toString()] || "غير محدد"
+          : "غير محدد",
+        teamNames: (shift.memberIds || [])
+          .map((id) => (id ? userNames[id.toString()] || null : null))
+          .filter(Boolean),
+        members,
+      };
+    });
 
     formattedShifts.sort((a, b) => a.day - b.day);
 

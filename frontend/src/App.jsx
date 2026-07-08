@@ -23,6 +23,9 @@ const EmployeeProfile = React.lazy(
 const EmployeeFullRoster = React.lazy(
   () => import("./pages/Employee/EmployeeFullRoster"),
 );
+const ShiftCalendar = React.lazy(
+  () => import("./pages/Employee/ShiftCalendarScreen"),
+);
 
 // استدعاءات الإدارة
 const AdminDashboard = React.lazy(() => import("./pages/Admin/AdminDashboard"));
@@ -126,6 +129,15 @@ function App() {
               element={
                 <ProtectedRoute>
                   <EmployeeFullRoster />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/employee/shift-calendar"
+              element={
+                <ProtectedRoute>
+                  <ShiftCalendar />
                 </ProtectedRoute>
               }
             />

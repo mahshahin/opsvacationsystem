@@ -27,6 +27,8 @@ const EmployeeLayout = ({ children }) => {
         return "جدول وردياتي";
       case "/employee/full-roster":
         return "جدول الشهر الكامل";
+      case "/employee/shift-calendar":
+        return "التقويم";
       case "/my-leaves":
         return "سجل الإجازات";
       case "/my-reports":
@@ -129,6 +131,18 @@ const EmployeeLayout = ({ children }) => {
           >
             <Table2 size={20} />
             جدول الشهر الكامل
+          </button>
+
+          <button
+            onClick={() => handleNavigation("/employee/shift-calendar")}
+            className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 font-medium transition ${
+              location.pathname === "/employee/shift-calendar"
+                ? "bg-white/10 text-white"
+                : "text-blue-100 hover:bg-white/10"
+            }`}
+          >
+            <CalendarDays size={20} />
+            التقويم
           </button>
 
           <button
