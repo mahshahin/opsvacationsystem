@@ -28,36 +28,48 @@ const yearOptions = [currentYear - 1, currentYear, currentYear + 1];
 
 const ShiftBox = ({ title, data, color }) => {
   return (
-    <div className={`rounded-2xl border p-3 ${color}`}>
-      <div className="mb-2 font-black text-sm text-slate-800">{title}</div>
-
-      <div className="mb-2 text-xs text-slate-500 flex items-center gap-1">
-        <Crown size={12} />
-        رئيس النوبة
-      </div>
-      <div className="mb-3 text-sm font-bold text-slate-800">
-        {data.leaderName || "—"}
+    <div
+      className={`rounded-xl border p-2 md:p-3 text-center flex flex-col h-full ${color}`}
+    >
+      {/* عنوان الشفت */}
+      <div className="mb-2 font-black text-sm md:text-base text-slate-800 border-b border-black/5 pb-2">
+        {title}
       </div>
 
-      <div className="text-xs text-slate-500 flex items-center gap-1 mb-2">
-        <Users size={12} />
-        الأفراد
-      </div>
-
-      {data.memberNames?.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {data.memberNames.map((name, index) => (
-            <span
-              key={index}
-              className="rounded-full bg-white border border-slate-200 px-2.5 py-1 text-xs font-bold text-slate-700"
-            >
-              {name}
-            </span>
-          ))}
+      {/* رئيس النوبة */}
+      <div className="mb-2">
+        <div className="text-[10px] md:text-xs text-slate-500 mb-1 flex justify-center items-center gap-1">
+          <Crown size={10} /> رئيس النوبة
         </div>
-      ) : (
-        <div className="text-xs italic text-slate-400">لا يوجد أفراد</div>
-      )}
+        <div className="text-xs md:text-sm font-bold text-slate-800 truncate px-1">
+          {data.leaderName || "—"}
+        </div>
+      </div>
+
+      {/* الأفراد */}
+      <div className="flex-1">
+        <div className="text-[10px] md:text-xs text-slate-500 mb-1 flex justify-center items-center gap-1">
+          <Users size={10} /> الأفراد
+        </div>
+
+        {data.memberNames?.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {data.memberNames.map((name, index) => (
+              <div
+                key={index}
+                className="rounded-md bg-white border border-slate-200 px-1 py-1.5 text-[11px] md:text-xs font-bold text-slate-700 truncate w-full"
+                title={name}
+              >
+                {name}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[10px] md:text-xs italic text-slate-400 mt-2">
+            لا يوجد
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -217,19 +229,19 @@ const EmployeeFullRoster = () => {
                     ) : null}
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 md:gap-4">
                     <ShiftBox
-                      title="الوردية الأولى"
+                      title="صبح"
                       data={day.shift1}
                       color="bg-sky-50 border-sky-100"
                     />
                     <ShiftBox
-                      title="الوردية الثانية"
+                      title="ضهر"
                       data={day.shift2}
                       color="bg-emerald-50 border-emerald-100"
                     />
                     <ShiftBox
-                      title="الوردية الثالثة"
+                      title="ليل"
                       data={day.shift3}
                       color="bg-violet-50 border-violet-100"
                     />
