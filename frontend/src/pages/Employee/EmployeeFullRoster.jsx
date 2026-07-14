@@ -231,17 +231,38 @@ const EmployeeFullRoster = () => {
 
                   <div className="grid grid-cols-3 gap-2 md:gap-4">
                     <ShiftBox
-                      title="الأولى (0630 : 0700)"
+                      title={
+                        <>
+                          <span className="block">الأولى</span>
+                          <span className="block mt-0.5 text-[11px] md:text-xs font-medium text-slate-500">
+                            (0630 : 0700)
+                          </span>
+                        </>
+                      }
                       data={day.shift1}
                       color="bg-sky-50 border-sky-100"
                     />
                     <ShiftBox
-                      title="الثانية (1400 : 1430)"
+                      title={
+                        <>
+                          <span className="block">الثانية</span>
+                          <span className="block mt-0.5 text-[11px] md:text-xs font-medium text-slate-500">
+                            (1400 : 1430)
+                          </span>
+                        </>
+                      }
                       data={day.shift2}
                       color="bg-emerald-50 border-emerald-100"
                     />
                     <ShiftBox
-                      title="الثالثة (2200 : 2230)"
+                      title={
+                        <>
+                          <span className="block">الثالثة</span>
+                          <span className="block mt-0.5 text-[11px] md:text-xs font-medium text-slate-500">
+                            (2200 : 2230)
+                          </span>
+                        </>
+                      }
                       data={day.shift3}
                       color="bg-violet-50 border-violet-100"
                     />
