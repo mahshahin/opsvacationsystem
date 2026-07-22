@@ -10,6 +10,9 @@ import {
   Save,
   Printer,
   FileText,
+  Search,
+  X,
+  Layers,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminLayout from "../components/AdminLayout";
@@ -34,6 +37,7 @@ const initialReasonModal = {
 
 const AdminDashboard = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({
     requestId: null,
@@ -214,6 +218,57 @@ const AdminDashboard = () => {
       alerts: pendingRequests.filter((r) => hasInsufficientBalance(r)).length,
     };
   }, [pendingRequests]);
+
+  const filteredPendingRequests = useMemo(() => {
+    if (!searchTerm.trim()) return pendingRequests;
+    const term = searchTerm.trim().toLowerCase();
+    return pendingRequests.filter((req) => {
+      const name = req.employeeId?.name || "";
+      const code = req.employeeId?.employeeCode || "";
+      return (
+        name.toLowerCase().includes(term) ||
+        code.toLowerCase().includes(term)
+      );
+    });
+  }, [pendingRequests, searchTerm]);
+
+  const groupedPendingRequests = useMemo(() => {
+    const map = new Map();
+    filteredPendingRequests.forEach((req) => {
+      const empId =
+        req.employeeId?._id || req.employeeId?.employeeCode || "unknown";
+      if (!map.has(empId)) {
+        map.set(empId, {
+          employee: req.employeeId || {
+            name: "غير معروف",
+            employeeCode: "---",
+            jobGrade: "---",
+          },
+          requests: [],
+        });
+      }
+      map.get(empId).requests.push(req);
+    });
+
+    const groups = Array.from(map.values());
+    groups.sort((a, b) => {
+      const codeA = String(a.employee?.employeeCode || "").trim();
+      const codeB = String(b.employee?.employeeCode || "").trim();
+
+      const numA = Number(codeA);
+      const numB = Number(codeB);
+
+      if (!isNaN(numA) && !isNaN(numB) && codeA !== "" && codeB !== "") {
+        return numA - numB;
+      }
+      return codeA.localeCompare(codeB, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+    });
+
+    return groups;
+  }, [filteredPendingRequests]);
 
   const openReasonModal = (req) => {
     setReasonModal({
@@ -410,313 +465,250 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="space-y-4 md:hidden print:hidden">
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between print:hidden">
+          <div className="relative flex-1">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-gray-400">
+              <Search size={18} />
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="البحث باسم الموظف أو الكود..."
+              className="w-full rounded-xl border border-gray-200 py-2.5 pr-10 pl-10 text-sm font-medium text-gray-800 placeholder-gray-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 hover:text-gray-600"
+                title="مسح البحث"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {searchTerm && (
+            <div className="text-xs font-bold text-gray-500">
+              النتائج المطابقة:{" "}
+              <span className="font-extrabold text-indigo-600">
+                {filteredPendingRequests.length}
+              </span>{" "}
+              طلب معلق
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-6 print:space-y-4">
           {loading ? (
             <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-gray-400 shadow-sm">
               جاري تحميل الطلبات...
             </div>
-          ) : pendingRequests.length > 0 ? (
-            pendingRequests.map((req) => {
-              const remainingBalance = getRemainingBalance(req);
-              const insufficient = hasInsufficientBalance(req);
-              const isLoading = actionLoading.requestId === req._id;
+          ) : groupedPendingRequests.length > 0 ? (
+            groupedPendingRequests.map((group) => {
+              const emp = group.employee;
+              const reqs = group.requests;
+              const totalDays = reqs.reduce(
+                (sum, r) => sum + (r.duration || 0),
+                0,
+              );
+              const hasAnyInsufficient = reqs.some((r) =>
+                hasInsufficientBalance(r),
+              );
 
               return (
                 <div
-                  key={req._id}
-                  className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+                  key={emp._id || emp.employeeCode || emp.name}
+                  className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md print:rounded-none print:border print:shadow-none"
                 >
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div className="rounded-full bg-blue-50 p-2 text-blue-600">
-                          <User size={16} />
+                  <div className="flex flex-col gap-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-indigo-50/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
+                        <User size={28} />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h3 className="text-xl font-black text-gray-900 md:text-2xl">
+                            {emp.name || "غير معروف"}
+                          </h3>
+                          {hasAnyInsufficient && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-black text-red-700">
+                              <AlertTriangle size={14} />
+                              تنبيه رصيد
+                            </span>
+                          )}
                         </div>
-                        <div className="min-w-0">
-                          <div className="break-words font-black text-gray-800">
-                            {req.employeeId?.name || "غير معروف"}
-                          </div>
-                          <div className="mt-1 text-xs text-gray-400">
-                            كود: {req.employeeId?.employeeCode || "---"}
-                          </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                          <span className="inline-flex items-center gap-1.5 font-bold">
+                            كود:{" "}
+                            <strong className="rounded-lg bg-indigo-100/80 px-2.5 py-0.5 text-sm font-black text-indigo-900">
+                              {emp.employeeCode || "---"}
+                            </strong>
+                          </span>
+                          <span className="text-gray-300">•</span>
+                          <span className="inline-flex items-center gap-1.5 font-bold">
+                            الدرجة:{" "}
+                            <strong className="rounded-lg bg-slate-200/80 px-2.5 py-0.5 text-sm font-bold text-slate-800">
+                              {emp.jobGrade || "---"}
+                            </strong>
+                          </span>
                         </div>
                       </div>
                     </div>
 
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
-                      {req.employeeId?.jobGrade || "---"}
-                    </span>
-                  </div>
-
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold ${getLeaveTypeBadgeClass(
-                        req.leaveType,
-                      )}`}
-                    >
-                      {translateLeaveType(req.leaveType)}
-                    </span>
-
-                    <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
-                      {req.duration} يوم
-                    </span>
-                  </div>
-
-                  <div className="mb-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <div className="mb-1 text-xs font-bold text-gray-500">
-                      الرصيد المتبقي
-                    </div>
-                    <div
-                      className={`text-sm font-black ${
-                        insufficient ? "text-red-600" : "text-gray-800"
-                      }`}
-                    >
-                      {remainingBalance} أيام
-                    </div>
-
-                    {insufficient && (
-                      <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-[11px] font-bold text-red-700">
-                        <AlertTriangle size={12} />
-                        الرصيد لا يكفي
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mb-3 grid grid-cols-2 gap-3">
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <div className="mb-1 text-xs font-bold text-gray-500">
-                        من
-                      </div>
-                      <div className="text-sm font-bold text-gray-800">
-                        {formatDate(req.startDate)}
-                      </div>
-                    </div>
-
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <div className="mb-1 text-xs font-bold text-gray-500">
-                        إلى
-                      </div>
-                      <div className="text-sm font-bold text-gray-800">
-                        {formatDate(req.endDate)}
-                      </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700">
+                        <Layers size={14} />
+                        {reqs.length}{" "}
+                        {reqs.length === 1 ? "طلب معلق" : "طلبات معلقة"}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-800">
+                        إجمالي المدة: {totalDays} يوم
+                      </span>
                     </div>
                   </div>
 
-                  <div className="mb-4 rounded-xl bg-gray-50 p-3">
-                    <div className="mb-1 text-xs font-bold text-gray-500">
-                      تاريخ التقديم
-                    </div>
-                    <div className="text-sm font-bold text-gray-800">
-                      {formatDate(req.createdAt)}
-                    </div>
-                    <div
-                      className="mt-1 flex items-center gap-1 text-xs text-gray-400"
-                      dir="ltr"
-                    >
-                      <Clock size={12} />
-                      {formatTime(req.createdAt)}
-                    </div>
-                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-right text-base">
+                      <thead className="bg-gray-50/80 text-sm font-black text-gray-700 border-b border-gray-100">
+                        <tr>
+                          <th className="p-4 pr-6">نوع الإجازة</th>
+                          <th className="p-4">الفترة الزمنية</th>
+                          <th className="p-4 text-center">المدة</th>
+                          <th className="p-4">الرصيد المتبقي</th>
+                          <th className="p-4 text-center">تاريخ التقديم</th>
+                          <th className="p-4 text-center print:hidden">
+                            الإجراء
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {reqs.map((req) => {
+                          const remainingBalance = getRemainingBalance(req);
+                          const insufficient = hasInsufficientBalance(req);
+                          const isLoading =
+                            actionLoading.requestId === req._id;
 
-                  {hasReason(req) && (
-                    <div className="mb-4">
-                      <button
-                        type="button"
-                        onClick={() => openReasonModal(req)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
-                      >
-                        <FileText size={14} />
-                        عرض الملاحظة
-                      </button>
-                    </div>
-                  )}
+                          return (
+                            <tr
+                              key={req._id}
+                              className="transition hover:bg-slate-50/70"
+                            >
+                              <td className="p-4 pr-6 font-bold text-gray-800">
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  <span
+                                    className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${getLeaveTypeBadgeClass(
+                                      req.leaveType,
+                                    )}`}
+                                  >
+                                    {translateLeaveType(req.leaveType)}
+                                  </span>
+                                  {hasReason(req) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openReasonModal(req)}
+                                      className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200 print:hidden"
+                                    >
+                                      <FileText size={14} />
+                                      عرض الملاحظة
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => openConfirmModal(req, "approve")}
-                      disabled={isLoading}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-500 px-3 py-3 text-sm font-bold text-white transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <CheckCircle size={16} />
-                      {isLoading && actionLoading.action === "approve"
-                        ? "جاري..."
-                        : "قبول"}
-                    </button>
+                              <td className="p-4 text-base text-gray-800">
+                                <span className="font-extrabold">
+                                  {formatDate(req.startDate)}
+                                </span>
+                                <span className="mx-2 text-sm font-medium text-gray-500">
+                                  إلى
+                                </span>
+                                <span className="font-extrabold">
+                                  {formatDate(req.endDate)}
+                                </span>
+                              </td>
 
-                    <button
-                      onClick={() => openConfirmModal(req, "reject")}
-                      disabled={isLoading}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-500 px-3 py-3 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <XCircle size={16} />
-                      {isLoading && actionLoading.action === "reject"
-                        ? "جاري..."
-                        : "رفض"}
-                    </button>
+                              <td className="p-4 text-center text-base font-black text-indigo-700">
+                                {req.duration} يوم
+                              </td>
+
+                              <td className="p-4">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-extrabold ${
+                                    insufficient
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {insufficient && <AlertTriangle size={14} />}
+                                  {remainingBalance} أيام
+                                </span>
+                              </td>
+
+                              <td className="p-4 text-center">
+                                <div className="text-sm font-bold text-gray-800">
+                                  {formatDate(req.createdAt)}
+                                </div>
+                                <div
+                                  className="mt-0.5 text-xs text-gray-500"
+                                  dir="ltr"
+                                >
+                                  {formatTime(req.createdAt)}
+                                </div>
+                              </td>
+
+                              <td className="p-4 text-center print:hidden">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() =>
+                                      openConfirmModal(req, "approve")
+                                    }
+                                    disabled={isLoading}
+                                    className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <CheckCircle size={16} />
+                                    {isLoading &&
+                                    actionLoading.action === "approve"
+                                      ? "جاري..."
+                                      : "قبول"}
+                                  </button>
+
+                                  <button
+                                    onClick={() =>
+                                      openConfirmModal(req, "reject")
+                                    }
+                                    disabled={isLoading}
+                                    className="flex items-center gap-1.5 rounded-xl bg-red-500 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    <XCircle size={16} />
+                                    {isLoading &&
+                                    actionLoading.action === "reject"
+                                      ? "جاري..."
+                                      : "رفض"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               );
             })
+          ) : pendingRequests.length > 0 ? (
+            <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-gray-400 shadow-sm">
+              <Search size={44} className="mx-auto mb-3 text-gray-300" />
+              لا توجد طلبات معلقة تطابق "{searchTerm}"
+            </div>
           ) : (
             <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-gray-400 shadow-sm">
               <ShieldCheck size={48} className="mx-auto mb-3 text-gray-300" />
               لا يوجد أي طلبات معلقة حالياً، كل شيء على ما يرام!
             </div>
           )}
-        </div>
-
-        <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block print:block print:rounded-none print:border print:shadow-none">
-          <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full text-right">
-              <thead className="bg-gray-50 text-sm text-gray-500">
-                <tr>
-                  <th className="border-b border-gray-200 p-4">اسم الموظف</th>
-                  <th className="border-b border-gray-200 p-4">الدرجة</th>
-                  <th className="border-b border-gray-200 p-4">نوع الإجازة</th>
-                  <th className="border-b border-gray-200 p-4">من - إلى</th>
-                  <th className="border-b border-gray-200 p-4 text-center">
-                    المدة
-                  </th>
-                  <th className="border-b border-gray-200 p-4 text-center">
-                    تاريخ التقديم
-                  </th>
-                  <th className="border-b border-gray-200 p-4 text-center print:hidden">
-                    الإجراء
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-gray-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan="7" className="p-8 text-center text-gray-400">
-                      جاري تحميل الطلبات...
-                    </td>
-                  </tr>
-                ) : pendingRequests.length > 0 ? (
-                  pendingRequests.map((req) => {
-                    const remainingBalance = getRemainingBalance(req);
-                    const insufficient = hasInsufficientBalance(req);
-                    const isLoading = actionLoading.requestId === req._id;
-
-                    return (
-                      <tr key={req._id} className="transition hover:bg-gray-50">
-                        <td className="p-4 font-bold text-gray-800">
-                          {req.employeeId?.name || "غير معروف"}
-                          <div className="mt-1 text-xs font-normal text-gray-400">
-                            كود: {req.employeeId?.employeeCode || "---"}
-                          </div>
-                        </td>
-
-                        <td className="p-4 text-sm text-gray-600">
-                          {req.employeeId?.jobGrade || "---"}
-                        </td>
-
-                        <td className="p-4">
-                          <div className="font-medium text-blue-600">
-                            {translateLeaveType(req.leaveType)}
-                          </div>
-
-                          {hasReason(req) && (
-                            <button
-                              type="button"
-                              onClick={() => openReasonModal(req)}
-                              className="mt-2 inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 transition hover:bg-slate-200 print:hidden"
-                            >
-                              <FileText size={12} />
-                              عرض الملاحظة
-                            </button>
-                          )}
-
-                          <div className="mt-1.5">
-                            <span className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">
-                              الرصيد المتبقي:
-                              <span
-                                className={
-                                  insufficient
-                                    ? "text-red-600"
-                                    : "text-gray-900"
-                                }
-                              >
-                                {remainingBalance} أيام
-                              </span>
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="p-4 text-sm text-gray-600">
-                          {formatDate(req.startDate)}
-                          <br />
-                          <span className="text-xs text-gray-400">
-                            إلى
-                          </span>{" "}
-                          {formatDate(req.endDate)}
-                        </td>
-
-                        <td className="p-4 text-center text-sm font-bold">
-                          {req.duration} يوم
-                        </td>
-
-                        <td className="p-4 text-center">
-                          <div className="flex flex-col items-center justify-center">
-                            <span className="font-medium text-gray-700">
-                              {formatDate(req.createdAt)}
-                            </span>
-                            <span
-                              className="mt-1 flex items-center gap-1 text-xs text-gray-400"
-                              dir="ltr"
-                            >
-                              <Clock size={12} />
-                              {formatTime(req.createdAt)}
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="p-4 text-center print:hidden">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => openConfirmModal(req, "approve")}
-                              disabled={isLoading}
-                              className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <CheckCircle size={16} />
-                              {isLoading && actionLoading.action === "approve"
-                                ? "جاري..."
-                                : "قبول"}
-                            </button>
-
-                            <button
-                              onClick={() => openConfirmModal(req, "reject")}
-                              disabled={isLoading}
-                              className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <XCircle size={16} />
-                              {isLoading && actionLoading.action === "reject"
-                                ? "جاري..."
-                                : "رفض"}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="7"
-                      className="p-12 text-center text-lg text-gray-400"
-                    >
-                      <ShieldCheck
-                        size={48}
-                        className="mx-auto mb-3 text-gray-300"
-                      />
-                      لا يوجد أي طلبات معلقة حالياً، كل شيء على ما يرام!
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
         </div>
 
         {reasonModal.isOpen && (
