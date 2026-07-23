@@ -2492,6 +2492,37 @@ const RosterManagement = () => {
     };
   };
 
+  const handleBackendAutoGenerate = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/roster/auto-generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          month,
+          year,
+          workGroups,
+          config: { membersPerShift: 1, leaderRequired: true, ignorePendingLeaves: false }
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRosterData(data.rosterDetails);
+        toast.success(data.message || "تم إنشاء الجدول تلقائياً بنجاح");
+      } else {
+        toast.error(data.message || "فشل إنشاء الجدول تلقائياً");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("حدث خطأ أثناء الاتصال بالخادم");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAutoFillRoster = (mode, skipConfirm = false) => {
     if (!employees.length) {
       toast.error("لا يوجد موظفون للتوزيع التلقائي");
@@ -2500,7 +2531,7 @@ const RosterManagement = () => {
 
     const isRegenerate = mode === "regenerate";
     const modeLabel = isRegenerate
-      ? "إعادة توزيع كاملة"
+      ? "التوزيع التلقائي للجدول"
       : "ملء الخانات الفارغة فقط";
 
     if (isRegenerate && !skipConfirm) {
@@ -2818,11 +2849,11 @@ const RosterManagement = () => {
         </button>
         <button
           type="button"
-          onClick={() => handleAutoFillRoster("regenerate")}
-          className={`rounded-lg bg-rose-600 font-bold text-white shadow-sm transition hover:bg-rose-700 ${buttonSizeClass}`}
-        >
-          إعادة توزيع كاملة
-        </button>
+          onClick={handleBackendAutoGenerate}
+            className={`rounded-lg bg-rose-600 font-bold text-white shadow-sm transition hover:bg-rose-700 ${buttonSizeClass}`}
+          >
+            التوزيع التلقائي للجدول
+          </button>
       </>
     );
   };
@@ -3397,14 +3428,12 @@ const RosterManagement = () => {
                               e.target.value,
                             )
                           }
-                          className={`w-full resize-none rounded-md border border-slate-200 bg-slate-50 px-2 font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 no-print ${
+                          className={`w-full h-full resize-none rounded-md border border-slate-200 bg-slate-50 px-2 font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 no-print ${
                             isRosterFullscreen
-                              ? "min-h-[36px] py-1 text-[10px]"
-                              : "min-h-[58px] py-1.5 text-[11px]"
+                              ? "min-h-[80px] py-1 text-[10px]"
+                              : "min-h-[140px] py-1.5 text-[11px]"
                           }`}
-                          rows="2"
-                          placeholder="ملاحظات..."
-                        ></textarea>
+                          placeholder="ملاحظات..."></textarea>
                         <span className="print-only print-cell-text">
                           {rosterData[day.dayNumber]?.notes || ""}
                         </span>

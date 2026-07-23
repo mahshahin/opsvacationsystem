@@ -14,4 +14,7 @@ router.post("/save", rosterController.saveRoster);
 // مسار جلب الروستر المعتمد بالكامل
 router.get("/published-full", rosterController.getPublishedFullRoster);
 
+// مسار الإنشاء التلقائي للروستر
+router.post("/auto-generate", rosterController.generateAutoRoster);
+
 module.exports = router;

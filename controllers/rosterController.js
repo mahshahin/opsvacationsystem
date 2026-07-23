@@ -417,3 +417,161 @@ exports.getPublishedFullRoster = async (req, res) => {
     });
   }
 };
+
+/* =========================
+   5) إنشاء الروستر تلقائياً (Auto-Scheduler)
+========================= */
+
+exports.generateAutoRoster = async (req, res) => {
+  try {
+    const month = Number(req.body.month);
+    const year = Number(req.body.year);
+    const config = req.body.config || {};
+    const workGroups = req.body.workGroups || [];
+
+    const ignorePendingLeaves = config.ignorePendingLeaves === true;
+
+    if (!month || !year) {
+      return res.status(400).json({ success: false, message: "برجاء تحديد الشهر والسنة" });
+    }
+
+    if (!workGroups || workGroups.length === 0) {
+      return res.status(400).json({ success: false, message: "لا يوجد مجموعات عمل. يرجى إنشاء مجموعات عمل أولاً." });
+    }
+
+    // 1. Fetch Leaves with employee names
+    const leaveStatuses = ignorePendingLeaves ? ["approved"] : ["approved", "pending"];
+    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+    const LeaveRequest = require("../models/LeaveRequest");
+    const Roster = require("../models/Roster");
+    
+    const leaves = await LeaveRequest.find({
+      status: { $in: leaveStatuses },
+      startDate: { $lte: endDate },
+      endDate: { $gte: startDate },
+    }).populate("employeeId", "name");
+
+    const daysCount = new Date(year, month, 0).getDate();
+    const rosterDetails = {};
+
+    // 2. Determine previous month
+    let prevMonth = month - 1;
+    let prevYear = year;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear = year - 1;
+    }
+    const prevRoster = await Roster.findOne({ month: prevMonth, year: prevYear });
+    const prevDaysCount = new Date(prevYear, prevMonth, 0).getDate();
+
+    const groupStates = workGroups.map((g, index) => {
+      let initialState = index % 5; 
+
+      if (prevRoster && prevRoster.details) {
+        let found = false;
+        for (let d = prevDaysCount; d >= 1 && !found; d--) {
+          const dayData = prevRoster.details.get ? prevRoster.details.get(String(d)) : prevRoster.details[d];
+          if (!dayData) continue;
+
+          const groupMembersStr = new Set([
+            g.leaderId?.toString(),
+            ...(g.memberIds || []).map(id => id?.toString())
+          ].filter(Boolean));
+
+          const checkShift = (shiftKey, stateVal) => {
+            if (!dayData[shiftKey]) return false;
+            const shiftMembers = [
+              dayData[shiftKey].leader?.toString(),
+              ...(dayData[shiftKey].members || []).map(id => id?.toString())
+            ].filter(Boolean);
+
+            const isGroupInShift = shiftMembers.some(id => groupMembersStr.has(id));
+            if (isGroupInShift) {
+              const diffToDay1 = prevDaysCount - d + 1;
+              initialState = (stateVal + diffToDay1) % 5;
+              found = true;
+              return true;
+            }
+            return false;
+          };
+
+          checkShift('shift1', 0);
+          if (found) break;
+          checkShift('shift2', 1);
+          if (found) break;
+          checkShift('shift3', 2);
+        }
+      }
+
+      return {
+        group: g,
+        initialState
+      };
+    });
+
+    for (let day = 1; day <= daysCount; day++) {
+      const currentDate = new Date(year, month - 1, day);
+
+      const employeesOnLeave = new Set();
+      const leaveNotes = [];
+
+      leaves.forEach(leave => {
+        const lStart = new Date(leave.startDate).setHours(0,0,0,0);
+        const lEnd = new Date(leave.endDate).setHours(23,59,59,999);
+        const currTime = currentDate.getTime();
+        
+        if (currTime >= lStart && currTime <= lEnd) {
+          const empId = leave.employeeId && leave.employeeId._id ? leave.employeeId._id.toString() : leave.employeeId.toString();
+          employeesOnLeave.add(empId);
+          
+          if (leave.employeeId && leave.employeeId.name) {
+            const statusText = leave.status === 'pending' ? ' (معلقة)' : '';
+            leaveNotes.push(leave.employeeId.name + statusText);
+          }
+        }
+      });
+
+      if (day === 4) console.log('DAY 4 NOTES:', leaveNotes); rosterDetails[day] = {
+        shift1: { leader: null, members: [] },
+        shift2: { leader: null, members: [] },
+        shift3: { leader: null, members: [] },
+        notes: leaveNotes.length > 0 ? "إجازات اليوم: " + leaveNotes.join("، ") : ""
+      };
+
+      groupStates.forEach(({ group, initialState }) => {
+        const currentState = (initialState + day - 1) % 5;
+        let targetShift = null;
+
+        if (currentState === 0) targetShift = "shift1";
+        else if (currentState === 1) targetShift = "shift2";
+        else if (currentState === 2) targetShift = "shift3";
+
+        if (targetShift) {
+          if (group.leaderId && !employeesOnLeave.has(group.leaderId.toString())) {
+            rosterDetails[day][targetShift].leader = group.leaderId;
+          }
+
+          const availableMembers = (group.memberIds || []).filter(
+            id => id && !employeesOnLeave.has(id.toString())
+          );
+
+          rosterDetails[day][targetShift].members.push(...availableMembers);
+        }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      rosterDetails,
+      message: "تم توليد الجدول التلقائي بنجاح!"
+    });
+
+  } catch (error) {
+    console.error("Error generating auto roster:", error);
+    return res.status(500).json({ success: false, message: "حدث خطأ أثناء الإنشاء التلقائي" });
+  }
+};
+
+
