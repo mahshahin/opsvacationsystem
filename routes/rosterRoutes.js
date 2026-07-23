@@ -17,4 +17,7 @@ router.get("/published-full", rosterController.getPublishedFullRoster);
 // مسار الإنشاء التلقائي للروستر
 router.post("/auto-generate", rosterController.generateAutoRoster);
 
+// مسار تعبئة الفراغات في الروستر
+router.post("/fill-empty", rosterController.fillEmptyRoster);
+
 module.exports = router;

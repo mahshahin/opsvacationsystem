@@ -428,6 +428,8 @@ exports.generateAutoRoster = async (req, res) => {
     const year = Number(req.body.year);
     const config = req.body.config || {};
     const workGroups = req.body.workGroups || [];
+    const reserveEmployeeIds = req.body.reserveEmployeeIds || [];
+    const reserveSet = new Set(reserveEmployeeIds.map(id => id.toString()));
 
     const ignorePendingLeaves = config.ignorePendingLeaves === true;
 
@@ -554,7 +556,7 @@ exports.generateAutoRoster = async (req, res) => {
           }
 
           const availableMembers = (group.memberIds || []).filter(
-            id => id && !employeesOnLeave.has(id.toString())
+            id => id && !employeesOnLeave.has(id.toString()) && !reserveSet.has(id.toString())
           );
 
           rosterDetails[day][targetShift].members.push(...availableMembers);
@@ -575,3 +577,106 @@ exports.generateAutoRoster = async (req, res) => {
 };
 
 
+
+
+exports.fillEmptyRoster = async (req, res) => {
+  try {
+    const { month, year, rosterDetails, reserveEmployeeIds, config } = req.body;
+    if (!month || !year || !rosterDetails || !reserveEmployeeIds) {
+      return res.status(400).json({ success: false, message: "بيانات غير مكتملة لتعبئة الفراغات" });
+    }
+
+    const membersPerShift = config?.membersPerShift || 1;
+    const daysCount = new Date(year, month, 0).getDate();
+
+    const LeaveRequest = require("../models/LeaveRequest");
+    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+    
+    const leaves = await LeaveRequest.find({
+      status: { $in: ["approved", "pending"] },
+      startDate: { $lte: endDate },
+      endDate: { $gte: startDate },
+    });
+
+    const reserveShiftCounts = {};
+    reserveEmployeeIds.forEach(id => { reserveShiftCounts[id] = 0; });
+
+    for (let day = 1; day <= daysCount; day++) {
+      const dayData = rosterDetails[String(day)];
+      if (!dayData) continue;
+      ['shift1', 'shift2', 'shift3'].forEach(shiftKey => {
+        if (!dayData[shiftKey]) return;
+        const members = dayData[shiftKey].members || [];
+        members.forEach(mId => {
+          if (mId && reserveShiftCounts.hasOwnProperty(mId.toString())) {
+            reserveShiftCounts[mId.toString()]++;
+          }
+        });
+      });
+    }
+
+    for (let day = 1; day <= daysCount; day++) {
+      const currentDate = new Date(year, month - 1, day);
+      const currTime = currentDate.getTime();
+      const dayData = rosterDetails[String(day)];
+      if (!dayData) continue;
+
+      const reserveOnLeaveToday = new Set();
+      leaves.forEach(leave => {
+        const lStart = new Date(leave.startDate).setHours(0,0,0,0);
+        const lEnd = new Date(leave.endDate).setHours(23,59,59,999);
+        if (currTime >= lStart && currTime <= lEnd) {
+          const empId = leave.employeeId && leave.employeeId._id ? leave.employeeId._id.toString() : leave.employeeId.toString();
+          if (reserveShiftCounts.hasOwnProperty(empId)) {
+            reserveOnLeaveToday.add(empId);
+          }
+        }
+      });
+
+      const employeesWorkingToday = new Set();
+      ['shift1', 'shift2', 'shift3'].forEach(shiftKey => {
+        if (!dayData[shiftKey]) return;
+        if (dayData[shiftKey].leader) employeesWorkingToday.add(dayData[shiftKey].leader.toString());
+        (dayData[shiftKey].members || []).forEach(mId => employeesWorkingToday.add(mId.toString()));
+      });
+
+      ['shift1', 'shift2', 'shift3'].forEach(shiftKey => {
+        if (!dayData[shiftKey]) return;
+        
+        const actualMembers = (dayData[shiftKey].members || []).filter(Boolean);
+        const missingCount = membersPerShift - actualMembers.length;
+
+        if (missingCount > 0) {
+          for (let i = 0; i < missingCount; i++) {
+            const eligibleReserves = reserveEmployeeIds.filter(id => {
+              const strId = id.toString();
+              return !reserveOnLeaveToday.has(strId) && !employeesWorkingToday.has(strId);
+            });
+
+            if (eligibleReserves.length > 0) {
+              eligibleReserves.sort((a, b) => reserveShiftCounts[a.toString()] - reserveShiftCounts[b.toString()]);
+              
+              const chosenOne = eligibleReserves[0];
+              const chosenStr = chosenOne.toString();
+              
+              dayData[shiftKey].members = actualMembers; dayData[shiftKey].members.push(chosenOne);
+              employeesWorkingToday.add(chosenStr);
+              reserveShiftCounts[chosenStr]++;
+            }
+          }
+        }
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      rosterDetails,
+      message: "تم ملء الفراغات المتبقية بنجاح باستخدام الاحتياطي"
+    });
+
+  } catch (error) {
+    console.error("Error filling empty roster gaps:", error);
+    return res.status(500).json({ success: false, message: "حدث خطأ أثناء تعبئة الفراغات" });
+  }
+};

@@ -2492,6 +2492,43 @@ const RosterManagement = () => {
     };
   };
 
+  const handleBackendFillEmpty = async () => {
+    if (!reserveEmployeeIds || reserveEmployeeIds.length === 0) {
+      toast.error("يرجى تحديد أفراد احتياطي أولاً");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/roster/fill-empty`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          month,
+          year,
+          rosterDetails: rosterData,
+          reserveEmployeeIds,
+          config: { membersPerShift: 1 }
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRosterData(data.rosterDetails);
+        toast.success(data.message || "تم ملء الفراغات التلقائي بنجاح");
+      } else {
+        toast.error(data.message || "فشل ملء الفراغات");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("حدث خطأ أثناء الاتصال بالخادم");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBackendAutoGenerate = async () => {
     try {
       setLoading(true);
@@ -2842,7 +2879,7 @@ const RosterManagement = () => {
       <>
         <button
           type="button"
-          onClick={() => handleAutoFillRoster("fill-empty")}
+          onClick={handleBackendFillEmpty}
           className={`rounded-lg bg-yellow-500 font-black text-slate-950 shadow-sm transition hover:bg-yellow-400 ${buttonSizeClass}`}
         >
           ✨ ملء الفراغات تلقائيًا
