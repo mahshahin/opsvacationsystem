@@ -1,4 +1,4 @@
-const User = require("../models/User");
+﻿const User = require("../models/User");
 const LeaveRequest = require("../models/LeaveRequest");
 const Roster = require("../models/Roster");
 const sendEmail = require("../utils/sendEmail");
@@ -388,10 +388,39 @@ exports.getPublishedFullRoster = async (req, res) => {
       };
     };
 
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+    
+    const leaves = await LeaveRequest.find({
+      startDate: { $lte: endOfMonth },
+      endDate: { $gte: startOfMonth },
+      status: { $in: ['approved', 'pending'] }
+    }).populate('employeeId', 'name');
+
     const days = Array.from({ length: daysCount }, (_, i) => {
       const dayNumber = i + 1;
       const dateObj = new Date(year, month - 1, dayNumber);
       const dayData = getRosterDay(roster.details, dayNumber);
+
+      const dayLeaves = leaves.filter(l => {
+          if (!l.employeeId) return false;
+          const s = new Date(l.startDate);
+          const e = new Date(l.endDate);
+          s.setHours(0,0,0,0);
+          e.setHours(23,59,59,999);
+          const current = new Date(year, month - 1, dayNumber, 12, 0, 0, 0);
+          return current >= s && current <= e;
+      });
+
+      let autoNotes = "";
+      if (dayLeaves.length > 0) {
+          autoNotes = dayLeaves.map(l => (l.status === 'pending' ? '⏳ (طلب) ' : '🌴 ') + (l.employeeId.name || "مجهول")).join(' — ');
+      }
+      
+      let finalNotes = dayData?.notes || "";
+      if (autoNotes) {
+          finalNotes = finalNotes ? `${autoNotes}\n${finalNotes}` : autoNotes;
+      }
 
       return {
         dayNumber,
@@ -399,7 +428,7 @@ exports.getPublishedFullRoster = async (req, res) => {
         shift1: mapShift(dayData?.shift1),
         shift2: mapShift(dayData?.shift2),
         shift3: mapShift(dayData?.shift3),
-        notes: dayData?.notes || "",
+        notes: finalNotes,
       };
     });
 
