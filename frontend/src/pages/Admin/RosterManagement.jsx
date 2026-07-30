@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import AdminLayout from "../components/AdminLayout";
 import toast from "react-hot-toast";
@@ -903,6 +903,41 @@ const RosterManagement = () => {
 
   const getEmployeeAlert = (empId, dayNum) => {
     return getEmployeeLeaveInfo(empId, dayNum);
+  };
+
+  // جلب قائمة الموظفين الذين عندهم إجازة أو طلب إجازة في يوم معين
+  const getEmployeesOnLeaveForDay = (dayNum) => {
+    const currentDate = new Date(year, month - 1, dayNum);
+    currentDate.setHours(12, 0, 0, 0);
+
+    const result = [];
+
+    leaves.forEach((leave) => {
+      const status = String(leave.status || '').trim().toLowerCase();
+      if (!['approved', 'pending'].includes(status)) return;
+
+      const start = new Date(leave.startDate);
+      const end = new Date(leave.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+
+      if (currentDate < start || currentDate > end) return;
+
+      const empId = normalizeId(leave.employeeId);
+      const emp = employees.find((e) => normalizeId(e._id) === empId);
+      if (!emp) return;
+
+      if (result.some((r) => r.empId === empId)) return;
+
+      result.push({
+        empId,
+        name: emp.name,
+        isPending: status === 'pending',
+        leaveType: leave.leaveType,
+      });
+    });
+
+    return result;
   };
 
   const getEmployeeDayUsage = (
@@ -3454,6 +3489,24 @@ const RosterManagement = () => {
                       <td
                         className={`border-2 border-black ${isRosterFullscreen ? "p-1" : "p-1.5"}`}
                       >
+                        {(() => {
+                          const onLeave = getEmployeesOnLeaveForDay(day.dayNumber);
+                          if (onLeave.length === 0) return null;
+                          return (
+                            <div className="mb-1 flex flex-col gap-0.5 no-print">
+                              {onLeave.map((item) => (
+                                <div
+                                  key={item.empId}
+                                  title={item.isPending ? "طلب إجازة (معلقة)" : "إجازة معتمدة — " + translateLeaveType(item.leaveType)}
+                                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold ${isRosterFullscreen ? "text-[9px]" : "text-[10px]"} ${item.isPending ? "border border-amber-200 bg-amber-50 text-amber-800" : "border border-red-200 bg-red-50 text-red-800"}`}
+                                >
+                                  <span>{item.isPending ? "⏳" : "🌴"}</span>
+                                  <span className="truncate">{item.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                         <textarea
                           value={rosterData[day.dayNumber]?.notes || ""}
                           onChange={(e) =>
@@ -3465,14 +3518,15 @@ const RosterManagement = () => {
                               e.target.value,
                             )
                           }
-                          className={`w-full h-full resize-none rounded-md border border-slate-200 bg-slate-50 px-2 font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 no-print ${
-                            isRosterFullscreen
-                              ? "min-h-[80px] py-1 text-[10px]"
-                              : "min-h-[140px] py-1.5 text-[11px]"
-                          }`}
+                          className={`w-full h-full resize-none rounded-md border border-slate-200 bg-slate-50 px-2 font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 no-print ${isRosterFullscreen ? "min-h-[60px] py-1 text-[10px]" : "min-h-[100px] py-1.5 text-[11px]"}`}
                           placeholder="ملاحظات..."></textarea>
                         <span className="print-only print-cell-text">
-                          {rosterData[day.dayNumber]?.notes || ""}
+                          {(() => {
+                            const onLeave = getEmployeesOnLeaveForDay(day.dayNumber);
+                            const leaveText = onLeave.length > 0 ? onLeave.map(item => (item.isPending ? '(طلب) ' : '') + item.name).join(' — ') : '';
+                            const notesText = rosterData[day.dayNumber]?.notes || '';
+                            return [leaveText, notesText].filter(Boolean).join("\n");
+                          })()}
                         </span>
                       </td>
                     </tr>
