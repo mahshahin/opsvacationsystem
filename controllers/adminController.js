@@ -856,7 +856,10 @@ exports.getLogs = async (req, res) => {
 exports.getLeaveArchive = async (req, res) => {
   try {
     const requests = await LeaveRequest.find()
-      .populate("employeeId", "name employeeCode jobGrade annualLeaveQuota")
+      .populate(
+        "employeeId",
+        "name employeeCode jobGrade annualLeaveQuota leaveBalances"
+      )
       .sort({ createdAt: -1 });
 
     res.status(200).json(requests);
