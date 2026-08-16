@@ -936,6 +936,99 @@ exports.deleteLeaveArchive = async (req, res) => {
 };
 
 /* =========================
+   تعديل الإجازة من قبل الإدارة
+========================= */
+exports.editLeaveRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "برجاء إدخال تواريخ صحيحة!" });
+    }
+
+    const leave = await LeaveRequest.findById(id);
+    if (!leave) {
+      return res.status(404).json({ message: "طلب الإجازة غير موجود" });
+    }
+
+    const employee = await User.findById(leave.employeeId);
+    if (!employee) {
+      return res.status(404).json({ message: "الموظف غير موجود" });
+    }
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    if (end < start) {
+      return res.status(400).json({
+        message: "تاريخ نهاية الإجازة لا يمكن أن يكون قبل تاريخ البداية!",
+      });
+    }
+
+    const diffTime = Math.abs(end - start);
+    const newDuration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const oldDuration = leave.duration;
+
+    if (leave.status === "approved") {
+      const balanceDiff = newDuration - oldDuration;
+      if (balanceDiff > 0) {
+        // التحقق من الرصيد
+        if (employee.leaveBalances[leave.leaveType] < balanceDiff) {
+          return res.status(400).json({
+            message: `عذرًا، رصيد الموظف لا يكفي لتمديد الإجازة. (متبقي: ${employee.leaveBalances[leave.leaveType]})`,
+          });
+        }
+      }
+      
+      employee.leaveBalances[leave.leaveType] -= balanceDiff;
+      await employee.save();
+    }
+
+    leave.startDate = start;
+    leave.endDate = end;
+    leave.duration = newDuration;
+    await leave.save();
+
+    const newLog = new Log({
+      action: "LEAVE_EDITED",
+      details: `قام مدير النظام بتعديل تواريخ إجازة ${employee.name} (${translateLeaveType(leave.leaveType)}). المدة الجديدة: ${newDuration} يوم.`,
+      ipAddress: req.ip,
+    });
+    await newLog.save();
+
+    const employeeTokens = employee.expoPushToken || employee.expoPushTokens;
+    if (employeeTokens) {
+      await sendPushNotification({
+        to: employeeTokens,
+        title: "تم تعديل تواريخ إجازتك",
+        body: `قامت الإدارة بتعديل تواريخ إجازتك لتصبح من ${start.toLocaleDateString("ar-EG")} إلى ${end.toLocaleDateString("ar-EG")}.`,
+        badge: 1,
+        data: {
+          type: "leave_edited",
+          screen: "EmployeeHistory",
+        },
+      }).catch(err => console.error("خطأ في إرسال Push Notification لتعديل الإجازة:", err));
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "تم تعديل الإجازة بنجاح",
+      leave
+    });
+
+  } catch (error) {
+    console.error("Error editing leave request:", error);
+    return res.status(500).json({
+      success: false,
+      message: "حدث خطأ أثناء تعديل الإجازة",
+    });
+  }
+};
+
+/* =========================
    إنشاء مدير (الإيميل اختياري)
 ========================= */
 exports.createAdmin = async (req, res) => {

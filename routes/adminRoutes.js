@@ -24,9 +24,11 @@ router.post("/send-employee-message", adminController.sendEmployeeMessage);
 // السجلات
 router.get("/logs", adminController.getLogs);
 
-// أرشيف الإجازات
+// أرشيف الإجازات وتعديلها
 router.get("/leave-archive", adminController.getLeaveArchive);
 router.delete("/leave-archive/:id", adminController.deleteLeaveArchive);
+router.put("/edit-leave-request/:id", adminController.editLeaveRequest);
+
 
 // إدارة الأدمنز
 router.post("/create-admin", adminController.createAdmin);

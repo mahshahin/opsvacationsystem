@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   FileText,
   SortDesc,
+  ChevronDown,
+  ChevronUp,
+  Edit2,
 } from "lucide-react";
 import AdminLayout from "../components/AdminLayout";
 
@@ -24,6 +27,15 @@ const monthNames = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
   "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
 ];
+
+const initialEditModal = {
+  isOpen: false,
+  requestId: null,
+  employeeName: "",
+  leaveTypeLabel: "",
+  startDate: "",
+  endDate: "",
+};
 
 const LeaveHistory = () => {
   const [allLeaves, setAllLeaves] = useState([]);
@@ -36,6 +48,18 @@ const LeaveHistory = () => {
   const [selectedYear, setSelectedYear] = useState("all");
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  const toggleGroup = (empId) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [empId]: !prev[empId]
+    }));
+  };
+
+  const [editModal, setEditModal] = useState(initialEditModal);
+  const [isEditing, setIsEditing] = useState(false);
 
   const [reasonModal, setReasonModal] = useState({
     isOpen: false,
@@ -343,6 +367,62 @@ const LeaveHistory = () => {
     });
   };
 
+  const openEditModal = (req) => {
+    setEditModal({
+      isOpen: true,
+      requestId: req._id,
+      employeeName: req.employeeId?.name || "غير معروف",
+      leaveTypeLabel: translateType(req.leaveType),
+      startDate: new Date(req.startDate).toISOString().split('T')[0],
+      endDate: new Date(req.endDate).toISOString().split('T')[0],
+    });
+  };
+
+  const closeEditModal = () => {
+    if (isEditing) return;
+    setEditModal(initialEditModal);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setIsEditing(true);
+      const response = await fetch(`${API_URL}/api/admin/edit-leave-request/${editModal.requestId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: editModal.startDate,
+          endDate: editModal.endDate,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "فشل تعديل الطلب");
+      } else {
+        toast.success("تم تعديل الإجازة بنجاح!");
+        closeEditModal();
+        
+        // update local state
+        setAllLeaves((prev) => 
+          prev.map((item) => 
+            item._id === editModal.requestId ? {
+              ...item,
+              startDate: editModal.startDate,
+              endDate: editModal.endDate,
+              duration: data.leave.duration
+            } : item
+          )
+        );
+      }
+    } catch (err) {
+      toast.error("حدث خطأ أثناء تعديل الطلب");
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
@@ -449,14 +529,17 @@ const LeaveHistory = () => {
             groupedLeaves.map((group) => {
               const emp = group.employee;
               const reqs = group.requests;
-              const totalDays = reqs.reduce((sum, r) => sum + (r.duration || 0), 0);
+              const totalDays = reqs.reduce((sum, r) => r.status === "approved" ? sum + (r.duration || 0) : sum, 0);
 
               return (
                 <div
                   key={emp._id || emp.employeeCode || emp.name}
                   className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
                 >
-                  <div className="flex flex-col gap-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-indigo-50/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                  <div 
+                    onClick={() => toggleGroup(emp._id || emp.employeeCode || emp.name)}
+                    className="flex flex-col gap-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-indigo-50/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 cursor-pointer hover:bg-indigo-50/60 transition"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
                         <User size={28} />
@@ -472,6 +555,23 @@ const LeaveHistory = () => {
                               {emp.employeeCode || "---"}
                             </strong>
                           </span>
+                          {emp.leaveBalances && (
+                            <>
+                              <div className="h-4 w-[1px] bg-gray-300 hidden sm:block"></div>
+                              <span className="inline-flex items-center gap-1.5 font-bold">
+                                الأرصدة المتبقية:
+                                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-700 border border-blue-100">
+                                  اعتيادي: {emp.leaveBalances.annual ?? "---"}
+                                </span>
+                                <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-100">
+                                  عارضة: {emp.leaveBalances.casual ?? "---"}
+                                </span>
+                                <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-100">
+                                  بدل أعياد: {emp.leaveBalances.compensation ?? "---"}
+                                </span>
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -484,9 +584,17 @@ const LeaveHistory = () => {
                       <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-800">
                         إجمالي المدة: {totalDays} يوم
                       </span>
+                      <div className="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition hover:bg-gray-50 hover:text-indigo-600">
+                        {expandedGroups[emp._id || emp.employeeCode || emp.name] ? (
+                          <ChevronUp size={20} />
+                        ) : (
+                          <ChevronDown size={20} />
+                        )}
+                      </div>
                     </div>
                   </div>
 
+                  {expandedGroups[emp._id || emp.employeeCode || emp.name] && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-right text-base">
                       <thead className="bg-gray-50/80 text-sm font-black text-gray-700 border-b border-gray-100">
@@ -556,7 +664,7 @@ const LeaveHistory = () => {
                                 </div>
                               </td>
 
-                              <td className="p-4 text-center">
+                              <td className="p-4 text-center flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleCancelLeave(leave)}
                                   disabled={deletingId === leave._id}
@@ -566,6 +674,16 @@ const LeaveHistory = () => {
                                   <Trash2 size={16} />
                                   {deletingId === leave._id ? "جاري..." : "حذف"}
                                 </button>
+
+                                <button
+                                  onClick={() => openEditModal(leave)}
+                                  disabled={deletingId === leave._id}
+                                  className="inline-flex items-center justify-center gap-1 rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                  title="تعديل تواريخ الإجازة"
+                                >
+                                  <Edit2 size={16} />
+                                  تعديل
+                                </button>
                               </td>
                             </tr>
                           );
@@ -573,6 +691,7 @@ const LeaveHistory = () => {
                       </tbody>
                     </table>
                   </div>
+                  )}
                 </div>
               );
             })
@@ -615,6 +734,66 @@ const LeaveHistory = () => {
                   إغلاق
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* مودال التعديل */}
+        {editModal.isOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+              onClick={closeEditModal}
+            ></div>
+            <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="bg-amber-500 p-6 text-center text-white">
+                <Edit2 size={48} className="mx-auto mb-3 opacity-90" />
+                <h3 className="text-xl font-black">تعديل تواريخ الإجازة</h3>
+                <p className="mt-1 text-amber-100 opacity-90 font-bold">
+                  {editModal.employeeName} ({editModal.leaveTypeLabel})
+                </p>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="p-6">
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ البداية الجديد</label>
+                  <input
+                    type="date"
+                    required
+                    value={editModal.startDate}
+                    onChange={(e) => setEditModal({...editModal, startDate: e.target.value})}
+                    className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                  />
+                </div>
+                <div className="mb-6">
+                  <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ النهاية الجديد</label>
+                  <input
+                    type="date"
+                    required
+                    value={editModal.endDate}
+                    onChange={(e) => setEditModal({...editModal, endDate: e.target.value})}
+                    className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    disabled={isEditing}
+                    className="flex-1 rounded-xl bg-gray-100 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isEditing}
+                    className="flex-1 rounded-xl bg-amber-500 py-3 text-sm font-bold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                  >
+                    {isEditing ? "جاري الحفظ..." : "حفظ التعديلات"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
