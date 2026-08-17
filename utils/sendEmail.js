@@ -14,8 +14,15 @@ const sendEmail = async (...args) => {
         endDate,
       ] = args;
 
-      const isApproved = status === "approved" || status === "Approved";
-      const statusText = isApproved ? "تمت الموافقة على" : "تم رفض";
+      const isApproved = status === "approved" || status === "Approved" || status === "approved_by_admin";
+      
+      let statusText = "تم رفض";
+      if (status === "approved_by_admin") {
+        statusText = "تم تسجيل";
+      } else if (isApproved) {
+        statusText = "تمت الموافقة على";
+      }
+      
       const color = isApproved ? "#10b981" : "#ef4444";
 
       const typeInArabic =
