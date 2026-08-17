@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ShieldCheck,
   CheckCircle,
@@ -80,6 +80,9 @@ const AdminDashboard = () => {
   });
   const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
   const [employeeSearch, setEmployeeSearch] = useState("");
+
+  const startDateRef = useRef(null);
+  const endDateRef = useRef(null);
 
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -1223,34 +1226,40 @@ const AdminDashboard = () => {
 
                 <div className="mb-4 grid grid-cols-2 gap-3">
                   {[
-                    { key: "startDate", sublabel: "تاريخ البداية", color: "#4f46e5", lightBg: "#eef2ff", val: addLeaveModal.startDate },
-                    { key: "endDate",   sublabel: "تاريخ النهاية", color: "#0d9488", lightBg: "#f0fdfa", val: addLeaveModal.endDate },
+                    { key: "startDate", sublabel: "تاريخ البداية", color: "#4f46e5", lightBg: "#eef2ff", val: addLeaveModal.startDate, ref: startDateRef },
+                    { key: "endDate",   sublabel: "تاريخ النهاية", color: "#0d9488", lightBg: "#f0fdfa", val: addLeaveModal.endDate, ref: endDateRef },
                   ].map((field) => (
                     <div key={field.key} style={{ position: "relative" }}>
                       {/* Hidden native date input */}
                       <input
+                        ref={field.ref}
                         type="date"
                         required
                         value={field.val}
                         onChange={(e) => setAddLeaveModal({ ...addLeaveModal, [field.key]: e.target.value })}
                         style={{
                           position: "absolute",
-                          inset: 0,
                           opacity: 0,
-                          width: "100%",
-                          height: "100%",
-                          cursor: "pointer",
-                          zIndex: 2,
+                          width: 0,
+                          height: 0,
+                          pointerEvents: "none",
                         }}
                       />
-                      {/* Custom display card */}
-                      <div style={{
-                        border: `2px solid ${field.val ? field.color : "#e5e7eb"}`,
-                        borderRadius: "14px",
-                        overflow: "hidden",
-                        pointerEvents: "none",
-                        background: field.val ? field.lightBg : "#fff",
-                      }}>
+                      {/* Custom display card — clickable */}
+                      <div
+                        onClick={() => {
+                          try { field.ref.current?.showPicker(); }
+                          catch { field.ref.current?.click(); }
+                        }}
+                        style={{
+                          border: `2px solid ${field.val ? field.color : "#e5e7eb"}`,
+                          borderRadius: "14px",
+                          overflow: "hidden",
+                          cursor: "pointer",
+                          background: field.val ? field.lightBg : "#fff",
+                          userSelect: "none",
+                        }}
+                      >
                         {/* Header bar */}
                         <div style={{
                           background: field.val ? field.color : "#f3f4f6",
@@ -1278,8 +1287,8 @@ const AdminDashboard = () => {
                               {new Date(field.val).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
                             </span>
                           ) : (
-                            <span style={{ color: "#d1d5db", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <span style={{ color: "#9ca3af", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                               </svg>
                               اضغط للاختيار
