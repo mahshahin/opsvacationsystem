@@ -78,6 +78,8 @@ const AdminDashboard = () => {
     reason: "",
     loading: false,
   });
+  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -1079,19 +1081,92 @@ const AdminDashboard = () => {
               <form onSubmit={handleAddLeaveSubmit} className="p-6">
                 <div className="mb-4">
                   <label className="mb-2 block text-sm font-bold text-gray-700">الموظف</label>
-                  <select
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => { setEmployeeDropdownOpen(!employeeDropdownOpen); setEmployeeSearch(""); }}
+                      className="w-full flex items-center justify-between rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 bg-white text-right"
+                    >
+                      {addLeaveModal.employeeId ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-teal-600 flex items-center justify-center text-white" style={{fontSize: '13px', fontWeight: 'bold'}}>
+                            {(employees.find(e => e._id === addLeaveModal.employeeId)?.name || '')[0]}
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-gray-800 text-sm">{employees.find(e => e._id === addLeaveModal.employeeId)?.name}</div>
+                            <div className="text-xs text-gray-400">{employees.find(e => e._id === addLeaveModal.employeeId)?.employeeCode}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-sm">ابحث عن موظف أو اختر من القائمة...</span>
+                      )}
+                      <ChevronDown size={16} className={`text-gray-400 transition-transform ${employeeDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {employeeDropdownOpen && (
+                      <div className="absolute z-50 mt-1 w-full rounded-xl border border-gray-100 bg-white shadow-xl overflow-hidden">
+                        <div className="p-2 border-b border-gray-100">
+                          <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
+                            <Search size={14} className="text-gray-400 shrink-0" />
+                            <input
+                              type="text"
+                              autoFocus
+                              value={employeeSearch}
+                              onChange={(e) => setEmployeeSearch(e.target.value)}
+                              placeholder="ابحث بالاسم أو الكود..."
+                              className="bg-transparent outline-none text-sm text-gray-700 w-full placeholder-gray-400"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-52 overflow-y-auto">
+                          {employees
+                            .filter(emp =>
+                              emp.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+                              emp.employeeCode.toLowerCase().includes(employeeSearch.toLowerCase())
+                            )
+                            .map((emp) => (
+                              <button
+                                key={emp._id}
+                                type="button"
+                                onClick={() => {
+                                  setAddLeaveModal({ ...addLeaveModal, employeeId: emp._id });
+                                  setEmployeeDropdownOpen(false);
+                                }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-teal-50 transition text-right ${
+                                  addLeaveModal.employeeId === emp._id ? 'bg-teal-50' : ''
+                                }`}
+                              >
+                                <div className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center text-white font-bold text-sm shadow">
+                                  {emp.name[0]}
+                                </div>
+                                <div className="flex-1 text-right">
+                                  <div className="font-bold text-gray-800 text-sm">{emp.name}</div>
+                                  <div className="text-xs text-gray-400 mt-0.5">كود: {emp.employeeCode}</div>
+                                </div>
+                                {addLeaveModal.employeeId === emp._id && (
+                                  <CheckCircle size={16} className="text-teal-600 shrink-0" />
+                                )}
+                              </button>
+                            ))
+                          }
+                          {employees.filter(emp =>
+                            emp.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+                            emp.employeeCode.toLowerCase().includes(employeeSearch.toLowerCase())
+                          ).length === 0 && (
+                            <div className="py-6 text-center text-sm text-gray-400">لا توجد نتائج</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* hidden required input for validation */}
+                  <input
+                    type="text"
                     required
+                    readOnly
                     value={addLeaveModal.employeeId}
-                    onChange={(e) => setAddLeaveModal({ ...addLeaveModal, employeeId: e.target.value })}
-                    className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                  >
-                    <option value="">-- اختر الموظف --</option>
-                    {employees.map((emp) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.name} ({emp.employeeCode})
-                      </option>
-                    ))}
-                  </select>
+                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                  />
                 </div>
 
                 <div className="mb-4 grid grid-cols-2 gap-3">
