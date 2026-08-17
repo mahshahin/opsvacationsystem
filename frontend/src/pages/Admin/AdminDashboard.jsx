@@ -1006,33 +1006,33 @@ const AdminDashboard = () => {
               <form onSubmit={handleEditSubmit} className="p-6">
                 <div className="mb-4">
                   <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ البداية الجديد</label>
-                  <input
-                    type={editModal.startDate ? "date" : "text"}
-                    onFocus={(e) => (e.target.type = "date")}
-                    onBlur={(e) => {
-                      if (!e.target.value) e.target.type = "text";
-                    }}
-                    placeholder="بداية التاريخ"
-                    required
-                    value={editModal.startDate}
-                    onChange={(e) => setEditModal({...editModal, startDate: e.target.value})}
-                    className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                  />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      required
+                      value={editModal.startDate}
+                      onChange={(e) => setEditModal({...editModal, startDate: e.target.value})}
+                      className={`w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 ${!editModal.startDate ? '[&::-webkit-datetime-edit]:text-transparent' : ''}`}
+                    />
+                    {!editModal.startDate && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">بداية التاريخ</span>
+                    )}
+                  </div>
                 </div>
                 <div className="mb-6">
                   <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ النهاية الجديد</label>
-                  <input
-                    type={editModal.endDate ? "date" : "text"}
-                    onFocus={(e) => (e.target.type = "date")}
-                    onBlur={(e) => {
-                      if (!e.target.value) e.target.type = "text";
-                    }}
-                    placeholder="نهاية التاريخ"
-                    required
-                    value={editModal.endDate}
-                    onChange={(e) => setEditModal({...editModal, endDate: e.target.value})}
-                    className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                  />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      required
+                      value={editModal.endDate}
+                      onChange={(e) => setEditModal({...editModal, endDate: e.target.value})}
+                      className={`w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 ${!editModal.endDate ? '[&::-webkit-datetime-edit]:text-transparent' : ''}`}
+                    />
+                    {!editModal.endDate && (
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">نهاية التاريخ</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -1120,33 +1120,33 @@ const AdminDashboard = () => {
                 <div className="mb-4 grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ البداية</label>
-                    <input
-                      type={addLeaveModal.startDate ? "date" : "text"}
-                      onFocus={(e) => (e.target.type = "date")}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = "text";
-                      }}
-                      placeholder="بداية التاريخ"
-                      required
-                      value={addLeaveModal.startDate}
-                      onChange={(e) => setAddLeaveModal({ ...addLeaveModal, startDate: e.target.value })}
-                      className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        required
+                        value={addLeaveModal.startDate}
+                        onChange={(e) => setAddLeaveModal({ ...addLeaveModal, startDate: e.target.value })}
+                        className={`w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 ${!addLeaveModal.startDate ? '[&::-webkit-datetime-edit]:text-transparent' : ''}`}
+                      />
+                      {!addLeaveModal.startDate && (
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">بداية التاريخ</span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ النهاية</label>
-                    <input
-                      type={addLeaveModal.endDate ? "date" : "text"}
-                      onFocus={(e) => (e.target.type = "date")}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = "text";
-                      }}
-                      placeholder="نهاية التاريخ"
-                      required
-                      value={addLeaveModal.endDate}
-                      onChange={(e) => setAddLeaveModal({ ...addLeaveModal, endDate: e.target.value })}
-                      className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        required
+                        value={addLeaveModal.endDate}
+                        onChange={(e) => setAddLeaveModal({ ...addLeaveModal, endDate: e.target.value })}
+                        className={`w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100 ${!addLeaveModal.endDate ? '[&::-webkit-datetime-edit]:text-transparent' : ''}`}
+                      />
+                      {!addLeaveModal.endDate && (
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">نهاية التاريخ</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
