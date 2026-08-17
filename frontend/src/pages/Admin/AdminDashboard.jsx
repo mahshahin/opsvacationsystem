@@ -1007,7 +1007,12 @@ const AdminDashboard = () => {
                 <div className="mb-4">
                   <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ البداية الجديد</label>
                   <input
-                    type="date"
+                    type={editModal.startDate ? "date" : "text"}
+                    onFocus={(e) => (e.target.type = "date")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.type = "text";
+                    }}
+                    placeholder="بداية التاريخ"
                     required
                     value={editModal.startDate}
                     onChange={(e) => setEditModal({...editModal, startDate: e.target.value})}
@@ -1017,7 +1022,12 @@ const AdminDashboard = () => {
                 <div className="mb-6">
                   <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ النهاية الجديد</label>
                   <input
-                    type="date"
+                    type={editModal.endDate ? "date" : "text"}
+                    onFocus={(e) => (e.target.type = "date")}
+                    onBlur={(e) => {
+                      if (!e.target.value) e.target.type = "text";
+                    }}
+                    placeholder="نهاية التاريخ"
                     required
                     value={editModal.endDate}
                     onChange={(e) => setEditModal({...editModal, endDate: e.target.value})}
@@ -1111,7 +1121,12 @@ const AdminDashboard = () => {
                   <div>
                     <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ البداية</label>
                     <input
-                      type="date"
+                      type={addLeaveModal.startDate ? "date" : "text"}
+                      onFocus={(e) => (e.target.type = "date")}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = "text";
+                      }}
+                      placeholder="بداية التاريخ"
                       required
                       value={addLeaveModal.startDate}
                       onChange={(e) => setAddLeaveModal({ ...addLeaveModal, startDate: e.target.value })}
@@ -1121,7 +1136,12 @@ const AdminDashboard = () => {
                   <div>
                     <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ النهاية</label>
                     <input
-                      type="date"
+                      type={addLeaveModal.endDate ? "date" : "text"}
+                      onFocus={(e) => (e.target.type = "date")}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = "text";
+                      }}
+                      placeholder="نهاية التاريخ"
                       required
                       value={addLeaveModal.endDate}
                       onChange={(e) => setAddLeaveModal({ ...addLeaveModal, endDate: e.target.value })}
