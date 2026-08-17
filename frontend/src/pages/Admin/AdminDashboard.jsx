@@ -1172,16 +1172,41 @@ const AdminDashboard = () => {
                 <div className="mb-4 grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-2 block text-sm font-bold text-gray-700">نوع الإجازة</label>
-                    <select
-                      required
-                      value={addLeaveModal.leaveType}
-                      onChange={(e) => setAddLeaveModal({ ...addLeaveModal, leaveType: e.target.value })}
-                      className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                    >
-                      <option value="annual">اعتيادي</option>
-                      <option value="casual">عارضة</option>
-                      <option value="compensation">بدل أعياد</option>
-                    </select>
+                    <div className="flex flex-col gap-2">
+                      {[
+                        { value: "annual", label: "اعتيادي", emoji: "📅", color: "#4f46e5", bg: "#eef2ff", border: "#c7d2fe" },
+                        { value: "casual", label: "عارضة",   emoji: "⚡", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+                        { value: "compensation", label: "بدل أعياد", emoji: "🎉", color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
+                      ].map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => setAddLeaveModal({ ...addLeaveModal, leaveType: type.value })}
+                          style={{
+                            border: `2px solid ${addLeaveModal.leaveType === type.value ? type.color : '#e5e7eb'}`,
+                            background: addLeaveModal.leaveType === type.value ? type.bg : '#fff',
+                            color: addLeaveModal.leaveType === type.value ? type.color : '#6b7280',
+                            borderRadius: '12px',
+                            padding: '10px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            fontWeight: addLeaveModal.leaveType === type.value ? '700' : '500',
+                            fontSize: '14px',
+                            transition: 'all 0.15s',
+                            width: '100%',
+                            cursor: 'pointer',
+                            textAlign: 'right',
+                          }}
+                        >
+                          <span style={{ fontSize: '18px' }}>{type.emoji}</span>
+                          {type.label}
+                          {addLeaveModal.leaveType === type.value && (
+                            <span style={{ marginRight: 'auto', fontSize: '16px' }}>✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-bold text-gray-700">مدة الإجازة (أيام)</label>
@@ -1197,40 +1222,62 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="mb-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ البداية</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        required
-                        value={addLeaveModal.startDate}
-                        onChange={(e) => setAddLeaveModal({ ...addLeaveModal, startDate: e.target.value })}
-                        className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                      />
-                      {!addLeaveModal.startDate && (
-                        <div className="absolute top-[2px] right-[2px] bottom-[2px] left-12 bg-white flex items-center px-3 text-gray-400 pointer-events-none rounded-xl">
-                          بداية التاريخ
+                  {[
+                    { key: "startDate", label: "من تاريخ", icon: "📆", val: addLeaveModal.startDate },
+                    { key: "endDate",   label: "إلى تاريخ", icon: "🏁", val: addLeaveModal.endDate },
+                  ].map((field) => (
+                    <div key={field.key}>
+                      <label className="mb-2 block text-sm font-bold text-gray-700">{field.label}</label>
+                      <div style={{ position: "relative" }}>
+                        <div style={{
+                          position: "absolute",
+                          right: "12px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          fontSize: "18px",
+                          pointerEvents: "none",
+                          zIndex: 1,
+                        }}>
+                          {field.icon}
                         </div>
-                      )}
+                        <input
+                          type="date"
+                          required
+                          value={field.val}
+                          onChange={(e) => setAddLeaveModal({ ...addLeaveModal, [field.key]: e.target.value })}
+                          style={{
+                            width: "100%",
+                            border: `2px solid ${field.val ? "#0d9488" : "#e5e7eb"}`,
+                            background: field.val ? "#f0fdfa" : "#fff",
+                            color: field.val ? "#0d9488" : "#9ca3af",
+                            borderRadius: "12px",
+                            padding: "10px 44px 10px 12px",
+                            outline: "none",
+                            fontSize: "13px",
+                            fontWeight: field.val ? "700" : "400",
+                            transition: "all 0.15s",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        {!field.val && (
+                          <div style={{
+                            position: "absolute",
+                            top: "2px", right: "2px", bottom: "2px", left: "40px",
+                            background: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                            paddingRight: "8px",
+                            color: "#9ca3af",
+                            fontSize: "13px",
+                            pointerEvents: "none",
+                            borderRadius: "10px",
+                          }}>
+                            {field.label}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ النهاية</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        required
-                        value={addLeaveModal.endDate}
-                        onChange={(e) => setAddLeaveModal({ ...addLeaveModal, endDate: e.target.value })}
-                        className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-                      />
-                      {!addLeaveModal.endDate && (
-                        <div className="absolute top-[2px] right-[2px] bottom-[2px] left-12 bg-white flex items-center px-3 text-gray-400 pointer-events-none rounded-xl">
-                          نهاية التاريخ
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="mb-6">
