@@ -1223,50 +1223,69 @@ const AdminDashboard = () => {
 
                 <div className="mb-4 grid grid-cols-2 gap-3">
                   {[
-                    { key: "startDate", label: "من", sublabel: "تاريخ البداية", color: "#4f46e5", lightBg: "#eef2ff", val: addLeaveModal.startDate },
-                    { key: "endDate",   label: "إلى", sublabel: "تاريخ النهاية", color: "#0d9488", lightBg: "#f0fdfa", val: addLeaveModal.endDate },
+                    { key: "startDate", sublabel: "تاريخ البداية", color: "#4f46e5", lightBg: "#eef2ff", val: addLeaveModal.startDate },
+                    { key: "endDate",   sublabel: "تاريخ النهاية", color: "#0d9488", lightBg: "#f0fdfa", val: addLeaveModal.endDate },
                   ].map((field) => (
-                    <div key={field.key} style={{
-                      border: `2px solid ${field.val ? field.color : "#e5e7eb"}`,
-                      borderRadius: "14px",
-                      overflow: "hidden",
-                      transition: "border-color 0.15s",
-                    }}>
-                      {/* Header */}
+                    <div key={field.key} style={{ position: "relative" }}>
+                      {/* Hidden native date input */}
+                      <input
+                        type="date"
+                        required
+                        value={field.val}
+                        onChange={(e) => setAddLeaveModal({ ...addLeaveModal, [field.key]: e.target.value })}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          opacity: 0,
+                          width: "100%",
+                          height: "100%",
+                          cursor: "pointer",
+                          zIndex: 2,
+                        }}
+                      />
+                      {/* Custom display card */}
                       <div style={{
-                        background: field.val ? field.color : "#f9fafb",
-                        padding: "6px 12px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
+                        border: `2px solid ${field.val ? field.color : "#e5e7eb"}`,
+                        borderRadius: "14px",
+                        overflow: "hidden",
+                        pointerEvents: "none",
+                        background: field.val ? field.lightBg : "#fff",
                       }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={field.val ? "#fff" : "#9ca3af"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                        <span style={{ fontSize: "11px", fontWeight: "700", color: field.val ? "#fff" : "#9ca3af", letterSpacing: "0.03em" }}>
-                          {field.sublabel}
-                        </span>
-                      </div>
-                      {/* Date Input */}
-                      <div style={{ padding: "4px 8px 6px", background: field.val ? field.lightBg : "#fff" }}>
-                        <input
-                          type="date"
-                          required
-                          value={field.val}
-                          onChange={(e) => setAddLeaveModal({ ...addLeaveModal, [field.key]: e.target.value })}
-                          style={{
-                            width: "100%",
-                            border: "none",
-                            background: "transparent",
-                            outline: "none",
-                            fontSize: "13px",
-                            fontWeight: field.val ? "700" : "400",
-                            color: field.val ? field.color : "#6b7280",
-                            padding: "4px 0",
-                            boxSizing: "border-box",
-                            direction: "ltr",
-                          }}
-                        />
+                        {/* Header bar */}
+                        <div style={{
+                          background: field.val ? field.color : "#f3f4f6",
+                          padding: "6px 12px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke={field.val ? "#fff" : "#9ca3af"}
+                            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
+                          </svg>
+                          <span style={{ fontSize: "11px", fontWeight: "700", color: field.val ? "#fff" : "#9ca3af" }}>
+                            {field.sublabel}
+                          </span>
+                        </div>
+                        {/* Value display */}
+                        <div style={{ padding: "8px 12px 10px", minHeight: "38px", display: "flex", alignItems: "center" }}>
+                          {field.val ? (
+                            <span style={{ fontWeight: "700", color: field.color, fontSize: "14px" }}>
+                              {new Date(field.val).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                            </span>
+                          ) : (
+                            <span style={{ color: "#d1d5db", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                              </svg>
+                              اضغط للاختيار
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
