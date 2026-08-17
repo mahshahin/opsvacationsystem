@@ -67,6 +67,18 @@ const AdminDashboard = () => {
   const [editModal, setEditModal] = useState(initialEditModal);
   const [isEditing, setIsEditing] = useState(false);
   
+  const [employees, setEmployees] = useState([]);
+  const [addLeaveModal, setAddLeaveModal] = useState({
+    isOpen: false,
+    employeeId: "",
+    leaveType: "annual",
+    startDate: "",
+    endDate: "",
+    duration: 1,
+    reason: "",
+    loading: false,
+  });
+
   const [expandedGroups, setExpandedGroups] = useState({});
 
   const toggleGroup = (empId) => {
@@ -124,9 +136,22 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/employees`);
+      const data = await response.json();
+      if (response.ok) {
+        setEmployees(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchPendingRequests();
     fetchMonthlyLeaveLimit();
+    fetchEmployees();
 
     const interval = setInterval(() => {
       fetchPendingRequests();
@@ -400,6 +425,30 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleAddLeaveSubmit = async (e) => {
+    e.preventDefault();
+    setAddLeaveModal((prev) => ({ ...prev, loading: true }));
+    try {
+      const response = await fetch(`${API_URL}/api/admin/add-leave-on-behalf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(addLeaveModal),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.message || "فشل تسجيل الإجازة");
+      } else {
+        toast.success("تم تسجيل الإجازة بنجاح!");
+        setAddLeaveModal({ isOpen: false, employeeId: "", leaveType: "annual", startDate: "", endDate: "", duration: 1, reason: "", loading: false });
+        fetchPendingRequests();
+      }
+    } catch (err) {
+      toast.error("حدث خطأ في الاتصال");
+    } finally {
+      setAddLeaveModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
   const isConfirmLoading =
     confirmModal.requestId &&
     actionLoading.requestId === confirmModal.requestId &&
@@ -425,6 +474,13 @@ const AdminDashboard = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 print:hidden">
+            <button
+              onClick={() => setAddLeaveModal((prev) => ({ ...prev, isOpen: true }))}
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700"
+            >
+              <CheckCircle size={16} />
+              تسجيل إجازة لموظف
+            </button>
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700"
@@ -984,6 +1040,121 @@ const AdminDashboard = () => {
                     className="flex-1 rounded-xl bg-amber-500 py-3 text-sm font-bold text-white transition hover:bg-amber-600 disabled:opacity-60"
                   >
                     {isEditing ? "جاري الحفظ..." : "حفظ التعديلات"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* مودال تسجيل إجازة نيابة عن موظف */}
+        {addLeaveModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+              onClick={() => setAddLeaveModal({ ...addLeaveModal, isOpen: false })}
+            ></div>
+            <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="bg-teal-600 p-6 text-center text-white">
+                <CheckCircle size={48} className="mx-auto mb-3 opacity-90" />
+                <h3 className="text-xl font-black">تسجيل إجازة لموظف</h3>
+                <p className="mt-1 text-teal-100 opacity-90 font-bold">
+                  سيتم تسجيل الإجازة كـ (مقبولة) وخصمها من الرصيد مباشرة
+                </p>
+              </div>
+
+              <form onSubmit={handleAddLeaveSubmit} className="p-6">
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm font-bold text-gray-700">الموظف</label>
+                  <select
+                    required
+                    value={addLeaveModal.employeeId}
+                    onChange={(e) => setAddLeaveModal({ ...addLeaveModal, employeeId: e.target.value })}
+                    className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  >
+                    <option value="">-- اختر الموظف --</option>
+                    {employees.map((emp) => (
+                      <option key={emp._id} value={emp._id}>
+                        {emp.name} ({emp.employeeCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">نوع الإجازة</label>
+                    <select
+                      required
+                      value={addLeaveModal.leaveType}
+                      onChange={(e) => setAddLeaveModal({ ...addLeaveModal, leaveType: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    >
+                      <option value="annual">اعتيادي</option>
+                      <option value="casual">عارضة</option>
+                      <option value="compensation">بدل أعياد</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">مدة الإجازة (أيام)</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={addLeaveModal.duration}
+                      onChange={(e) => setAddLeaveModal({ ...addLeaveModal, duration: Number(e.target.value) })}
+                      className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ البداية</label>
+                    <input
+                      type="date"
+                      required
+                      value={addLeaveModal.startDate}
+                      onChange={(e) => setAddLeaveModal({ ...addLeaveModal, startDate: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-gray-700">تاريخ النهاية</label>
+                    <input
+                      type="date"
+                      required
+                      value={addLeaveModal.endDate}
+                      onChange={(e) => setAddLeaveModal({ ...addLeaveModal, endDate: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="mb-2 block text-sm font-bold text-gray-700">السبب (اختياري)</label>
+                  <input
+                    type="text"
+                    value={addLeaveModal.reason}
+                    onChange={(e) => setAddLeaveModal({ ...addLeaveModal, reason: e.target.value })}
+                    className="w-full rounded-xl border border-gray-200 py-3 px-4 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAddLeaveModal({ ...addLeaveModal, isOpen: false })}
+                    disabled={addLeaveModal.loading}
+                    className="flex-1 rounded-xl bg-gray-100 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addLeaveModal.loading}
+                    className="flex-1 rounded-xl bg-teal-600 py-3 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-60"
+                  >
+                    {addLeaveModal.loading ? "جاري التسجيل..." : "تسجيل الإجازة"}
                   </button>
                 </div>
               </form>

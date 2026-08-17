@@ -1206,3 +1206,101 @@ exports.updateMonthlyLeaveLimit = async (req, res) => {
     });
   }
 };
+
+/* =========================
+   تسجيل إجازة نيابة عن موظف
+========================= */
+exports.addLeaveOnBehalf = async (req, res) => {
+  try {
+    const { employeeId, leaveType, startDate, endDate, duration, reason } = req.body;
+
+    if (!employeeId || !leaveType || !startDate || !endDate || !duration) {
+      return res.status(400).json({ message: "جميع الحقول مطلوبة باستثناء السبب" });
+    }
+
+    const user = await User.findById(employeeId);
+    if (!user) {
+      return res.status(404).json({ message: "الموظف غير موجود" });
+    }
+
+    // التحقق من الرصيد
+    if (user.leaveBalances[leaveType] < duration) {
+      return res.status(400).json({ message: "رصيد الموظف لا يكفي لتسجيل هذه الإجازة!" });
+    }
+
+    // إنشاء طلب الإجازة بحالة Approved
+    const newRequest = new LeaveRequest({
+      employeeId: user._id,
+      leaveType,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      duration,
+      reason,
+      status: "approved",
+    });
+
+    await newRequest.save();
+
+    // خصم الرصيد
+    user.leaveBalances[leaveType] -= duration;
+    user.markModified("leaveBalances");
+    await user.save();
+
+    // إرسال إيميل للموظف إذا كان عنده بريد إلكتروني
+    if (user.email) {
+      sendEmail(
+        user.email,
+        user.name,
+        "approved_by_admin",
+        leaveType,
+        newRequest.startDate,
+        newRequest.endDate
+      ).catch((err) =>
+        console.error("خطأ في إرسال البريد الإلكتروني الإشعاري:", err)
+      );
+    }
+
+    // إرسال Push Notification
+    try {
+      const employeeTokens = user.expoPushToken || user.expoPushTokens;
+      if (employeeTokens) {
+        const fromDate = new Date(startDate).toLocaleDateString("ar-EG");
+        const toDate = new Date(endDate).toLocaleDateString("ar-EG");
+        
+        await sendPushNotification({
+          to: employeeTokens,
+          title: "تسجيل إجازة من قِبل الإدارة",
+          body: `قامت الإدارة بتسجيل إجازة لك من ${fromDate} إلى ${toDate}.`,
+          badge: 1,
+          data: {
+            type: "leave_approved",
+            screen: "EmployeeHistory",
+            requestId: String(newRequest._id),
+            status: "approved",
+          },
+        });
+      }
+    } catch (pushError) {
+      console.error("خطأ في إرسال Push Notification:", pushError);
+    }
+
+    // تسجيل العملية في السجل
+    const newLog = new Log({
+      action: "ADMIN_ADDED_LEAVE",
+      details: `تم تسجيل إجازة ${translateLeaveType(leaveType)} للموظف ${user.name} لمدة ${duration} أيام من قِبل الإدارة.`,
+      ipAddress: req.ip,
+    });
+    await newLog.save();
+
+    res.status(201).json({
+      success: true,
+      message: "تم تسجيل الإجازة وخصم الرصيد بنجاح!",
+      request: newRequest,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "حدث خطأ أثناء تسجيل الإجازة",
+      error: error.message,
+    });
+  }
+};

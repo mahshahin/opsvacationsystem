@@ -10,6 +10,7 @@ router.post("/reset-password", adminController.resetPassword);
 // الطلبات المعلقة
 router.get("/pending-requests", adminController.getPendingRequests);
 router.post("/handle-request", adminController.handleRequest);
+router.post("/add-leave-on-behalf", adminController.addLeaveOnBehalf);
 
 // بيانات الموظفين
 router.get("/employees", adminController.getEmployees);
