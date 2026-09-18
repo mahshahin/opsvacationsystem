@@ -12,6 +12,7 @@ import {
   ChevronDown,
   FileText,
   ArrowLeft,
+  Edit2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import EmployeeLayout from "../components/EmployeeLayout";
@@ -92,6 +93,16 @@ const Dashboard = () => {
   const [cancelModal, setCancelModal] = useState({
     isOpen: false,
     requestId: null,
+    isCancelling: false,
+  });
+
+  const [editModal, setEditModal] = useState({
+    isOpen: false,
+    request: null,
+    startDate: "",
+    endDate: "",
+    reason: "",
+    isSubmitting: false,
   });
 
   const [isLeaveMenuOpen, setIsLeaveMenuOpen] = useState(false);
@@ -231,7 +242,42 @@ const Dashboard = () => {
     }
   };
 
+  const confirmEditRequest = async (e) => {
+    e.preventDefault();
+    if (!editModal.startDate || !editModal.endDate) {
+      toast.error("برجاء إدخال تواريخ الإجازة");
+      return;
+    }
+    
+    setEditModal(prev => ({ ...prev, isSubmitting: true }));
+    try {
+      const response = await fetch(`${API_URL}/api/employee/update-request/${editModal.request._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startDate: editModal.startDate,
+          endDate: editModal.endDate,
+          reason: editModal.reason.trim(),
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.message || "فشل تعديل الطلب");
+      } else {
+        toast.success("تم تعديل الطلب بنجاح!");
+        fetchMyRequests(employee.employeeCode);
+        setEditModal({ isOpen: false, request: null, startDate: "", endDate: "", reason: "", isSubmitting: false });
+      }
+    } catch (err) {
+      toast.error("حدث خطأ في الاتصال بالسيرفر.");
+    } finally {
+      setEditModal(prev => ({ ...prev, isSubmitting: false }));
+    }
+  };
+
   const confirmCancelRequest = async () => {
+    setCancelModal(prev => ({ ...prev, isCancelling: true }));
     try {
       const response = await fetch(
         `${API_URL}/api/employee/cancel-request/${cancelModal.requestId}`,
@@ -249,7 +295,7 @@ const Dashboard = () => {
     } catch (err) {
       toast.error("حدث خطأ أثناء الاتصال بالسيرفر");
     } finally {
-      setCancelModal({ isOpen: false, requestId: null });
+      setCancelModal({ isOpen: false, requestId: null, isCancelling: false });
     }
   };
 
@@ -674,15 +720,33 @@ const Dashboard = () => {
                       </div>
 
                       {req.status === "pending" ? (
-                        <button
-                          onClick={() =>
-                            setCancelModal({ isOpen: true, requestId: req._id })
-                          }
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100"
-                        >
-                          <Trash2 size={16} />
-                          إلغاء الطلب
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              setEditModal({
+                                isOpen: true,
+                                request: req,
+                                startDate: req.startDate.split('T')[0],
+                                endDate: req.endDate.split('T')[0],
+                                reason: req.reason || "",
+                                isSubmitting: false,
+                              })
+                            }
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                          >
+                            <Edit2 size={16} />
+                            تعديل الطلب
+                          </button>
+                          <button
+                            onClick={() =>
+                              setCancelModal({ isOpen: true, requestId: req._id, isCancelling: false })
+                            }
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-black text-red-700 transition hover:bg-red-100"
+                          >
+                            <Trash2 size={16} />
+                            إلغاء الطلب
+                          </button>
+                        </div>
                       ) : (
                         <div className="text-center text-xs font-medium text-slate-400">
                           لا توجد إجراءات متاحة لهذا الطلب
@@ -766,18 +830,37 @@ const Dashboard = () => {
 
                       <td className="p-4 text-center">
                         {req.status === "pending" ? (
-                          <button
-                            onClick={() =>
-                              setCancelModal({
-                                isOpen: true,
-                                requestId: req._id,
-                              })
-                            }
-                            className="rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-700"
-                            title="إلغاء الطلب"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() =>
+                                setEditModal({
+                                  isOpen: true,
+                                  request: req,
+                                  startDate: req.startDate.split('T')[0],
+                                  endDate: req.endDate.split('T')[0],
+                                  reason: req.reason || "",
+                                  isSubmitting: false,
+                                })
+                              }
+                              className="rounded-lg p-2 text-blue-500 transition hover:bg-blue-50 hover:text-blue-700"
+                              title="تعديل الطلب"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() =>
+                                setCancelModal({
+                                  isOpen: true,
+                                  requestId: req._id,
+                                  isCancelling: false,
+                                })
+                              }
+                              className="rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                              title="إلغاء الطلب"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs text-gray-300">—</span>
                         )}
@@ -818,20 +901,92 @@ const Dashboard = () => {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={confirmCancelRequest}
-                  className="flex-1 rounded-xl bg-red-500 py-3 font-bold text-white shadow-sm transition hover:bg-red-600 hover:shadow-md"
+                  disabled={cancelModal.isCancelling}
+                  className="flex-1 rounded-xl bg-red-500 py-3 font-bold text-white shadow-sm transition hover:bg-red-600 hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                 >
-                  نعم، إلغاء الطلب
+                  {cancelModal.isCancelling ? (
+                    <>
+                      <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      جاري الإلغاء...
+                    </>
+                  ) : (
+                    "نعم، إلغاء الطلب"
+                  )}
                 </button>
 
                 <button
                   onClick={() =>
-                    setCancelModal({ isOpen: false, requestId: null })
+                    setCancelModal({ isOpen: false, requestId: null, isCancelling: false })
                   }
-                  className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200"
+                  disabled={cancelModal.isCancelling}
+                  className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   تراجع
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* نافذة تعديل الإجازة */}
+      {editModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-fadeIn">
+            <div className="p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Edit2 className="text-blue-500" size={24} />
+                  تعديل طلب الإجازة
+                </h3>
+              </div>
+              <form onSubmit={confirmEditRequest} className="flex flex-col gap-4">
+                <div className="w-full">
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-500">تاريخ البداية</label>
+                  <input
+                    type="date"
+                    value={editModal.startDate}
+                    onChange={(e) => setEditModal(prev => ({...prev, startDate: e.target.value}))}
+                    required
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-gray-700 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  />
+                </div>
+                <div className="w-full">
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-500">تاريخ النهاية</label>
+                  <input
+                    type="date"
+                    value={editModal.endDate}
+                    onChange={(e) => setEditModal(prev => ({...prev, endDate: e.target.value}))}
+                    required
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-gray-700 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                  />
+                </div>
+                <div className="w-full">
+                  <label className="mb-1.5 block text-xs font-semibold text-gray-500">ملاحظات إضافية للأدمن</label>
+                  <textarea
+                    value={editModal.reason}
+                    onChange={(e) => setEditModal(prev => ({...prev, reason: e.target.value}))}
+                    className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    rows={3}
+                  />
+                </div>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="submit"
+                    disabled={editModal.isSubmitting}
+                    className="flex-1 rounded-xl bg-blue-600 py-3 font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {editModal.isSubmitting ? "جاري الحفظ..." : "حفظ التعديلات"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditModal({ isOpen: false, request: null, startDate: "", endDate: "", reason: "", isSubmitting: false })}
+                    className="flex-1 rounded-xl bg-gray-100 py-3 font-bold text-gray-700 transition hover:bg-gray-200"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

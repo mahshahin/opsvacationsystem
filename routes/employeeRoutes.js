@@ -23,6 +23,9 @@ router.put("/push-token", employeeController.savePushToken);
 // ✅ جديد: إزالة توكن الإشعارات عند تسجيل الخروج (مهمة جداً لمنع كراش الجوال عند الخروج)
 router.put("/remove-push-token", employeeController.removePushToken);
 
+// تعديل طلب إجازة معلق
+router.put("/update-request/:id", employeeController.updateRequest);
+
 // إلغاء طلب إجازة معلق
 router.delete("/cancel-request/:id", employeeController.cancelRequest);
 

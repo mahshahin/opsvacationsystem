@@ -378,6 +378,16 @@ const EmployeeManagement = () => {
     [employees],
   );
 
+  const shiftStaffCount = useMemo(
+    () => staffList.filter((emp) => emp.workType === "شيفت").length,
+    [staffList]
+  );
+
+  const researchStaffCount = useMemo(
+    () => staffList.filter((emp) => emp.workType === "أبحاث").length,
+    [staffList]
+  );
+
   return (
     <AdminLayout>
       <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
@@ -392,8 +402,16 @@ const EmployeeManagement = () => {
             </p>
           </div>
 
-          <div className="w-fit rounded-xl bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
-            إجمالي القوة البشرية: {staffList.length} فرد
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-fit rounded-xl bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
+              إجمالي القوة البشرية: {staffList.length} فرد
+            </div>
+            <div className="w-fit rounded-xl bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-800">
+              شيفت: {shiftStaffCount} فرد
+            </div>
+            <div className="w-fit rounded-xl bg-violet-50 px-4 py-2 text-sm font-bold text-violet-800">
+              أبحاث: {researchStaffCount} فرد
+            </div>
           </div>
         </header>
 

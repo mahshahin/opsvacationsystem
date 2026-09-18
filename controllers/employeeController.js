@@ -75,6 +75,96 @@ const getMonthChunksBetween = (startDate, endDate) => {
   return chunks;
 };
 
+const validateLeaveRequest = async (user, leaveType, start, end, excludeRequestId = null) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (end < start) {
+    throw new Error("تاريخ نهاية الإجازة لا يمكن أن يكون قبل تاريخ البداية!");
+  }
+
+  if (leaveType !== "casual" && start < today) {
+    throw new Error("لا يمكن تقديم إجازة بأثر رجعي (يُسمح بذلك للإجازة العارضة فقط)!");
+  }
+
+  const overlappingQuery = {
+    employeeId: user._id,
+    status: { $ne: "rejected" },
+    $or: [{ startDate: { $lte: end }, endDate: { $gte: start } }],
+  };
+  if (excludeRequestId) overlappingQuery._id = { $ne: excludeRequestId };
+
+  const overlappingRequest = await LeaveRequest.findOne(overlappingQuery);
+  if (overlappingRequest) {
+    throw new Error("لديك بالفعل طلب إجازة يتعارض مع هذه التواريخ!");
+  }
+
+  const diffTime = Math.abs(end - start);
+  const duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  const monthlyLeaveLimit = await getMonthlyLeaveLimit();
+  const monthChunks = getMonthChunksBetween(start, end);
+
+  for (const chunk of monthChunks) {
+    const requestedDaysInThisMonth = getOverlapDays(start, end, chunk.start, chunk.end);
+    if (requestedDaysInThisMonth > monthlyLeaveLimit) {
+      throw new Error(`الحد الأقصى المسموح به للإجازات خلال شهر ${chunk.label} هو ${monthlyLeaveLimit} أيام فقط.`);
+    }
+
+    const monthQuery = {
+      employeeId: user._id,
+      status: { $ne: "rejected" },
+      startDate: { $lte: chunk.end },
+      endDate: { $gte: chunk.start },
+    };
+    if (excludeRequestId) monthQuery._id = { $ne: excludeRequestId };
+
+    const monthRequests = await LeaveRequest.find(monthQuery);
+
+    const usedDaysInThisMonth = monthRequests.reduce((total, req) => {
+      const reqStart = new Date(req.startDate);
+      const reqEnd = new Date(req.endDate);
+      reqStart.setHours(0, 0, 0, 0);
+      reqEnd.setHours(23, 59, 59, 999);
+      return total + getOverlapDays(reqStart, reqEnd, chunk.start, chunk.end);
+    }, 0);
+
+    if (usedDaysInThisMonth + requestedDaysInThisMonth > monthlyLeaveLimit) {
+      throw new Error(`لا يمكن تقديم هذا الطلب لأن الحد الأقصى للإجازات خلال شهر ${chunk.label} هو ${monthlyLeaveLimit} أيام، وقد تم استهلاك ${usedDaysInThisMonth} يوم بالفعل.`);
+    }
+  }
+
+  if (leaveType === "casual") {
+    if (duration > 2) {
+      throw new Error("الإجازة العارضة لا يمكن أن تتجاوز يومين متصلين!");
+    }
+
+    const startOfMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+
+    const casualQuery = {
+      employeeId: user._id,
+      leaveType: "casual",
+      status: { $ne: "rejected" },
+      startDate: { $gte: startOfMonth, $lte: endOfMonth },
+    };
+    if (excludeRequestId) casualQuery._id = { $ne: excludeRequestId };
+
+    const monthLeaves = await LeaveRequest.find(casualQuery);
+
+    const takenCasualDaysThisMonth = monthLeaves.reduce((total, r) => total + r.duration, 0);
+    if (takenCasualDaysThisMonth + duration > 2) {
+      throw new Error(`عفواً، لقد استنفذت الحد الأقصى للعارضة هذا الشهر (متبقي لك ${2 - takenCasualDaysThisMonth} يوم).`);
+    }
+  }
+
+  if (user.leaveBalances[leaveType] < duration) {
+    throw new Error(`رصيدك الحالي (${user.leaveBalances[leaveType]} أيام) لا يكفي لطلب ${duration} يوم!`);
+  }
+
+  return duration;
+};
+
 // إرسال إشعار موحد لكل الأدمنز (بدون تكرار إيميل)
 const notifyAdminsByEmail = async (subject, message) => {
   const admins = await Admin.find({
@@ -273,109 +363,11 @@ exports.submitLeaveRequest = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (end < start) {
-      return res.status(400).json({
-        message: "تاريخ نهاية الإجازة لا يمكن أن يكون قبل تاريخ البداية!",
-      });
-    }
-
-    if (leaveType !== "casual" && start < today) {
-      return res.status(400).json({
-        message:
-          "لا يمكن تقديم إجازة بأثر رجعي (يُسمح بذلك للإجازة العارضة فقط)!",
-      });
-    }
-
-    const overlappingRequest = await LeaveRequest.findOne({
-      employeeId: user._id,
-      status: { $ne: "rejected" },
-      $or: [{ startDate: { $lte: end }, endDate: { $gte: start } }],
-    });
-
-    if (overlappingRequest) {
-      return res.status(400).json({
-        message: "لديك بالفعل طلب إجازة يتعارض مع هذه التواريخ!",
-      });
-    }
-
-    const diffTime = Math.abs(end - start);
-    const duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-    // ✅ التحقق من الحد الأقصى الشهري (Dynamic)
-    const monthlyLeaveLimit = await getMonthlyLeaveLimit();
-    const monthChunks = getMonthChunksBetween(start, end);
-
-    for (const chunk of monthChunks) {
-      const requestedDaysInThisMonth = getOverlapDays(
-        start,
-        end,
-        chunk.start,
-        chunk.end,
-      );
-
-      if (requestedDaysInThisMonth > monthlyLeaveLimit) {
-        return res.status(400).json({
-          message: `الحد الأقصى المسموح به للإجازات خلال شهر ${chunk.label} هو ${monthlyLeaveLimit} أيام فقط.`,
-        });
-      }
-
-      const monthRequests = await LeaveRequest.find({
-        employeeId: user._id,
-        status: { $ne: "rejected" },
-        startDate: { $lte: chunk.end },
-        endDate: { $gte: chunk.start },
-      });
-
-      const usedDaysInThisMonth = monthRequests.reduce((total, req) => {
-        const reqStart = new Date(req.startDate);
-        const reqEnd = new Date(req.endDate);
-        reqStart.setHours(0, 0, 0, 0);
-        reqEnd.setHours(23, 59, 59, 999);
-        return total + getOverlapDays(reqStart, reqEnd, chunk.start, chunk.end);
-      }, 0);
-
-      if (usedDaysInThisMonth + requestedDaysInThisMonth > monthlyLeaveLimit) {
-        return res.status(400).json({
-          message: `لا يمكن تقديم هذا الطلب لأن الحد الأقصى للإجازات خلال شهر ${chunk.label} هو ${monthlyLeaveLimit} أيام، وقد تم استهلاك ${usedDaysInThisMonth} يوم بالفعل.`,
-        });
-      }
-    }
-
-    if (leaveType === "casual") {
-      if (duration > 2) {
-        return res.status(400).json({
-          message: "الإجازة العارضة لا يمكن أن تتجاوز يومين متصلين!",
-        });
-      }
-
-      const startOfMonth = new Date(start.getFullYear(), start.getMonth(), 1);
-      const endOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0);
-
-      const monthLeaves = await LeaveRequest.find({
-        employeeId: user._id,
-        leaveType: "casual",
-        status: { $ne: "rejected" },
-        startDate: { $gte: startOfMonth, $lte: endOfMonth },
-      });
-
-      const takenCasualDaysThisMonth = monthLeaves.reduce(
-        (total, r) => total + r.duration,
-        0,
-      );
-
-      if (takenCasualDaysThisMonth + duration > 2) {
-        return res.status(400).json({
-          message: `عفواً، لقد استنفذت الحد الأقصى للعارضة هذا الشهر (متبقي لك ${
-            2 - takenCasualDaysThisMonth
-          } يوم).`,
-        });
-      }
-    }
-
-    if (user.leaveBalances[leaveType] < duration) {
-      return res.status(400).json({
-        message: `رصيدك الحالي (${user.leaveBalances[leaveType]} أيام) لا يكفي لطلب ${duration} يوم!`,
-      });
+    let duration;
+    try {
+      duration = await validateLeaveRequest(user, leaveType, start, end);
+    } catch (err) {
+      return res.status(400).json({ message: err.message });
     }
 
     const newLeaveReq = new LeaveRequest({
@@ -420,6 +412,66 @@ exports.submitLeaveRequest = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "حدث خطأ أثناء تقديم الطلب",
+      error: error.message,
+    });
+  }
+};
+
+// تعديل طلب إجازة معلق
+exports.updateRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate, reason = "" } = req.body;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "برجاء استكمال جميع البيانات الأساسية للطلب!" });
+    }
+
+    const request = await LeaveRequest.findById(id).populate("employeeId", "name employeeCode role leaveBalances");
+    if (!request) {
+      return res.status(404).json({ message: "الطلب غير موجود!" });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({ message: "لا يمكن تعديل طلب تمت معالجته بالفعل!" });
+    }
+
+    const user = request.employeeId;
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    const cleanReason = String(reason || "").trim();
+
+    let duration;
+    try {
+      duration = await validateLeaveRequest(user, request.leaveType, start, end, request._id);
+    } catch (err) {
+      return res.status(400).json({ message: err.message });
+    }
+
+    request.startDate = start;
+    request.endDate = end;
+    request.duration = duration;
+    request.reason = cleanReason;
+    await request.save();
+
+    const newLog = new Log({
+      action: "LEAVE_EDITED_BY_EMPLOYEE",
+      performedBy: user._id,
+      details: `قام ${user.name} بتعديل تواريخ طلب إجازة (${request.leaveType}) لتصبح من ${start.toLocaleDateString("ar-EG")} إلى ${end.toLocaleDateString("ar-EG")}.`,
+      ipAddress: req.ip,
+    });
+    await newLog.save();
+
+    res.status(200).json({
+      message: "تم تعديل الطلب بنجاح.",
+      durationRequested: duration,
+      requestDetails: request,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "خطأ أثناء تعديل الطلب",
       error: error.message,
     });
   }

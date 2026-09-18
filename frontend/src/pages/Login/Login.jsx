@@ -244,11 +244,10 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-2.5 md:py-3 rounded-xl font-bold transition duration-300 shadow-lg flex items-center justify-center gap-2 ${
-                  loading
+                className={`w-full py-2.5 md:py-3 rounded-xl font-bold transition duration-300 shadow-lg flex items-center justify-center gap-2 ${loading
                     ? "bg-navy-light/70 text-white cursor-not-allowed"
                     : "bg-navy-dark text-white hover:bg-navy-light"
-                }`}
+                  }`}
               >
                 {loading ? (
                   <>
