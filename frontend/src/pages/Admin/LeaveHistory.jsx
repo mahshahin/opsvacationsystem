@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronUp,
   Edit2,
+  Printer,
 } from "lucide-react";
 import AdminLayout from "../components/AdminLayout";
 
@@ -67,6 +68,23 @@ const LeaveHistory = () => {
     employeeName: "",
     leaveTypeLabel: "",
   });
+
+  const [printingEmpId, setPrintingEmpId] = useState(null);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setPrintingEmpId(null);
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
+
+  const handlePrint = (empId) => {
+    setPrintingEmpId(empId);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -425,7 +443,80 @@ const LeaveHistory = () => {
 
   return (
     <AdminLayout>
-      <div className="min-h-screen bg-gray-50 p-4 md:p-8" dir="rtl">
+      {printingEmpId && (
+        <div className="hidden print:block w-full bg-white text-black" dir="rtl">
+          {groupedLeaves
+            .filter((g) => (g.employee._id || g.employee.employeeCode || g.employee.name) === printingEmpId)
+            .map((group) => {
+              const emp = group.employee;
+              const reqs = group.requests;
+              const approvedReqs = reqs.filter(r => r.status === "approved");
+              
+              return (
+                <div key="print" className="p-8 mx-auto max-w-4xl">
+                  <div className="text-center mb-8 border-b-2 border-gray-800 pb-6">
+                    <h1 className="text-3xl font-black mb-2">تقرير أرصدة وإجازات الموظف</h1>
+                    <p className="text-lg text-gray-600">تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-8 text-xl font-bold bg-gray-50 p-6 rounded-2xl border border-gray-200">
+                    <div>الاسم: <span className="text-indigo-700">{emp.name || "غير معروف"}</span></div>
+                    <div>كود الموظف: <span className="text-indigo-700">{emp.employeeCode || "---"}</span></div>
+                  </div>
+
+                  {emp.leaveBalances && (
+                    <div className="mb-10">
+                      <h2 className="text-2xl font-black mb-4 border-b-2 border-gray-200 pb-2">الأرصدة المتبقية</h2>
+                      <div className="grid grid-cols-3 gap-6 text-center text-xl">
+                        <div className="border-2 border-blue-200 bg-blue-50 rounded-2xl p-6">
+                          <div className="text-blue-800 font-bold mb-2">اعتيادي</div>
+                          <div className="font-black text-3xl text-blue-900">{emp.leaveBalances.annual ?? "---"}</div>
+                        </div>
+                        <div className="border-2 border-amber-200 bg-amber-50 rounded-2xl p-6">
+                          <div className="text-amber-800 font-bold mb-2">عارضة</div>
+                          <div className="font-black text-3xl text-amber-900">{emp.leaveBalances.casual ?? "---"}</div>
+                        </div>
+                        <div className="border-2 border-emerald-200 bg-emerald-50 rounded-2xl p-6">
+                          <div className="text-emerald-800 font-bold mb-2">بدل أعياد</div>
+                          <div className="font-black text-3xl text-emerald-900">{emp.leaveBalances.compensation ?? "---"}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <h2 className="text-2xl font-black mb-4 border-b-2 border-gray-200 pb-2">بيان الإجازات المعتمدة</h2>
+                    {approvedReqs.length > 0 ? (
+                      <table className="w-full text-right border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100 border-b-2 border-gray-800">
+                            <th className="p-4 font-bold text-lg border-b">نوع الإجازة</th>
+                            <th className="p-4 font-bold text-lg border-b">التاريخ (من - إلى)</th>
+                            <th className="p-4 font-bold text-lg border-b">المدة</th>
+                            <th className="p-4 font-bold text-lg border-b">السبب</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {approvedReqs.map(leave => (
+                            <tr key={leave._id}>
+                              <td className="p-4 text-lg font-bold">{translateType(leave.leaveType)}</td>
+                              <td className="p-4 text-lg">{formatDate(leave.startDate)} إلى {formatDate(leave.endDate)}</td>
+                              <td className="p-4 text-lg font-bold">{leave.duration} أيام</td>
+                              <td className="p-4 text-gray-700">{leave.reason || "---"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="text-lg text-gray-500 italic">لا توجد إجازات معتمدة لهذا الموظف.</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      )}
+      <div className={`min-h-screen bg-gray-50 p-4 md:p-8 ${printingEmpId ? "print:hidden" : ""}`} dir="rtl">
         <header className="mb-6 md:mb-8 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 md:p-6 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -584,6 +675,18 @@ const LeaveHistory = () => {
                       <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-800">
                         إجمالي المدة: {totalDays} يوم
                       </span>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePrint(emp._id || emp.employeeCode || emp.name);
+                        }}
+                        className="ml-2 flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 transition hover:bg-slate-300 hover:text-slate-900 shadow-sm"
+                        title="طباعة تقرير الموظف"
+                      >
+                        <Printer size={16} />
+                      </button>
+
                       <div className="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm transition hover:bg-gray-50 hover:text-indigo-600">
                         {expandedGroups[emp._id || emp.employeeCode || emp.name] ? (
                           <ChevronUp size={20} />

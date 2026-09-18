@@ -1,4 +1,4 @@
-﻿const User = require("../models/User");
+const User = require("../models/User");
 const LeaveRequest = require("../models/LeaveRequest");
 const Roster = require("../models/Roster");
 const sendEmail = require("../utils/sendEmail");
@@ -610,7 +610,7 @@ exports.generateAutoRoster = async (req, res) => {
 
 exports.fillEmptyRoster = async (req, res) => {
   try {
-    const { month, year, rosterDetails, reserveEmployeeIds, config } = req.body;
+    const { month, year, rosterDetails, reserveEmployeeIds, shiftLeaderIds, config } = req.body;
     if (!month || !year || !rosterDetails || !reserveEmployeeIds) {
       return res.status(400).json({ success: false, message: "بيانات غير مكتملة لتعبئة الفراغات" });
     }
@@ -630,12 +630,22 @@ exports.fillEmptyRoster = async (req, res) => {
 
     const reserveShiftCounts = {};
     reserveEmployeeIds.forEach(id => { reserveShiftCounts[id] = 0; });
+    
+    const leaderShiftCounts = {};
+    if (shiftLeaderIds) {
+      shiftLeaderIds.forEach(id => { leaderShiftCounts[id] = 0; });
+    }
 
     for (let day = 1; day <= daysCount; day++) {
       const dayData = rosterDetails[String(day)];
       if (!dayData) continue;
       ['shift1', 'shift2', 'shift3'].forEach(shiftKey => {
         if (!dayData[shiftKey]) return;
+        
+        if (dayData[shiftKey].leader && leaderShiftCounts.hasOwnProperty(dayData[shiftKey].leader.toString())) {
+          leaderShiftCounts[dayData[shiftKey].leader.toString()]++;
+        }
+
         const members = dayData[shiftKey].members || [];
         members.forEach(mId => {
           if (mId && reserveShiftCounts.hasOwnProperty(mId.toString())) {
@@ -651,14 +661,14 @@ exports.fillEmptyRoster = async (req, res) => {
       const dayData = rosterDetails[String(day)];
       if (!dayData) continue;
 
-      const reserveOnLeaveToday = new Set();
+      const employeesOnLeaveToday = new Set();
       leaves.forEach(leave => {
         const lStart = new Date(leave.startDate).setHours(0,0,0,0);
         const lEnd = new Date(leave.endDate).setHours(23,59,59,999);
         if (currTime >= lStart && currTime <= lEnd) {
           const empId = leave.employeeId && leave.employeeId._id ? leave.employeeId._id.toString() : leave.employeeId.toString();
-          if (reserveShiftCounts.hasOwnProperty(empId)) {
-            reserveOnLeaveToday.add(empId);
+          if (reserveShiftCounts.hasOwnProperty(empId) || leaderShiftCounts.hasOwnProperty(empId)) {
+            employeesOnLeaveToday.add(empId);
           }
         }
       });
@@ -673,6 +683,25 @@ exports.fillEmptyRoster = async (req, res) => {
       ['shift1', 'shift2', 'shift3'].forEach(shiftKey => {
         if (!dayData[shiftKey]) return;
         
+        // 1. Fill Leader if missing
+        if (!dayData[shiftKey].leader && shiftLeaderIds && shiftLeaderIds.length > 0) {
+          const eligibleLeaders = shiftLeaderIds.filter(id => {
+            const strId = id.toString();
+            return !employeesOnLeaveToday.has(strId) && !employeesWorkingToday.has(strId);
+          });
+          
+          if (eligibleLeaders.length > 0) {
+            eligibleLeaders.sort((a, b) => leaderShiftCounts[a.toString()] - leaderShiftCounts[b.toString()]);
+            const chosenLeader = eligibleLeaders[0];
+            const chosenStr = chosenLeader.toString();
+            
+            dayData[shiftKey].leader = chosenLeader;
+            employeesWorkingToday.add(chosenStr);
+            leaderShiftCounts[chosenStr]++;
+          }
+        }
+
+        // 2. Fill Members if missing
         const actualMembers = (dayData[shiftKey].members || []).filter(Boolean);
         const missingCount = membersPerShift - actualMembers.length;
 
@@ -680,7 +709,7 @@ exports.fillEmptyRoster = async (req, res) => {
           for (let i = 0; i < missingCount; i++) {
             const eligibleReserves = reserveEmployeeIds.filter(id => {
               const strId = id.toString();
-              return !reserveOnLeaveToday.has(strId) && !employeesWorkingToday.has(strId);
+              return !employeesOnLeaveToday.has(strId) && !employeesWorkingToday.has(strId);
             });
 
             if (eligibleReserves.length > 0) {
@@ -701,7 +730,7 @@ exports.fillEmptyRoster = async (req, res) => {
     return res.status(200).json({
       success: true,
       rosterDetails,
-      message: "تم ملء الفراغات المتبقية بنجاح باستخدام الاحتياطي"
+      message: "تم ملء الفراغات المتبقية بنجاح باستخدام الاحتياطي ورؤساء النوبات"
     });
 
   } catch (error) {

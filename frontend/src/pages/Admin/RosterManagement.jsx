@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import AdminLayout from "../components/AdminLayout";
 import toast from "react-hot-toast";
@@ -305,8 +305,8 @@ const EmployeeDropdown = ({
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className={`flex w-full items-center justify-between gap-1.5 rounded-md border font-semibold shadow-sm outline-none transition ${
-            compact ? "h-7 px-1.5 text-[10px]" : "h-8 px-2 text-[11px]"
+          className={`flex w-full items-center justify-between gap-1.5 rounded-md border font-bold shadow-sm outline-none transition ${
+            compact ? "h-8 px-1.5 text-[11px]" : "h-9 px-2 text-[13px]"
           } ${buttonClass}`}
         >
           <div className="flex min-w-0 items-center gap-1.5">
@@ -445,10 +445,10 @@ const EmployeeDropdown = ({
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="truncate text-[11px] font-bold text-slate-800">
+                          <div className="truncate text-[13px] font-black text-slate-800">
                             {emp.name}
                           </div>
-                          <div className="mt-0.5 text-[10px] font-medium text-slate-500">
+                          <div className="mt-0.5 text-[11px] font-medium text-slate-500">
                             كود: {emp.employeeCode || "—"}
                           </div>
                           {usage?.isUsedElsewhere && (
@@ -2546,6 +2546,7 @@ const RosterManagement = () => {
           year,
           rosterDetails: rosterData,
           reserveEmployeeIds,
+          shiftLeaderIds,
           config: { membersPerShift: 1 }
         }),
       });

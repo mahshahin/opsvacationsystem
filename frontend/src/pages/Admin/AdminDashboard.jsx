@@ -264,11 +264,12 @@ const AdminDashboard = () => {
   const hasReason = (req) => Boolean(String(req?.reason || "").trim());
 
   const stats = useMemo(() => {
+    const uniqueEmployees = new Set(pendingRequests.map(r => r.employeeId?._id || r.employeeId?.employeeCode));
     return {
-      total: pendingRequests.length,
+      total: uniqueEmployees.size,
       annual: pendingRequests.filter((r) => r.leaveType === "annual").length,
       casual: pendingRequests.filter((r) => r.leaveType === "casual").length,
-      alerts: pendingRequests.filter((r) => hasInsufficientBalance(r)).length,
+      compensation: pendingRequests.filter((r) => r.leaveType === "compensation").length,
     };
   }, [pendingRequests]);
 
@@ -565,7 +566,7 @@ const AdminDashboard = () => {
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 print:hidden">
           <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
             <div className="text-xs font-bold text-blue-700">
-              إجمالي الطلبات
+              إجمالي الموظفين المتقدمين
             </div>
             <div className="mt-2 text-2xl font-black text-blue-800">
               {stats.total}
@@ -586,10 +587,10 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-100 bg-red-50 p-4 shadow-sm">
-            <div className="text-xs font-bold text-red-700">تنبيهات رصيد</div>
-            <div className="mt-2 text-2xl font-black text-red-800">
-              {stats.alerts}
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+            <div className="text-xs font-bold text-emerald-700">بدل أعياد</div>
+            <div className="mt-2 text-2xl font-black text-emerald-800">
+              {stats.compensation}
             </div>
           </div>
         </div>
@@ -725,8 +726,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
 
-                  {expandedGroups[emp._id || emp.employeeCode || emp.name] && (
-                  <div className="overflow-x-auto">
+                  <div className={`overflow-x-auto ${expandedGroups[emp._id || emp.employeeCode || emp.name] ? 'block' : 'hidden print:block'}`}>
                     <table className="w-full text-right text-base">
                       <thead className="bg-gray-50/80 text-sm font-black text-gray-700 border-b border-gray-100">
                         <tr>
@@ -861,7 +861,6 @@ const AdminDashboard = () => {
                       </tbody>
                     </table>
                   </div>
-                  )}
                 </div>
               );
             })
