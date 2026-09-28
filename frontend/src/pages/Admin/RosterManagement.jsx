@@ -4537,9 +4537,7 @@ const RosterManagement = () => {
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-white px-6 py-4">
-                <p className="text-xs font-bold text-slate-500">
-                  يتم حفظ الاختيارات محليًا لهذا الشهر والسنة على نفس الجهاز.
-                </p>
+                
                 <button
                   type="button"
                   onClick={() => setIsLeadersModalOpen(false)}
