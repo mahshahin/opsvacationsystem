@@ -1304,3 +1304,28 @@ exports.addLeaveOnBehalf = async (req, res) => {
     });
   }
 };
+
+exports.getRosterConfig = async (req, res) => {
+  try {
+    const setting = await SystemSettings.findOne({ key: 'rosterConfig' });
+    res.status(200).json({ success: true, data: setting ? setting.value : null });
+  } catch (error) {
+    console.error('Error getting roster config:', error);
+    res.status(500).json({ success: false, message: 'حدث خطأ' });
+  }
+};
+
+exports.updateRosterConfig = async (req, res) => {
+  try {
+    const { config } = req.body;
+    await SystemSettings.findOneAndUpdate(
+      { key: 'rosterConfig' },
+      { value: config },
+      { upsert: true, new: true }
+    );
+    res.status(200).json({ success: true, message: 'تم تحديث الإعدادات بنجاح' });
+  } catch (error) {
+    console.error('Error updating roster config:', error);
+    res.status(500).json({ success: false, message: 'حدث خطأ' });
+  }
+};

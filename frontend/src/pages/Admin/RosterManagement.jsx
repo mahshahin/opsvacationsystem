@@ -612,10 +612,7 @@ const RosterManagement = () => {
     setReserveEmployeeIds(uniqueIds);
 
     try {
-      localStorage.setItem(
-        reserveEmployeesStorageKey,
-        JSON.stringify(uniqueIds),
-      );
+      saveRosterConfig({ shiftLeaderIds, workGroups, reserveEmployeeIds: uniqueIds });
     } catch (error) {
       console.error("Error saving reserve employees locally:", error);
     }
@@ -647,12 +644,9 @@ const RosterManagement = () => {
     }
 
     try {
-      localStorage.setItem(
-        workGroupsStorageKey,
-        JSON.stringify(normalizedGroups),
-      );
+      saveRosterConfig({ shiftLeaderIds, workGroups: normalizedGroups, reserveEmployeeIds });
     } catch (error) {
-      console.error("Error saving work groups locally:", error);
+      console.error("Error saving work groups remotely:", error);
     }
   };
 
@@ -664,7 +658,7 @@ const RosterManagement = () => {
     setShiftLeaderIds(uniqueIds);
 
     try {
-      localStorage.setItem(shiftLeadersStorageKey, JSON.stringify(uniqueIds));
+      saveRosterConfig({ shiftLeaderIds: uniqueIds, workGroups, reserveEmployeeIds });
     } catch (error) {
       console.error("Error saving shift leaders locally:", error);
     }
@@ -3508,25 +3502,12 @@ const RosterManagement = () => {
                             </div>
                           );
                         })()}
-                        <textarea
-                          value={rosterData[day.dayNumber]?.notes || ""}
-                          onChange={(e) =>
-                            handleRosterChange(
-                              day.dayNumber,
-                              null,
-                              "notes",
-                              null,
-                              e.target.value,
-                            )
-                          }
-                          className={`w-full h-full resize-none rounded-md border border-slate-200 bg-slate-50 px-2 font-medium text-slate-700 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 no-print ${isRosterFullscreen ? "min-h-[60px] py-1 text-[10px]" : "min-h-[100px] py-1.5 text-[11px]"}`}
-                          placeholder="ملاحظات..."></textarea>
+                        
                         <span className="print-only print-cell-text">
                           {(() => {
                             const onLeave = getEmployeesOnLeaveForDay(day.dayNumber);
                             const leaveText = onLeave.length > 0 ? onLeave.map(item => (item.isPending ? '(طلب) ' : '') + item.name).join(' — ') : '';
-                            const notesText = rosterData[day.dayNumber]?.notes || '';
-                            return [leaveText, notesText].filter(Boolean).join("\n");
+                            return leaveText;
                           })()}
                         </span>
                       </td>
@@ -3537,32 +3518,32 @@ const RosterManagement = () => {
             </div>
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm no-print">
+          <div className="mt-8 overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-md ring-1 ring-black/5 no-print">
             <button
               type="button"
               onClick={() => setIsSummaryOpen((prev) => !prev)}
-              className="flex w-full items-center justify-between gap-3 bg-white px-4 py-4 text-right transition hover:bg-slate-50 md:px-5"
+              className="flex w-full items-center justify-between gap-3 bg-gradient-to-l from-indigo-700 to-blue-600 px-4 py-4 text-right transition hover:from-indigo-800 hover:to-blue-700 md:px-5"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <Users className="text-blue-600" size={18} />
-                  <h3 className="text-lg font-black text-slate-800">
+                  <div className="rounded-lg bg-white/20 p-1.5 backdrop-blur-sm"><Users className="text-white" size={18} /></div>
+                  <h3 className="text-lg font-black text-white">
                     ملخص توزيع الورديات على الموظفين
                   </h3>
                 </div>
-                <p className="mt-1 text-xs font-medium text-slate-500">
+                <p className="mt-1.5 text-xs font-medium text-indigo-100">
                   يوضح نصيب كل موظف من إجمالي الورديات وعدد أيام الإجازات
                   المعتمدة خلال الشهر
                 </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-3">
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700">
+                <span className="rounded-full bg-white/20 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-sm border border-white/10">
                   {visibleEmployeeRosterSummary.length} موظف
                 </span>
                 <ChevronDown
                   size={20}
-                  className={`text-slate-500 transition-transform duration-300 ${
+                  className={`text-white/80 transition-transform duration-300 ${
                     isSummaryOpen ? "rotate-180" : ""
                   }`}
                 />
@@ -4370,7 +4351,7 @@ const RosterManagement = () => {
                     <span className="rounded-full bg-cyan-100 px-3 py-1 text-[11px] font-black text-cyan-800">
                       محدد: {shiftLeaderIds.length}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-700">
+                    <span className="rounded-full bg-white/20 px-3 py-1 text-[11px] font-bold text-white backdrop-blur-sm border border-white/10">
                       المعروض: {visibleLeaderEmployees.length}
                     </span>
                   </div>

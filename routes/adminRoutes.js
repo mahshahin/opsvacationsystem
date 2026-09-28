@@ -43,5 +43,8 @@ router.put(
   "/leave-rules/monthly-limit",
   adminController.updateMonthlyLeaveLimit,
 );
+// إعدادات الروستر
+router.get("/roster-config", adminController.getRosterConfig);
+router.put("/roster-config", adminController.updateRosterConfig);
 
 module.exports = router;

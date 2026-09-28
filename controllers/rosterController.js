@@ -585,7 +585,6 @@ exports.generateAutoRoster = async (req, res) => {
       const currentDate = new Date(year, month - 1, day);
 
       const employeesOnLeave = new Set();
-      const leaveNotes = [];
 
       leaves.forEach(leave => {
         const lStart = new Date(leave.startDate).setHours(0,0,0,0);
@@ -595,19 +594,14 @@ exports.generateAutoRoster = async (req, res) => {
         if (currTime >= lStart && currTime <= lEnd) {
           const empId = leave.employeeId && leave.employeeId._id ? leave.employeeId._id.toString() : leave.employeeId.toString();
           employeesOnLeave.add(empId);
-          
-          if (leave.employeeId && leave.employeeId.name) {
-            const statusText = leave.status === 'pending' ? ' (معلقة)' : '';
-            leaveNotes.push(leave.employeeId.name + statusText);
-          }
         }
       });
 
-      if (day === 4) console.log('DAY 4 NOTES:', leaveNotes); rosterDetails[day] = {
+      rosterDetails[day] = {
         shift1: { leader: null, members: [] },
         shift2: { leader: null, members: [] },
         shift3: { leader: null, members: [] },
-        notes: leaveNotes.length > 0 ? "إجازات اليوم: " + leaveNotes.join("، ") : ""
+        notes: ""
       };
 
       groupStates.forEach(({ group, initialState }) => {
