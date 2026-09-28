@@ -64,6 +64,14 @@ exports.getRosterInitData = async (req, res) => {
 
     const existingRoster = await Roster.findOne({ month, year });
 
+    let prevMonth = month - 1;
+    let prevYear = year;
+    if (prevMonth === 0) {
+      prevMonth = 12;
+      prevYear = year - 1;
+    }
+    const prevRoster = await Roster.findOne({ month: prevMonth, year: prevYear });
+
     console.log("month/year:", month, year);
     console.log("employees count:", employees.length);
     console.log("leaves count:", leaves.length);
@@ -73,6 +81,7 @@ exports.getRosterInitData = async (req, res) => {
       employees,
       leaves,
       existingRoster,
+      prevRoster,
     });
   } catch (error) {
     console.error("Error fetching init data:", error);
