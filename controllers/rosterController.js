@@ -130,43 +130,82 @@ exports.saveRoster = async (req, res) => {
     if (status === "published") {
       const uniqueUserIds = new Set();
 
-      for (const day in rosterDetails) {
-        ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
-          const shift = rosterDetails[day][shiftKey];
+      if (isUpdate && existingRoster && existingRoster.details) {
+        const getUsersInShift = (shift) => {
+          if (!shift) return [];
+          const users = [];
+          if (shift.leader) users.push(shift.leader.toString());
+          if (Array.isArray(shift.members)) {
+            shift.members.forEach(m => { if (m) users.push(m.toString()); });
+          }
+          return users;
+        };
 
-          if (shift) {
-            if (shift.leader) {
-              uniqueUserIds.add(shift.leader.toString());
-            }
+        const oldEntries = getRosterEntries(existingRoster.details);
+        const oldDays = oldEntries.map(([day]) => String(day));
+        const newDays = Object.keys(rosterDetails);
+        const allDays = new Set([...oldDays, ...newDays]);
 
-            if (Array.isArray(shift.members)) {
-              shift.members.forEach((member) => {
-                if (member) uniqueUserIds.add(member.toString());
-              });
+        for (const day of allDays) {
+          const oldDayData = getRosterDay(existingRoster.details, day);
+          const newDayData = rosterDetails[day];
+
+          ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+            const oldUsers = getUsersInShift(oldDayData?.[shiftKey]);
+            const newUsers = getUsersInShift(newDayData?.[shiftKey]);
+
+            const oldSet = new Set(oldUsers);
+            const newSet = new Set(newUsers);
+
+            for (const u of oldUsers) {
+              if (!newSet.has(u)) uniqueUserIds.add(u);
             }
+            for (const u of newUsers) {
+              if (!oldSet.has(u)) uniqueUserIds.add(u);
+            }
+          });
+        }
+      } else {
+        for (const day in rosterDetails) {
+          ["shift1", "shift2", "shift3"].forEach((shiftKey) => {
+            const shift = rosterDetails[day][shiftKey];
+
+            if (shift) {
+              if (shift.leader) {
+                uniqueUserIds.add(shift.leader.toString());
+              }
+
+              if (Array.isArray(shift.members)) {
+                shift.members.forEach((member) => {
+                  if (member) uniqueUserIds.add(member.toString());
+                });
+              }
+            }
+          });
+        }
+      }
+
+      if (uniqueUserIds.size > 0) {
+        const usersToNotify = await User.find({
+          _id: { $in: Array.from(uniqueUserIds) },
+        }).select("email name");
+
+        const subject = isUpdate
+          ? `تعديل في جدول ورديات شهر ${month}/${year}`
+          : `نشر جدول ورديات شهر ${month}/${year}`;
+
+        const message = isUpdate
+          ? `عزيزي الموظف،\n\nتم إجراء تعديلات على جدول وردياتك لشهر ${month}/${year}. برجاء مراجعة النظام لمعرفة مواعيدك الجديدة.`
+          : `عزيزي الموظف،\n\nتم اعتماد ونشر جدول الورديات لشهر ${month}/${year}. يمكنك الآن الدخول للنظام لمعرفة أيام عملك.`;
+
+        usersToNotify.forEach((user) => {
+          if (user.email) {
+            sendEmail(user.email, subject, message).catch((err) =>
+              console.error(`فشل إرسال الإيميل لـ ${user.email}:`, err),
+            );
           }
         });
       }
-
-      const usersToNotify = await User.find({
-        _id: { $in: Array.from(uniqueUserIds) },
-      }).select("email name");
-
-      const subject = isUpdate
-        ? `تعديل في جدول ورديات شهر ${month}/${year}`
-        : `نشر جدول ورديات شهر ${month}/${year}`;
-
-      const message = isUpdate
-        ? `عزيزي الموظف،\n\nتم إجراء تعديلات على جدول وردياتك لشهر ${month}/${year}. برجاء مراجعة النظام لمعرفة مواعيدك الجديدة.`
-        : `عزيزي الموظف،\n\nتم اعتماد ونشر جدول الورديات لشهر ${month}/${year}. يمكنك الآن الدخول للنظام لمعرفة أيام عملك.`;
-
-      usersToNotify.forEach((user) => {
-        if (user.email) {
-          sendEmail(user.email, subject, message).catch((err) =>
-            console.error(`فشل إرسال الإيميل لـ ${user.email}:`, err),
-          );
-        }
-      });
     }
 
     return res.status(200).json({
