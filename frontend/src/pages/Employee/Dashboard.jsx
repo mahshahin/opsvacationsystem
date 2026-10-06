@@ -84,13 +84,17 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const UserTooltip = ({ user, isMember = false }) => {
+const UserTooltip = ({ user, isMember = false, isNext = false }) => {
   if (!user) return null;
+  
+  const pingColor = isNext ? "bg-orange-400" : "bg-green-400";
+  const dotColor = isNext ? "bg-orange-500" : "bg-green-500";
+  
   return (
     <div className={`group relative flex items-center gap-1.5 cursor-pointer ${isMember ? 'rounded-lg bg-blue-100/50 px-2.5 py-1 text-sm font-medium text-blue-700 border border-blue-200' : ''}`}>
       <span className="relative flex h-2 w-2 shrink-0">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${pingColor} opacity-75`}></span>
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${dotColor}`}></span>
       </span>
       <span className={isMember ? "" : "text-base font-bold text-gray-800"}>
         {user.name}
@@ -447,14 +451,14 @@ const Dashboard = () => {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 opacity-90">
                   <div className="rounded-xl bg-gray-50/50 p-3 shadow-sm border border-gray-100 flex flex-col gap-1 overflow-visible">
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">رئيس النوبة القادم</span>
-                    <UserTooltip user={currentShiftData.nextShift.leader} />
+                    <UserTooltip user={currentShiftData.nextShift.leader} isNext={true} />
                   </div>
                   <div className="rounded-xl bg-gray-50/50 p-3 shadow-sm border border-gray-100 flex flex-col gap-1 overflow-visible">
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">أعضاء النوبة القادمة</span>
                     {currentShiftData.nextShift.members && currentShiftData.nextShift.members.length > 0 ? (
                       <div className="flex flex-wrap gap-2 mt-1">
                         {currentShiftData.nextShift.members.map((member, i) => (
-                          <UserTooltip key={i} user={member} isMember={true} />
+                          <UserTooltip key={i} user={member} isMember={true} isNext={true} />
                         ))}
                       </div>
                     ) : (
