@@ -787,16 +787,30 @@ exports.getCurrentShift = async (req, res) => {
     const User = require("../models/User");
 
     const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
+    
+    // Force Egypt timezone (Africa/Cairo)
+    const options = { timeZone: "Africa/Cairo", hour: "numeric", minute: "numeric", hour12: false };
+    const formatter = new Intl.DateTimeFormat("en-US", options);
+    const parts = formatter.formatToParts(now);
+    const hours = parseInt(parts.find(p => p.type === "hour").value, 10);
+    const minutes = parseInt(parts.find(p => p.type === "minute").value, 10);
+
     const timeNum = hours + minutes / 60; 
 
-    let targetDate = new Date(now);
+    // We still use 'now' for the date logic, but we should also ensure targetDate is based on Cairo time
+    const dateOptions = { timeZone: "Africa/Cairo", year: "numeric", month: "numeric", day: "numeric" };
+    const dateFormatter = new Intl.DateTimeFormat("en-US", dateOptions);
+    const dateParts = dateFormatter.formatToParts(now);
+    const yearPart = parseInt(dateParts.find(p => p.type === "year").value, 10);
+    const monthPart = parseInt(dateParts.find(p => p.type === "month").value, 10) - 1; // 0-indexed for Date
+    const dayPart = parseInt(dateParts.find(p => p.type === "day").value, 10);
+
+    let targetDate = new Date(yearPart, monthPart, dayPart);
     let shiftKey = "";
     let shiftTitle = "";
     let nextShiftKey = "";
     let nextShiftTitle = "";
-    let nextTargetDate = new Date(now);
+    let nextTargetDate = new Date(yearPart, monthPart, dayPart);
 
     if (timeNum >= 6.5 && timeNum < 14.5) {
       shiftKey = "shift1";
