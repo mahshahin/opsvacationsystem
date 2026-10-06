@@ -780,3 +780,135 @@ exports.fillEmptyRoster = async (req, res) => {
     return res.status(500).json({ success: false, message: "حدث خطأ أثناء تعبئة الفراغات" });
   }
 };
+
+exports.getCurrentShift = async (req, res) => {
+  try {
+    const Roster = require("../models/Roster");
+    const User = require("../models/User");
+
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const timeNum = hours + minutes / 60; 
+
+    let targetDate = new Date(now);
+    let shiftKey = "";
+    let shiftTitle = "";
+    let nextShiftKey = "";
+    let nextShiftTitle = "";
+    let nextTargetDate = new Date(now);
+
+    if (timeNum >= 6.5 && timeNum < 14.5) {
+      shiftKey = "shift1";
+      shiftTitle = "الوردية الأولى (06:30 إلى 14:30)";
+      nextShiftKey = "shift2";
+      nextShiftTitle = "الوردية الثانية (14:30 إلى 22:30)";
+    } else if (timeNum >= 14.5 && timeNum < 22.5) {
+      shiftKey = "shift2";
+      shiftTitle = "الوردية الثانية (14:30 إلى 22:30)";
+      nextShiftKey = "shift3";
+      nextShiftTitle = "الوردية الثالثة (22:30 إلى 06:30)";
+    } else {
+      shiftKey = "shift3";
+      shiftTitle = "الوردية الثالثة (22:30 إلى 06:30)";
+      nextShiftKey = "shift1";
+      nextShiftTitle = "الوردية الأولى (06:30 إلى 14:30)";
+      if (timeNum < 6.5) {
+        targetDate.setDate(targetDate.getDate() - 1);
+      } else {
+        nextTargetDate.setDate(nextTargetDate.getDate() + 1);
+      }
+    }
+
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth() + 1;
+    const day = targetDate.getDate();
+
+    const nextYear = nextTargetDate.getFullYear();
+    const nextMonth = nextTargetDate.getMonth() + 1;
+    const nextDay = nextTargetDate.getDate();
+
+    const roster = await Roster.findOne({ year, month, status: "published" });
+    const nextRoster = (year === nextYear && month === nextMonth) ? roster : await Roster.findOne({ year: nextYear, month: nextMonth, status: "published" });
+
+    if (!roster || !roster.details) {
+      return res.status(200).json({ success: true, data: null, message: "لا يوجد جدول معتمد حاليا" });
+    }
+
+    const dayData = roster.details instanceof Map ? roster.details.get(String(day)) : roster.details[day];
+    const nextDayData = nextRoster && nextRoster.details ? (nextRoster.details instanceof Map ? nextRoster.details.get(String(nextDay)) : nextRoster.details[nextDay]) : null;
+    
+    if (!dayData || !dayData[shiftKey]) {
+      return res.status(200).json({ success: true, data: null, message: "لا توجد بيانات للنوبة الحالية" });
+    }
+
+    const shiftData = dayData[shiftKey];
+    const nextShiftData = nextDayData ? nextDayData[nextShiftKey] : null;
+
+    const userIdsToFetch = new Set();
+    
+    if (shiftData.leader) userIdsToFetch.add(shiftData.leader.toString());
+    if (Array.isArray(shiftData.members)) {
+      shiftData.members.forEach(m => { if (m) userIdsToFetch.add(m.toString()); });
+    }
+
+    if (nextShiftData) {
+      if (nextShiftData.leader) userIdsToFetch.add(nextShiftData.leader.toString());
+      if (Array.isArray(nextShiftData.members)) {
+        nextShiftData.members.forEach(m => { if (m) userIdsToFetch.add(m.toString()); });
+      }
+    }
+
+    const users = await User.find({ _id: { $in: Array.from(userIdsToFetch) } }).select("name email phone employeeCode");
+    const userMap = {};
+    users.forEach(u => { 
+      userMap[u._id.toString()] = {
+        name: u.name,
+        email: u.email || "",
+        phone: u.phone || "",
+        employeeCode: u.employeeCode || ""
+      }; 
+    });
+
+    const defaultUser = { name: "غير محدد", email: "", phone: "", employeeCode: "" };
+
+    const leaderObj = shiftData.leader && userMap[shiftData.leader.toString()] 
+      ? userMap[shiftData.leader.toString()] 
+      : defaultUser;
+
+    const memberObjs = Array.isArray(shiftData.members) 
+      ? shiftData.members.map(m => m && userMap[m.toString()] ? userMap[m.toString()] : null).filter(Boolean) 
+      : [];
+
+    let nextLeaderObj = defaultUser;
+    let nextMemberObjs = [];
+    
+    if (nextShiftData) {
+      nextLeaderObj = nextShiftData.leader && userMap[nextShiftData.leader.toString()] 
+        ? userMap[nextShiftData.leader.toString()] 
+        : defaultUser;
+        
+      nextMemberObjs = Array.isArray(nextShiftData.members) 
+        ? nextShiftData.members.map(m => m && userMap[m.toString()] ? userMap[m.toString()] : null).filter(Boolean) 
+        : [];
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        shiftName: shiftTitle,
+        leader: leaderObj,
+        members: memberObjs,
+        nextShift: {
+          shiftName: nextShiftTitle,
+          leader: nextLeaderObj,
+          members: nextMemberObjs
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Error in getCurrentShift:", error);
+    res.status(500).json({ success: false, message: "حدث خطأ أثناء جلب بيانات النوبة الحالية" });
+  }
+};

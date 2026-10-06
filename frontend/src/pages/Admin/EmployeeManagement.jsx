@@ -27,6 +27,7 @@ const EmployeeManagement = () => {
   const [newEmp, setNewEmp] = useState({
     employeeCode: "",
     name: "",
+    phone: "",
     jobGrade: "درجة ثالثة",
     workType: "شيفت",
     role: "employee",
@@ -35,6 +36,7 @@ const EmployeeManagement = () => {
   const [editingId, setEditingId] = useState(null);
   const [editFormData, setEditFormData] = useState({
     name: "",
+    phone: "",
     jobGrade: "",
     workType: "",
     role: "",
@@ -130,6 +132,7 @@ const EmployeeManagement = () => {
         setNewEmp({
           employeeCode: "",
           name: "",
+          phone: "",
           jobGrade: "درجة ثالثة",
           workType: "شيفت",
           role: "employee",
@@ -150,6 +153,7 @@ const EmployeeManagement = () => {
     setEditingId(emp._id);
     setEditFormData({
       name: emp.name,
+      phone: emp.phone || "",
       jobGrade: emp.jobGrade,
       workType: emp.workType,
       role: emp.role,
@@ -425,7 +429,7 @@ const EmployeeManagement = () => {
             <h3 className="text-lg font-bold text-gray-800">إضافة جديد</h3>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
             <input
               placeholder={
                 newEmp.role === "admin"
@@ -448,6 +452,14 @@ const EmployeeManagement = () => {
               className="rounded-xl border p-3 outline-none transition focus:ring-2 focus:ring-blue-500"
               onChange={(e) => setNewEmp({ ...newEmp, name: e.target.value })}
               required
+            />
+
+            <input
+              placeholder="رقم التليفون (اختياري)"
+              value={newEmp.phone}
+              className="rounded-xl border p-3 outline-none transition focus:ring-2 focus:ring-blue-500 text-left"
+              dir="ltr"
+              onChange={(e) => setNewEmp({ ...newEmp, phone: e.target.value })}
             />
 
             <select
@@ -572,6 +584,31 @@ const EmployeeManagement = () => {
                       )}
                     </div>
 
+                    <div className="mb-3 rounded-xl bg-gray-50 p-3">
+                      <div className="text-xs font-bold text-gray-500 mb-1">
+                        رقم التليفون
+                      </div>
+
+                      {editingId === emp._id && emp.employeeCode !== GOLDEN_ADMIN_CODE ? (
+                        <input
+                          type="text"
+                          dir="ltr"
+                          value={editFormData.phone}
+                          className="w-full rounded-lg border p-2 outline-none text-left"
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              phone: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        <div className="font-bold text-gray-800" dir="ltr">
+                          {emp.phone || "—"}
+                        </div>
+                      )}
+                    </div>
+
                     {emp.employeeCode === GOLDEN_ADMIN_CODE ? (
                       <div className="inline-flex items-center gap-1 rounded-lg border border-yellow-200 bg-yellow-100 px-3 py-2 text-xs font-bold text-yellow-700">
                         👑 أدمن ذهبي محمي
@@ -641,6 +678,7 @@ const EmployeeManagement = () => {
                   <tr>
                     <th className="p-4 whitespace-nowrap">اسم المستخدم</th>
                     <th className="p-4 whitespace-nowrap">الاسم بالكامل</th>
+                    <th className="p-4 whitespace-nowrap">رقم التليفون</th>
                     <th className="p-4 text-center whitespace-nowrap">
                       الصلاحية بالنظام
                     </th>
@@ -690,6 +728,26 @@ const EmployeeManagement = () => {
                           ) : (
                             <span className="font-bold text-gray-800">
                               {emp.name}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="p-4 whitespace-nowrap" dir="ltr">
+                          {editingId === emp._id && emp.employeeCode !== GOLDEN_ADMIN_CODE ? (
+                            <input
+                              type="text"
+                              value={editFormData.phone}
+                              className="p-1.5 border rounded w-full text-left"
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  phone: e.target.value,
+                                })
+                              }
+                            />
+                          ) : (
+                            <span className="text-gray-800">
+                              {emp.phone || "—"}
                             </span>
                           )}
                         </td>
@@ -839,6 +897,31 @@ const EmployeeManagement = () => {
                       )}
                     </div>
 
+                    <div className="mb-3 rounded-xl bg-gray-50 p-3">
+                      <div className="text-xs font-bold text-gray-500 mb-1">
+                        رقم التليفون
+                      </div>
+
+                      {editingId === emp._id ? (
+                        <input
+                          type="text"
+                          dir="ltr"
+                          value={editFormData.phone}
+                          className="w-full rounded-lg border p-2 outline-none text-left"
+                          onChange={(e) =>
+                            setEditFormData({
+                              ...editFormData,
+                              phone: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        <div className="font-bold text-gray-800" dir="ltr">
+                          {emp.phone || "—"}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="rounded-xl bg-gray-50 p-3">
                         <div className="text-xs font-bold text-gray-500 mb-1">
@@ -964,6 +1047,7 @@ const EmployeeManagement = () => {
                   <tr>
                     <th className="p-4 whitespace-nowrap">الكود</th>
                     <th className="p-4 whitespace-nowrap">الاسم بالكامل</th>
+                    <th className="p-4 whitespace-nowrap">رقم التليفون</th>
                     <th className="p-4 text-center whitespace-nowrap">
                       الدرجة
                     </th>
@@ -1012,6 +1096,26 @@ const EmployeeManagement = () => {
                           ) : (
                             <span className="font-bold text-gray-800">
                               {emp.name}
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="p-4 whitespace-nowrap" dir="ltr">
+                          {editingId === emp._id ? (
+                            <input
+                              type="text"
+                              value={editFormData.phone}
+                              className="p-1.5 border rounded w-full text-left"
+                              onChange={(e) =>
+                                setEditFormData({
+                                  ...editFormData,
+                                  phone: e.target.value,
+                                })
+                              }
+                            />
+                          ) : (
+                            <span className="text-gray-800">
+                              {emp.phone || "—"}
                             </span>
                           )}
                         </td>

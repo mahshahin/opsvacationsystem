@@ -23,6 +23,9 @@ const userSchema = new mongoose.Schema(
     // البريد الإلكتروني
     email: { type: String, default: "" },
 
+    // رقم التليفون
+    phone: { type: String, default: "" },
+
     jobGrade: {
       type: String,
       required: true,

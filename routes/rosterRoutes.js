@@ -20,4 +20,6 @@ router.post("/auto-generate", rosterController.generateAutoRoster);
 // مسار تعبئة الفراغات في الروستر
 router.post("/fill-empty", rosterController.fillEmptyRoster);
 
+router.get("/current-shift", rosterController.getCurrentShift);
+
 module.exports = router;

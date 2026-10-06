@@ -188,6 +188,7 @@ exports.addEmployee = async (req, res) => {
       workType,
       compensationBalance,
       annualLeaveQuota,
+      phone,
     } = req.body;
 
     if (!employeeCode || !name) {
@@ -232,6 +233,7 @@ exports.addEmployee = async (req, res) => {
     const newEmployee = new User({
       employeeCode,
       name,
+      phone: phone || "",
       role: role || "employee",
       jobGrade: userJobGrade,
       workType: userWorkType,
@@ -669,7 +671,7 @@ exports.sendEmployeeMessage = async (req, res) => {
 exports.updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, jobGrade, workType, role } = req.body;
+    const { name, jobGrade, workType, role, phone } = req.body;
 
     const user = await User.findById(id);
 
@@ -688,6 +690,9 @@ exports.updateEmployee = async (req, res) => {
 
     user.name = name || user.name;
     user.role = role || user.role;
+    if (phone !== undefined) {
+      user.phone = phone;
+    }
 
     if (user.role === "admin") {
       user.jobGrade = undefined;

@@ -84,6 +84,31 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const UserTooltip = ({ user, isMember = false }) => {
+  if (!user) return null;
+  return (
+    <div className={`group relative flex items-center gap-1.5 cursor-pointer ${isMember ? 'rounded-lg bg-blue-100/50 px-2.5 py-1 text-sm font-medium text-blue-700 border border-blue-200' : ''}`}>
+      <span className="relative flex h-2 w-2 shrink-0">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+      </span>
+      <span className={isMember ? "" : "text-base font-bold text-gray-800"}>
+        {user.name}
+      </span>
+      
+      <div className="absolute bottom-full right-1/2 mb-2 w-max min-w-[12rem] max-w-xs translate-x-1/2 scale-0 rounded-lg bg-gray-800 p-3 text-xs text-white opacity-0 transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 z-[60] shadow-xl pointer-events-none">
+        <p className="font-bold mb-1 border-b border-gray-600 pb-1 text-center">{user.name}</p>
+        <div className="flex flex-col gap-1 mt-2 text-right">
+          <p><span className="text-gray-400">الكود:</span> {user.employeeCode || "غير متوفر"}</p>
+          <p><span className="text-gray-400">تليفون:</span> {user.phone || "غير متوفر"}</p>
+          <p className="break-all"><span className="text-gray-400">ايميل:</span> {user.email || "غير متوفر"}</p>
+        </div>
+        <div className="absolute right-1/2 top-full -mt-1 translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [employee, setEmployee] = useState(null);
@@ -113,6 +138,7 @@ const Dashboard = () => {
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentShiftData, setCurrentShiftData] = useState(null);
 
   /* الساعة الحية */
   useEffect(() => {
@@ -134,10 +160,12 @@ const Dashboard = () => {
           setEmployee(parsed);
           refreshEmployeeBalance(parsed.employeeCode);
           fetchMyRequests(parsed.employeeCode);
+          fetchCurrentShift();
 
           const interval = setInterval(() => {
             refreshEmployeeBalance(parsed.employeeCode);
             fetchMyRequests(parsed.employeeCode);
+            fetchCurrentShift();
           }, 15000);
 
           return () => clearInterval(interval);
@@ -205,6 +233,22 @@ const Dashboard = () => {
       console.error("خطأ في جلب الطلبات", err);
     }
   };
+
+  const fetchCurrentShift = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/roster/current-shift`);
+      const resData = await response.json();
+      if (resData.success && resData.data) {
+        setCurrentShiftData(resData.data);
+      } else {
+        setCurrentShiftData(null);
+      }
+    } catch (err) {
+      console.error("خطأ في جلب النوبة الحالية", err);
+      setCurrentShiftData(null);
+    }
+  };
+
 
   const handleLeaveSubmit = async (e) => {
     e.preventDefault();
@@ -366,6 +410,62 @@ const Dashboard = () => {
             </div>
           </div>
         </header>
+
+        {/* النوبة الحالية */}
+        {currentShiftData && (
+          <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 shadow-sm sm:p-6 transition-all hover:shadow-md">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-blue-800">
+              <Clock size={22} className="text-blue-600 animate-pulse" />
+              النوبة الحالية: {currentShiftData.shiftName}
+            </h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="rounded-xl bg-white p-4 shadow-sm border border-gray-50 flex flex-col gap-1 overflow-visible">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">رئيس النوبة</span>
+                <UserTooltip user={currentShiftData.leader} />
+              </div>
+              <div className="rounded-xl bg-white p-4 shadow-sm border border-gray-50 flex flex-col gap-2 overflow-visible">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">أعضاء النوبة</span>
+                {currentShiftData.members && currentShiftData.members.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {currentShiftData.members.map((member, i) => (
+                      <UserTooltip key={i} user={member} isMember={true} />
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-400">لا يوجد أعضاء</span>
+                )}
+              </div>
+            </div>
+
+            {/* Next Shift Section */}
+            {currentShiftData.nextShift && (
+              <div className="mt-4 pt-4 border-t border-blue-100">
+                <h4 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-1.5">
+                  <Clock size={16} className="text-gray-400" />
+                  النوبة القادمة التي ستستلم العمل: {currentShiftData.nextShift.shiftName}
+                </h4>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 opacity-90">
+                  <div className="rounded-xl bg-gray-50/50 p-3 shadow-sm border border-gray-100 flex flex-col gap-1 overflow-visible">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">رئيس النوبة القادم</span>
+                    <UserTooltip user={currentShiftData.nextShift.leader} />
+                  </div>
+                  <div className="rounded-xl bg-gray-50/50 p-3 shadow-sm border border-gray-100 flex flex-col gap-1 overflow-visible">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">أعضاء النوبة القادمة</span>
+                    {currentShiftData.nextShift.members && currentShiftData.nextShift.members.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {currentShiftData.nextShift.members.map((member, i) => (
+                          <UserTooltip key={i} user={member} isMember={true} />
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">لا يوجد أعضاء</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* كروت الرصيد */}
         <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4 md:gap-6">
